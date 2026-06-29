@@ -1,0 +1,762 @@
+dark, premium, futuristic, controlled, and highly legible
+not “neon cyberpunk,” not “generic SaaS blue,” and not overly glossy.
+
+The internal app already suggests the brand traits well:
+precision, calm power, modernity, control, transformation.
+
+So the website should feel like:
+
+luxury performance tech
+mixed with
+high-end fitness intelligence
+
+Overall design philosophy
+
+The website should sell three feelings at once:
+
+1. Precision
+The visitor should feel this is engineered, not thrown together.
+
+2. Momentum
+The design should imply progress, motion, adaptation, and forward movement.
+
+3. Calm confidence
+Not loud. Not messy. Not aggressively “gym bro.”
+More like: “this system knows exactly what it’s doing.”
+
+So visually, the front end should be:
+
+mostly dark
+high contrast
+minimal but not empty
+subtle teal/cyan illumination
+restrained use of gradients
+very intentional emphasis
+clean typography with lots of breathing room
+1) Font system
+
+You want a pairing that feels premium, sleek, and readable.
+
+Best choice
+Headlines: Space Grotesk
+
+Use for:
+
+hero headlines
+section headers
+feature callouts
+pricing emphasis
+short punchy proof statements
+
+Why:
+
+futuristic without being gimmicky
+geometric and premium
+fits the ALLUR logo style very well
+works beautifully in uppercase and sentence case
+Body text: Inter
+
+Use for:
+
+paragraphs
+bullets
+UI support text
+FAQs
+feature descriptions
+buttons if needed
+
+Why:
+
+extremely readable
+clean on dark backgrounds
+high-performance web font
+balances the more stylized headline font
+Optional premium alternative
+
+If you want it slightly more luxurious and less techy:
+
+Headlines: Sora
+Body: Inter
+
+But for your current logo/app direction, I’d still choose:
+
+Final font recommendation
+
+Space Grotesk + Inter
+
+2) Core website color palette
+
+You should not copy the app colors exactly 1:1.
+You should make the site feel like the brand world around the app.
+
+So use a broader palette:
+
+Foundation colors
+Primary Background
+
+#050816
+Deep midnight navy-black
+
+Use for:
+
+main page background
+hero background
+footer background
+dark sections
+
+This feels richer than flat black and matches the logo environment.
+
+Secondary Background
+
+#0A0F1F
+Use for:
+
+alternating sections
+content bands
+darker cards behind testimonials or FAQs
+Card / Surface
+
+#111827
+Use for:
+
+feature cards
+pricing cards
+FAQ containers
+content panels
+
+This connects well with the app mockup tone.
+
+Elevated Surface
+
+#161F33
+Use for:
+
+hover states
+highlighted feature blocks
+comparison cards
+active tab backgrounds
+Brand accent colors
+Primary Accent
+
+#6EE7F2
+Bright aqua-cyan
+
+Use for:
+
+primary buttons
+key highlighted words
+links
+active icons
+important stat lines
+glow accents
+
+This should be the main “energy” color.
+
+Secondary Accent
+
+#2DD4BF
+Teal-green accent
+
+Use for:
+
+supportive glow
+secondary highlights
+positive progress states
+chart lines
+subtle gradients
+Deep Accent
+
+#0EA5C6
+Use for:
+
+button hover states
+underline accents
+separators
+active UI borders
+Text colors
+Primary Headline Text
+
+#F8FAFC
+Use for:
+
+hero headline
+major section headlines
+high-priority labels
+Primary Body Text
+
+#CBD5E1
+Use for:
+
+paragraphs
+descriptions
+supporting copy
+Muted Text
+
+#94A3B8
+Use for:
+
+secondary labels
+captions
+subcopy
+less important notes
+Soft Divider / Border
+
+#243046
+Use for:
+
+card borders
+section dividers
+subtle line separators
+Semantic colors
+Success
+
+#34D399
+
+Warning
+
+#F59E0B
+
+Error
+
+#F87171
+
+These should be used sparingly.
+The website should mostly live in the dark navy / cyan / teal world.
+
+3) Background flow across the website
+
+This matters a lot.
+
+Do not make the whole site the same flat dark color.
+That kills depth and makes long-form pages feel dead.
+
+Use a section rhythm.
+
+Recommended background flow
+Hero section
+
+Background:
+
+#050816 base
+subtle radial gradient behind headline/device mockup
+faint cyan glow or ring-inspired halo behind product visual
+
+Suggested gradient:
+
+center glow: rgba(110, 231, 242, 0.16)
+fade into transparent over deep navy
+
+This ties directly into the logo.
+
+Problem/agitation section
+
+Background:
+
+#0A0F1F
+flatter, darker, calmer
+less glow
+more text-focused
+
+This lets the copy feel serious and readable.
+
+Solution/mechanism section
+
+Background:
+
+back to #050816
+with faint vertical gradient lines or soft noise texture
+
+This is where the product feels intelligent and active.
+
+Feature cards section
+
+Background:
+
+#0B1120
+cards in #111827
+card hover in #161F33
+Testimonials/social proof
+
+Background:
+
+#08111F
+slightly softer and calmer
+use subtle teal top-border accents or soft inner glows on quote cards
+Pricing / CTA section
+
+Background:
+
+darkest and cleanest
+#04070F
+strong contrast
+bright CTA button
+slight cyan spotlight behind CTA container
+Footer
+
+Background:
+
+#03060D
+very dark
+muted text
+minimal accent use
+4) Exact text styling rules
+Headlines
+
+Color:
+#F8FAFC
+
+Font:
+Space Grotesk
+
+Weights:
+
+Hero H1: 700
+Section H2: 600–700
+Small headers: 600
+
+Tracking:
+
+Slightly tighter for large headlines
+Slightly wider for uppercase labels
+
+Use headlines in:
+
+sentence case for modern premium feel
+all caps only for micro-labels, not full main headers
+Good headline style
+
+“Stop Guessing Your Way to a Better Body”
+
+Avoid
+
+“STOP GUESSING YOUR WAY TO A BETTER BODY”
+
+That becomes too aggressive and less premium.
+
+Body copy
+
+Color:
+#CBD5E1
+
+Font:
+Inter
+
+Weight:
+
+400 regular
+500 for stronger body emphasis
+
+Line height:
+
+1.6 to 1.75
+
+Max width:
+
+620–720px for readability on desktop
+Subheads / kicker labels
+
+Color:
+#6EE7F2
+
+Examples:
+
+ADAPTIVE COACHING
+BUILT FOR REAL LIFE
+WHY ALLUR WORKS
+
+Use:
+
+small uppercase
+0.08em to 0.12em letter spacing
+medium weight
+
+This gives structure without needing too many lines or boxes.
+
+5) CTA button design
+Primary CTA
+
+Background:
+linear-gradient(135deg, #6EE7F2 0%, #2DD4BF 100%)
+
+Text:
+#04111A
+
+Font:
+Inter 600
+
+Style:
+
+rounded 14px to 16px
+subtle glow shadow
+large padding
+no hard glossy effect
+
+Hover:
+
+slightly brighter
+elevate with soft cyan shadow
+maybe 1–2px upward motion
+
+Use primary CTA for:
+
+hero
+mid-page
+final CTA
+pricing
+Secondary CTA
+
+Background:
+transparent
+
+Border:
+1px solid #243046
+
+Text:
+#F8FAFC
+
+Hover:
+
+background #111827
+border shifts toward #6EE7F2
+6) Card design rules
+
+Cards should feel like glass-metal fitness tech.
+
+Card background
+
+rgba(17, 24, 39, 0.88)
+
+Border
+
+1px solid rgba(110, 231, 242, 0.10)
+
+Shadow
+
+Very soft, not heavy:
+
+dark outer shadow
+faint cyan ambient glow only on highlighted cards
+Radius
+
+16px to 20px
+
+Hover
+raise slightly
+background shifts a touch brighter
+border gets more cyan
+optional tiny inner glow
+
+Do not overdo blur/glassmorphism.
+Too much blur makes it feel trendy instead of premium.
+
+7) Where to use accent color for maximum effect
+
+The biggest mistake would be using cyan everywhere.
+
+It should be used like a spotlight.
+
+Use the accent color on:
+the kicker text above major sections
+one key phrase inside the H1
+active nav item
+CTA buttons
+checkmarks/icons
+important stats
+select underlines
+hover states
+selected pricing tier
+chart lines / proof visuals
+thin section dividers or progress bars
+Do not use the accent color on:
+full paragraphs
+long blocks of text
+too many headlines
+every icon on the page
+all links and all buttons equally
+
+You want the eye to know what matters immediately.
+
+8) Copy emphasis system: bold, underline, highlight
+
+This is where the page will either feel sharp or messy.
+
+Use bold for:
+outcome phrases
+contrast phrases
+mechanism phrases
+emotional turning points
+
+Examples:
+
+personalized training and nutrition system
+adapts when life changes
+not another passive tracker
+built for the reasons people usually quit
+Use underline for:
+only highly strategic phrases
+usually 1 per major section
+mechanism claims or emotional re-frames
+
+Best use cases:
+
+“It protects momentum.”
+“You do not need more information.”
+“The goal is making progress easier to sustain.”
+
+Underline style:
+
+not default browser underline
+use a custom soft cyan underline or animated brush line
+2px to 3px thickness
+slightly offset below text
+Use accent highlight color for:
+short phrases inside headlines
+numbers
+one pivotal benefit in a paragraph
+product name mentions
+callout proof
+
+Examples:
+
+build your ideal body faster
+adapts in real time
+helps you stay consistent without needing to be perfect
+Best emphasis rule
+
+In any block of copy:
+
+bold 1–2 ideas
+accent-highlight 1 idea
+underline 0–1 idea
+
+Never do all three on the same phrase.
+
+9) Section-by-section attention guidance
+
+Here’s exactly how I’d style emphasis across the landing page.
+
+Hero section
+
+Headline:
+
+main text in #F8FAFC
+one phrase in #6EE7F2
+one phrase bold if needed
+
+Example:
+Stop Guessing Your Way to a Better Body
+with a personalized system that adapts in real time
+
+Subhead:
+
+body text in #CBD5E1
+bold the pain-to-solution contrast
+
+CTA:
+
+bright cyan/teal gradient
+strongest visual object in the hero after headline
+
+Hero trust line:
+
+muted text #94A3B8
+highlight 1 proof phrase in #F8FAFC
+Problem section
+
+Use less glow here.
+
+Bold:
+
+fragmented
+inconsistent
+guessing
+restart
+
+Underline:
+
+“the path is fragmented”
+
+This section should feel more restrained and text-heavy to build tension.
+
+Solution/mechanism section
+
+This is where you bring back light.
+
+Highlight phrases like:
+
+removes decision fatigue
+removes manual friction
+adapts to reality
+protects momentum
+
+Each mechanism can use:
+
+small cyan icon
+white headline
+muted description text
+Features section
+
+Each feature card:
+
+title in white
+short benefit in muted text
+one keyword in cyan
+
+Example:
+AI Coach
+Get answers, request changes, and update your plan when life changes.
+
+Objections section
+
+Use accordion cards.
+
+Question text:
+#F8FAFC
+
+Answer text:
+#CBD5E1
+
+Highlight inside answer:
+
+one re-frame phrase in cyan or bold
+
+Example:
+Most apps just track what happened.
+ALLUR helps shape what happens next.
+
+Final CTA
+
+This should be the cleanest and highest-contrast section on the page.
+
+Headline:
+white, large, dramatic
+
+Highlight:
+one key promise in cyan
+
+Subhead:
+muted body text
+
+CTA:
+largest button on page
+
+Optional glow ring behind CTA container to echo logo.
+
+10) Visual motifs to reuse
+
+To make the site feel consistent with the logo and app, reuse these motifs:
+
+A. Circular glow / halo ring
+
+Inspired by the logo ring.
+
+Use in:
+
+hero background
+CTA section
+behind device mockups
+subtle decorative separators
+
+Color:
+cyan to teal glow, very faint
+
+B. Thin line dividers
+
+Use soft cool-gray-blue dividers, not bright white.
+
+C. Progress / performance cues
+
+Use:
+
+thin upward chart strokes
+subtle gradient bars
+ring progress visuals
+small data cards
+
+This reinforces the product promise.
+
+D. Soft light bloom
+
+A faint cyan bloom behind key sections or screenshots.
+
+Do not use loud neon beams or sci-fi effects.
+
+11) Accessibility and readability rules
+
+To make it flawless and easy to read:
+
+Always keep:
+white text only on dark backgrounds
+muted text no lighter than needed
+no small gray text on black
+no cyan text for long paragraphs
+no thin fonts for body copy
+no busy image backgrounds behind paragraphs
+Minimum practical standards:
+body text 18px desktop, 16px mobile minimum
+button text at least 16px
+paragraph max width around 70 characters
+section spacing generous
+line height 1.6+
+avoid low-opacity body copy below readability threshold
+Best contrast pairings:
+#F8FAFC on #050816
+#CBD5E1 on #0A0F1F
+#6EE7F2 only for short emphasis, not full paragraphs
+#111827 with white text for cards
+12) My exact recommended website palette
+
+Here’s the clean final set:
+
+Neutrals
+#050816 — main background
+#0A0F1F — alternate section background
+#111827 — card background
+#161F33 — elevated card / hover
+#243046 — borders/dividers
+Text
+#F8FAFC — primary headline text
+#CBD5E1 — body text
+#94A3B8 — muted support text
+Brand accents
+#6EE7F2 — primary cyan highlight
+#2DD4BF — teal support accent
+#0EA5C6 — deeper interactive accent
+Semantic
+#34D399 — success
+#F59E0B — warning
+#F87171 — error
+13) The simplest flawless style stack
+
+If you want the cleanest possible direction, do this:
+
+Fonts
+Space Grotesk for headlines
+Inter for body
+Backgrounds
+deep midnight navy-black base
+slightly lighter alternating sections
+dark steel-blue cards
+very subtle cyan radial glows
+Text
+white for headlines
+soft slate for body
+muted slate for support text
+Emphasis
+cyan only for key phrases, active states, and CTA
+bold for core benefits
+underline only for 1 key phrase per section
+Mood
+premium
+calm
+precise
+futuristic
+readable
+conversion-focused
+14) Prompt for designers / devs
+
+Here’s a clean prompt you can hand to a designer or front-end dev:
+
+Design a premium dark-mode landing page for ALLUR, an AI-powered body transformation app. The visual style should feel modern, sleek, intelligent, and performance-driven. Use a deep midnight navy-black background with subtle cyan/teal illumination inspired by the ALLUR logo ring. Typography should pair Space Grotesk for headlines with Inter for body text. Headlines should be bright white, body text soft slate, and accent color used sparingly in aqua-cyan for key phrases, CTAs, active states, and performance visuals. Use dark elevated cards with soft borders and minimal glow. The design should prioritize readability, high contrast, and a calm premium feel — not loud neon cyberpunk. Emphasize key copy through selective bolding, occasional cyan highlight, and one custom underline on the most important phrase per section. The entire page should feel like luxury fitness technology: precise, adaptive, and effortless to follow.
+
+If you want, I can next turn this into a full section-by-section wireframe with exact color usage for each block, or a complete Tailwind design system with reusable classes and tokens.

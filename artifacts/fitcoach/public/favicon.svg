@@ -1,0 +1,11 @@
+<svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="180" height="180" rx="40" fill="#0A0A0A"/>
+  <defs>
+    <linearGradient id="allur-ring" x1="40" y1="40" x2="140" y2="150" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5BE0E6"/>
+      <stop offset="0.5" stop-color="#2FB8C6"/>
+      <stop offset="1" stop-color="#C7CDD4"/>
+    </linearGradient>
+  </defs>
+  <circle cx="90" cy="92" r="48" stroke="url(#allur-ring)" stroke-width="6" stroke-linecap="round" stroke-dasharray="250 60" transform="rotate(-60 90 92)"/>
+</svg>

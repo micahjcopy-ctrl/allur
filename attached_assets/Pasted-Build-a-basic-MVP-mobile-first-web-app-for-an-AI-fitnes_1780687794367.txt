@@ -1,0 +1,242 @@
+Build a basic MVP mobile-first web app for an AI fitness transformation coach.
+
+Core concept:
+This app is not just a calorie tracker. It helps users transform their body using progress photos, voice notes, goal selection, and AI-generated training plans.
+
+Tech:
+Use a simple, clean, scalable stack. Prioritize speed and functionality over complexity. Make it responsive for mobile first.
+
+Brand feel:
+Modern, premium, fitness-tech, clean, dark mode preferred. Think Cal AI meets Strava meets a high-end personal training app.
+
+Main MVP features:
+
+1. Onboarding Flow
+
+Create a simple onboarding sequence with these steps:
+
+Step 1: Basic info
+Fields:
+- Name
+- Age
+- Height
+- Current weight
+- Gender
+- Training experience: Beginner, Intermediate, Advanced
+
+Step 2: Goal selection
+User chooses one primary goal:
+- Weight Loss
+- Muscle Gain
+- Strength
+- Athleticism
+
+Step 3: Upload progress photos
+Allow upload placeholders for:
+- Front photo
+- Side photo
+- Back photo
+
+For now, no real AI photo analysis is required. Store/display uploaded images and show a placeholder result:
+"Estimated body composition analysis will appear here."
+
+Step 4: Voice note intake
+Create a voice note section where the user can record or upload a short voice note.
+
+Also include a text fallback:
+"Tell us your goal, timeline, workout experience, injuries, equipment, and what you want to focus on."
+
+For MVP, if true voice recording is too complex, create a fake record button and a text box. The button should visually look functional but can store placeholder text.
+
+Step 5: Generate Plan
+After onboarding, generate a simple placeholder AI plan based on the selected goal.
+
+Example:
+If Weight Loss:
+- 4-day training split
+- 3 cardio sessions
+- weekly progress photo reminder
+- calorie-focused note
+
+If Muscle Gain:
+- 5-day hypertrophy split
+- progressive overload note
+- weekly weight tracking
+
+If Strength:
+- 4-day strength split
+- main lifts tracking
+- PR tracking
+
+If Athleticism:
+- 4-day hybrid split
+- sprint/agility/jump work
+- mobility and conditioning
+
+2. Main Dashboard
+
+Create a dashboard with these sections:
+
+- Current goal
+- Current weight
+- Estimated body fat placeholder
+- This week's training plan
+- Progress photo upload button
+- Voice coach button
+- Credits remaining
+- Upgrade button
+
+Credit system:
+Base plan includes:
+- 4 progress photo uploads per month
+- 4 AI coaching requests per month
+- 1 body composition analysis per month
+
+Show a simple credit card:
+"3 coaching credits left"
+"4 photo uploads left"
+"1 body scan left"
+
+No payment integration yet. Just display credits.
+
+3. Training Plan Page
+
+Create a training plan page showing the user's weekly workout plan.
+
+Each workout should include:
+- Day name
+- Workout title
+- Exercises
+- Sets
+- Reps
+- Rest time
+- Notes
+
+Add a button:
+"Request AI Adjustment"
+
+When clicked, open a modal with:
+- Text box
+- Optional voice note placeholder
+- Submit button
+
+After submit, deduct 1 coaching credit and show:
+"Your updated plan request has been received."
+
+4. Progress Page
+
+Create a progress tracking page with:
+
+- Progress photo timeline
+- Weight log
+- Body fat estimate placeholder
+- PR tracker
+
+PR tracker fields:
+- Exercise
+- Weight
+- Reps
+- Date
+
+Allow users to add a PR manually.
+
+5. Voice Coach Page
+
+Create a page where users can submit a voice note or text request.
+
+Prompt examples displayed:
+- "I want to focus more on arms this week."
+- "My shoulder hurts during bench press."
+- "I only have 30 minutes today."
+- "I want to lose fat faster."
+- "How should I increase weight next week?"
+
+For MVP:
+- User submits text
+- Deduct 1 coaching credit
+- Display placeholder AI response based on their goal
+
+6. Account / Subscription Page
+
+Create a basic account page.
+
+Show:
+
+Base Plan:
+- $14.99/month
+- 4 coaching credits/month
+- 4 photo uploads/month
+- 1 body scan/month
+- Basic workout plan
+- Progress tracking
+
+Premium Plan:
+- Unlimited coaching requests
+- Unlimited photo uploads
+- Unlimited body scans
+- Advanced training protocols
+- Social progress feed
+- Friend system
+- Community groups
+
+Add buttons:
+- Current Plan
+- Upgrade to Premium
+
+No real billing yet. Just UI.
+
+7. Navigation
+
+Mobile bottom nav with:
+
+- Dashboard
+- Plan
+- Progress
+- Coach
+- Account
+
+8. Data Handling
+
+Use mock/local state for now.
+
+Store:
+- User profile
+- Selected goal
+- Uploaded photo previews
+- Credits remaining
+- Workout plan
+- PRs
+- Weight logs
+- Coach requests
+
+No backend required for the first version unless easy to add.
+
+9. Design Requirements
+
+Use:
+- Dark background
+- White text
+- Electric blue or neon green accent
+- Rounded cards
+- Smooth transitions
+- Large readable mobile UI
+- Premium fitness app feel
+
+Avoid clutter. Make it feel simple and addictive.
+
+10. Important MVP Rule
+
+Do not build the social feed, influencer courses, referrals, or real AI yet.
+
+Only create the structure, UI, and simulated flows so we can test the user experience.
+
+Final deliverable:
+A working clickable MVP where a user can:
+- Complete onboarding
+- Select a goal
+- Upload progress photos
+- Submit a goal/intake note
+- See a generated workout plan
+- Track PRs
+- Use coaching credits
+- View subscription options

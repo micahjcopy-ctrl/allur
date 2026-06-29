@@ -1,0 +1,415 @@
+uploads = []
+
+[[generated]]
+id = "dM7mi-1zP7_LezU_ltIDG"
+uri = "file://artifacts/fitcoach/public/physiques/bodybuilder.png"
+type = "image"
+title = "bodybuilder physique"
+
+[[generated]]
+id = "WaN8GfRylr0LVc8KLcVRm"
+uri = "file://artifacts/fitcoach/public/physiques/athletic.png"
+type = "image"
+title = "athletic physique"
+
+[[generated]]
+id = "ZW8uyhqMpS4xDp0njmwCf"
+uri = "file://artifacts/fitcoach/public/physiques/mass.png"
+type = "image"
+title = "mass build physique"
+
+[[generated]]
+id = "ZZS84VGUUIdQ1TtLb0MAA"
+uri = "file://artifacts/fitcoach/public/exercises/overhead-press.png"
+type = "image"
+title = "overhead-press"
+
+[[generated]]
+id = "obWDmj8gpVaytaNCEjpAk"
+uri = "file://artifacts/fitcoach/public/exercises/back-squat.png"
+type = "image"
+title = "back-squat"
+
+[[generated]]
+id = "oJsx_jSwNPVVOO73T3Tqj"
+uri = "file://artifacts/fitcoach/public/exercises/front-squat.png"
+type = "image"
+title = "front-squat"
+
+[[generated]]
+id = "HmfLfOQ--SFtwGxSd9GjX"
+uri = "file://artifacts/fitcoach/public/exercises/deadlift.png"
+type = "image"
+title = "deadlift"
+
+[[generated]]
+id = "kgQQz0TDrx-RNkJes61bV"
+uri = "file://artifacts/fitcoach/public/exercises/romanian-deadlift.png"
+type = "image"
+title = "romanian-deadlift"
+
+[[generated]]
+id = "PfaYoCkcDUVXCkwKyTZWI"
+uri = "file://artifacts/fitcoach/public/exercises/barbell-row.png"
+type = "image"
+title = "barbell-row"
+
+[[generated]]
+id = "mfXNMi-MVbwCwYimdI-LP"
+uri = "file://artifacts/fitcoach/public/exercises/cable-row.png"
+type = "image"
+title = "cable-row"
+
+[[generated]]
+id = "opZvYDzjl91wuAH6nIdu7"
+uri = "file://artifacts/fitcoach/public/exercises/lat-pulldown.png"
+type = "image"
+title = "lat-pulldown"
+
+[[generated]]
+id = "7fkViIRhoUC5Gs742tbhk"
+uri = "file://artifacts/fitcoach/public/exercises/pull-ups.png"
+type = "image"
+title = "pull-ups"
+
+[[generated]]
+id = "EqTgjlroCFcu-sF6OPey7"
+uri = "file://artifacts/fitcoach/public/exercises/incline-fly.png"
+type = "image"
+title = "incline-fly"
+
+[[generated]]
+id = "vJlk1CAjGxtNgUhik61gS"
+uri = "file://artifacts/fitcoach/public/exercises/push-ups.png"
+type = "image"
+title = "push-ups"
+
+[[generated]]
+id = "2CJYFaNhKl4YzbfadL61V"
+uri = "file://artifacts/fitcoach/public/exercises/cable-fly.png"
+type = "image"
+title = "cable-fly"
+
+[[generated]]
+id = "f3LqPaCPF_Q4z5N06_m11"
+uri = "file://artifacts/fitcoach/public/exercises/lateral-raise.png"
+type = "image"
+title = "lateral-raise"
+
+[[generated]]
+id = "XfOQCQnwWNnLAh_jO4FuK"
+uri = "file://artifacts/fitcoach/public/exercises/face-pull.png"
+type = "image"
+title = "face-pull"
+
+[[generated]]
+id = "RRB6AydbI4B_bjMU7uRpy"
+uri = "file://artifacts/fitcoach/public/exercises/rear-delt-fly.png"
+type = "image"
+title = "rear-delt-fly"
+
+[[generated]]
+id = "7vUM3G5bf6VgDKYOs_ugq"
+uri = "file://artifacts/fitcoach/public/exercises/barbell-curl.png"
+type = "image"
+title = "barbell-curl"
+
+[[generated]]
+id = "jQUHamsXk1VIjZelew-mo"
+uri = "file://artifacts/fitcoach/public/exercises/cable-curl.png"
+type = "image"
+title = "cable-curl"
+
+[[generated]]
+id = "t_TYTlkyhbdoYGfgP6tr8"
+uri = "file://artifacts/fitcoach/public/exercises/hammer-curl.png"
+type = "image"
+title = "hammer-curl"
+
+[[generated]]
+id = "OEbgHBIsQrh8GbQDC5s-e"
+uri = "file://artifacts/fitcoach/public/exercises/tricep-pushdown.png"
+type = "image"
+title = "tricep-pushdown"
+
+[[generated]]
+id = "q3evsb7HSNI-SCp3y03xh"
+uri = "file://artifacts/fitcoach/public/exercises/triceps-extension.png"
+type = "image"
+title = "triceps-extension"
+
+[[generated]]
+id = "6L1gCVw_PRQRGubbTDpbN"
+uri = "file://artifacts/fitcoach/public/exercises/weighted-dips.png"
+type = "image"
+title = "weighted-dips"
+
+[[generated]]
+id = "BDeNqhSzPDfb6yUBcV25B"
+uri = "file://artifacts/fitcoach/public/exercises/kettlebell-swing.png"
+type = "image"
+title = "kettlebell-swing"
+
+[[generated]]
+id = "BsleO9E75O2xHm63a3bWC"
+uri = "file://artifacts/fitcoach/public/exercises/leg-press.png"
+type = "image"
+title = "leg-press"
+
+[[generated]]
+id = "tx0lkkq_PcBjaKZBupSzl"
+uri = "file://artifacts/fitcoach/public/exercises/trap-bar-jump.png"
+type = "image"
+title = "trap-bar-jump"
+
+[[generated]]
+id = "8KLfmqfVlFgUdUvBI10VT"
+uri = "file://artifacts/fitcoach/public/exercises/med-ball-throw.png"
+type = "image"
+title = "med-ball-throw"
+
+[[generated]]
+id = "s6FcRv9v45iWkbZj65cVH"
+uri = "file://artifacts/fitcoach/public/exercises/sled-push.png"
+type = "image"
+title = "sled-push"
+
+[[generated]]
+id = "_u0arqMWZusB0iWvHKojX"
+uri = "file://artifacts/fitcoach/public/exercises/sprint.png"
+type = "image"
+title = "sprint"
+
+[[generated]]
+id = "WAMVCngTLOyADUdxFznYO"
+uri = "file://artifacts/fitcoach/public/exercises/nordic-curl.png"
+type = "image"
+title = "nordic-curl"
+
+[[generated]]
+id = "YcQPvBWKGdbppp-Ym1T9H"
+uri = "file://artifacts/fitcoach/public/exercises/mobility-flow.png"
+type = "image"
+title = "mobility-flow"
+
+[[generated]]
+id = "8puIbDjT7xXFdik6m5M7V"
+uri = "file://artifacts/fitcoach/public/exercises/leg-extension.png"
+type = "image"
+title = "leg-extension"
+
+[[generated]]
+id = "0P0Qr9vmYtAbrgMdghyWi"
+uri = "file://artifacts/fitcoach/public/exercises/zone2-cardio.png"
+type = "image"
+title = "zone2-cardio"
+
+[[generated]]
+id = "XnecdFnDKJj2V2vUsBZ5-"
+uri = "file://artifacts/fitcoach/public/exercises/calf-raise.png"
+type = "image"
+title = "calf-raise"
+
+[[generated]]
+id = "1qPquLkwfWur03u7aV33r"
+uri = "file://artifacts/fitcoach/public/exercises/hip-thrust.png"
+type = "image"
+title = "hip-thrust"
+
+[[generated]]
+id = "-pJPMiDTiIlcZlQG5bOg5"
+uri = "file://artifacts/fitcoach/public/exercises/walking-lunge.png"
+type = "image"
+title = "walking-lunge"
+
+[[generated]]
+id = "WWynp9oZ31IVZWI-E54tB"
+uri = "file://artifacts/fitcoach/public/exercises/plank.png"
+type = "image"
+title = "plank"
+
+[[generated]]
+id = "_gbzUaLyo-JOecCPASKGd"
+uri = "file://artifacts/fitcoach/public/exercises/hanging-leg-raise.png"
+type = "image"
+title = "hanging-leg-raise"
+
+[[generated]]
+id = "UhxG5jYVH8SMBF4yn6rdK"
+uri = "file://artifacts/fitcoach/public/exercises/barbell-shrugs.png"
+type = "image"
+title = "barbell-shrugs"
+
+[[generated]]
+id = "qiHEJZcSiAH-Hdf4B-H2n"
+uri = "file://artifacts/fitcoach/public/exercises/power-clean.png"
+type = "image"
+title = "power-clean"
+
+[[generated]]
+id = "1lyOlTWKIwrcUUzsQdGl0"
+uri = "file://artifacts/fitcoach/public/exercises/box-jump.png"
+type = "image"
+title = "box-jump"
+
+[[generated]]
+id = "Nc3zlPfVzpzMT8bCuosRu"
+uri = "file://artifacts/fitcoach/public/physiques/men-lean-v-taper.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "nTbBfpwew7Bdgmf2sQP_a"
+uri = "file://artifacts/fitcoach/public/physiques/men-athletic.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "Wmj_I3g9apSO9zFGI-Mau"
+uri = "file://artifacts/fitcoach/public/physiques/men-aesthetic.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "hwUPgjLMTwtsx_Fb77_Sq"
+uri = "file://artifacts/fitcoach/public/physiques/men-mass-builder.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "ZFP6YqVRGoE6hOFmwYwgk"
+uri = "file://artifacts/fitcoach/public/physiques/women-lean-toned.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "oYHXRpUGqWTJr4xPtos4w"
+uri = "file://artifacts/fitcoach/public/physiques/women-athletic.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "mBxngP4MzdFvA2LHV8jgS"
+uri = "file://artifacts/fitcoach/public/physiques/women-sculpted.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "9PUBMYFa-k34Xz6grszH6"
+uri = "file://artifacts/fitcoach/public/physiques/women-strong-curves.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "n1TViBdy9XnKbSK6aguMC"
+uri = "file://artifacts/fitcoach/public/hero-bg.png"
+type = "image"
+title = "Dark cinematic athletic training hero"
+
+[[generated]]
+id = "ZcqAol4d41exwkG-AcAfd"
+uri = "file://artifacts/fitcoach/public/app-mockup.png"
+type = "image"
+title = "Abstract titanium app UI"
+
+[[generated]]
+id = "lheINmTl_Cg-rgE1_88_7"
+uri = "file://artifacts/fitcoach/public/nutrition-scan.png"
+type = "image"
+title = "Abstract AI nutrition scanner"
+
+[[generated]]
+id = "KiUYJkvota7NYcQnkKwUM"
+uri = "file://artifacts/fitcoach/public/ai-coach.png"
+type = "image"
+title = "Abstract glowing AI core"
+
+[[generated]]
+id = "E_1_yJ_SdxN7NXEQKRuSb"
+uri = "file://artifacts/fitcoach/public/lp-hero.png"
+type = "image"
+title = "lp hero squat"
+
+[[generated]]
+id = "j_w5mDwvqiP4woowAzInG"
+uri = "file://artifacts/fitcoach/public/lp-equipment.png"
+type = "image"
+title = "lp equipment pushup"
+
+[[generated]]
+id = "YwcsHmpg3jCcf1kehSJ_d"
+uri = "file://artifacts/fitcoach/public/lp-progress.png"
+type = "image"
+title = "lp progress phone"
+
+[[generated]]
+id = "r7BArNma7AcypeXO63-c-"
+uri = "file://artifacts/fitcoach/public/lp-form.png"
+type = "image"
+title = "lp form curl"
+
+[[generated]]
+id = "5_T2F5DiOKINWchLCPweh"
+uri = "file://artifacts/fitcoach/public/lp-flexible.png"
+type = "image"
+title = "lp flexible woman"
+
+[[generated]]
+id = "pIwaUGNJU4z-NFCf0HtGv"
+uri = "file://artifacts/walkthrough/public/images/hero-bg.png"
+type = "image"
+title = "Cinematic dark gym background"
+
+[[generated]]
+id = "WCnHOGz17Sh0ZZ1Da1RWQ"
+uri = "file://artifacts/walkthrough/public/images/physique.png"
+type = "image"
+title = "Futuristic body scan scan"
+
+[[generated]]
+id = "Gr84vJHGqm8F-_i9GeP2_"
+uri = "file://artifacts/walkthrough/public/images/meal.png"
+type = "image"
+title = "Healthy fitness meal bowl"
+
+[[generated]]
+id = "ekuoUm6mm7QKs35OHjAxz"
+uri = "file://artifacts/fitcoach/public/icons/allur-icon-512.png"
+type = "image"
+title = "allur app icon clean"
+
+[[outputs]]
+id = "5mDfhELwYPTYNKBoolg02"
+uri = "file://attached_assets/generated_audio/speech_coach_voice_test.mp3"
+type = "audio"
+title = "coach voice test"
+
+[[outputs]]
+id = "fgUsF8GusdW1RIq9enKdm"
+uri = "file://attached_assets/generated_audio/speech_coach_voice_legday.mp3"
+type = "audio"
+title = "coach voice legday"
+
+[[outputs]]
+id = "nOiAWLXJJZNXGV7U6amlo"
+uri = "file://artifacts/fitcoach/.walkthrough/onboarding-step1.jpeg"
+type = "image"
+title = "Onboarding step 1 — Build your profile"
+
+[[outputs]]
+id = "kVCa6M8BOrzlBhrWrjL9V"
+uri = "file://artifacts/fitcoach/.walkthrough/onboarding-filled-next-disabled.jpeg"
+type = "image"
+title = "Profile filled — but Next stayed greyed out"
+
+[[outputs]]
+id = "pq_jTBAeYg5Sjd_9Kyl1U"
+uri = "file://artifacts/walkthrough/public/audio/bg_music.mp3"
+type = "audio"
+title = "background music"
+
+[[outputs]]
+id = "7T8s5pqjn4RSBi7vNGO5S"
+uri = "file://exports/allur-project.zip"
+type = "unspecified"
+title = "ALLUR — Full Project Source (zip)"

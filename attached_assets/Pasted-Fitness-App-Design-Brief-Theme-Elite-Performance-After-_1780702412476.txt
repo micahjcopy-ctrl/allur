@@ -1,0 +1,263 @@
+Fitness App Design Brief
+Theme: Elite Performance After Dark
+
+The app should feel like a high-end fitness brand—not a loud gaming app and not a sterile medical app. The emotional goal is to make users feel powerful, focused, and progressing every time they open it.
+
+Think:
+
+Nike Training Club meets Batman's precision
+Luxury performance car dashboard
+Modern athletic wear brand
+Confidence, momentum, discipline
+Color Psychology
+Primary Emotion
+
+Controlled Energy
+
+Not:
+
+Neon gym bro
+Aggressive red everywhere
+Cheap crypto-app vibes
+
+Instead:
+
+Premium
+Athletic
+Modern
+Motivating
+Core Palette
+Background
+Midnight Black
+
+#0B0D10
+
+Used for:
+
+Main app background
+Navigation bars
+Hero sections
+
+Creates:
+
+Premium feel
+Strong contrast
+Luxury atmosphere
+Secondary Background
+Carbon Gray
+
+#161A1F
+
+Used for:
+
+Cards
+Workout modules
+Statistics panels
+
+Creates:
+
+Depth
+Layering
+Sophistication
+Energy Color
+Electric Gold
+
+#F6C344
+
+Used for:
+
+CTAs
+Progress bars
+Streak indicators
+Achievement badges
+
+Creates:
+
+Achievement
+Premium luxury
+Motivation
+
+This is your "reward" color.
+
+Never overuse.
+
+Success Color
+Velocity Green
+
+#39D98A
+
+Used for:
+
+Completed workouts
+Positive metrics
+PRs
+Weight-loss achievements
+
+Creates:
+
+Growth
+Progress
+Confidence
+Secondary Accent
+Ice Blue
+
+#59B8FF
+
+Used sparingly for:
+
+Charts
+Recovery metrics
+Analytics
+
+Creates:
+
+Intelligence
+Trust
+Performance tracking
+Warning Color
+Performance Orange
+
+#FF8A3D
+
+Used for:
+
+Missed goals
+Recovery alerts
+Expiring challenges
+
+Creates urgency without panic.
+
+Typography Hierarchy
+Main Headlines
+
+Color:
+#FFFFFF
+
+Weight:
+800-900
+
+Examples:
+
+TODAY'S WORKOUT
+LEVEL UP
+NEXT MILESTONE
+Subheadings
+
+Color:
+#C9CDD2
+
+Weight:
+500-600
+
+Creates softer hierarchy.
+
+Statistics
+
+Primary Number:
+#FFFFFF
+
+Supporting Text:
+#8B9199
+
+Example:
+
+187
+Calories Burned
+
+Color Flow Through The App
+Landing Screen
+
+Background:
+Midnight Black
+
+Headline:
+White
+
+Key Number:
+Electric Gold
+
+CTA:
+Electric Gold button with black text
+
+Workout Screen
+
+Background:
+Carbon Gray
+
+Exercise Names:
+White
+
+Sets/Reps:
+Ice Blue
+
+Completed Sets:
+Velocity Green
+
+Progress Screen
+
+Charts:
+Ice Blue
+
+Milestones:
+Electric Gold
+
+Success Metrics:
+Velocity Green
+
+Achievement Screen
+
+Background Dark
+
+Badge Glow:
+Electric Gold
+
+Confetti:
+Gold + Green
+
+This screen should feel rewarding.
+
+UI Effects
+Use
+Soft glassmorphism
+Subtle gradients
+Gentle shadows
+Smooth animations
+Avoid
+Hard neon glows
+Pure black everywhere
+Bright reds
+Rainbow charts
+Premium Gradient System
+Hero Gradient
+
+#0B0D10 → #161A1F → #232931
+
+Used behind dashboards.
+
+Achievement Gradient
+
+#F6C344 → #FFD76A
+
+Used only for rewards.
+
+Progress Gradient
+
+#39D98A → #5FE3A2
+
+Used in progress rings.
+
+Overall Brand Feeling
+
+If users had to describe the app in three words:
+
+Powerful. Disciplined. Premium.
+
+Not "fun."
+
+Not "extreme."
+
+Not "luxury."
+
+The feeling should be:
+
+"This app makes me feel like the type of person who never skips workouts."

@@ -1,0 +1,1264 @@
+Build a photo-based calorie and macro estimation feature for my fitness app.
+
+The feature should allow a user to upload or take a photo of a meal. The app should analyze the image, identify individual food items, estimate portion sizes, ask clarification questions when confidence is low, then calculate calories, protein, carbs, and fat using a nutrition database.
+
+The app should not pretend that the image alone can perfectly determine macros. The image model should identify foods and estimate portions. Nutrition numbers should come from a database such as USDA FoodData Central for generic foods, Open Food Facts for packaged/barcoded foods, and an internal common fitness food database for fast fallback.
+
+The goal is to create a CAL.AI-style experience where the user can quickly scan a meal, get a strong macro estimate, and easily correct anything the AI is unsure about.
+
+FEATURE GOAL
+
+Allow users to upload or take a photo of a meal and receive an estimated breakdown of:
+
+* Calories
+* Protein
+* Carbs
+* Fat
+* Optional: fiber, sugar, sodium
+* Food items detected
+* Estimated serving sizes
+* Confidence level
+* Editable meal log
+
+The feature should prioritize speed, usability, and reasonable accuracy. The app should always let the user correct uncertain foods or portion sizes.
+
+CORE USER FLOW
+
+1. User uploads or takes a photo of their meal.
+2. AI analyzes the image.
+3. AI detects individual food items.
+4. AI assigns a confidence score to each item.
+5. AI estimates portion size for each item.
+6. App checks food items against a nutrition database.
+7. App calculates calories and macros.
+8. App displays a meal summary.
+9. If confidence is low, app asks the user a clarification question.
+10. User confirms, edits, or corrects the result.
+11. Meal is saved to the user’s food log.
+12. Corrections are stored to improve future estimates for that user.
+
+RECOMMENDED DATA SOURCES
+
+Use a combination of:
+
+1. USDA FoodData Central
+
+Use this as the primary generic nutrition database.
+
+Use it for:
+
+* Whole foods
+* Generic foods
+* Raw and cooked foods
+* Common ingredients
+* Meat
+* Poultry
+* Fish
+* Rice
+* Potatoes
+* Vegetables
+* Fruit
+* Eggs
+* Dairy
+* Oats
+* Pasta
+* Beans
+* Nuts
+* Oils
+
+The app should pull:
+
+* Calories
+* Protein
+* Total carbohydrates
+* Total fat
+* Fiber
+* Sugar
+* Sodium
+
+2. Open Food Facts
+
+Use this for branded packaged foods and barcode scanning.
+
+Use it for:
+
+* Packaged foods
+* Protein bars
+* Drinks
+* Snacks
+* Frozen meals
+* Sauces
+* Branded products
+* Barcode lookup
+
+If the uploaded image includes visible packaging, the app should try to detect the label or barcode. If it cannot confidently read it, prompt the user to scan the barcode.
+
+3. Internal Common Food Database
+
+Create a small internal fallback database for common fitness foods.
+
+This helps reduce API dependency and improves speed.
+
+Include common foods such as:
+
+* Chicken breast
+* Chicken thigh
+* Salmon
+* Tuna
+* Shrimp
+* Ground beef 80/20
+* Ground beef 90/10
+* Steak
+* Turkey
+* Eggs
+* Egg whites
+* White rice
+* Brown rice
+* Pasta
+* Potatoes
+* Sweet potatoes
+* Oats
+* Greek yogurt
+* Cottage cheese
+* Avocado
+* Olive oil
+* Butter
+* Peanut butter
+* Broccoli
+* Mixed vegetables
+* Banana
+* Apple
+* Whey protein
+* Protein bar
+* Bagel
+* Bread
+* Tortilla
+* Burrito
+* Pizza
+* Burger
+* Fries
+* Salad dressing
+
+Each food should include macros per 100g and common serving sizes.
+
+Example food object:
+
+{
+"food_name": "chicken breast cooked",
+"serving_basis": "100g",
+"calories": 165,
+"protein_g": 31,
+"carbs_g": 0,
+"fat_g": 3.6,
+"common_servings": [
+{
+"label": "small piece",
+"grams": 100
+},
+{
+"label": "medium breast",
+"grams": 150
+},
+{
+"label": "large breast",
+"grams": 200
+}
+]
+}
+
+AI IMAGE ANALYSIS LOGIC
+
+The AI should return structured JSON, not just natural language.
+
+The image analysis should output:
+
+{
+"meal_detected": true,
+"overall_confidence": 0.82,
+"foods": [
+{
+"detected_name": "grilled chicken breast",
+"category": "protein",
+"possible_alternatives": ["grilled salmon", "pork tenderloin"],
+"confidence": 0.76,
+"estimated_portion": {
+"amount": 150,
+"unit": "grams",
+"confidence": 0.65
+},
+"visible_state": "grilled",
+"visual_notes": "White lean protein with grilled exterior, sliced into pieces"
+},
+{
+"detected_name": "white rice",
+"category": "carb",
+"possible_alternatives": ["cauliflower rice", "mashed potatoes"],
+"confidence": 0.88,
+"estimated_portion": {
+"amount": 180,
+"unit": "grams",
+"confidence": 0.72
+},
+"visible_state": "cooked",
+"visual_notes": "White grain-like mound next to protein"
+}
+],
+"hidden_calorie_risks": [
+{
+"risk": "oil",
+"confidence": 0.64,
+"suggested_question": "Was oil, butter, sauce, or dressing added?"
+}
+],
+"clarification_questions": [
+{
+"reason": "Protein confidence is below 0.80",
+"question": "I’m not fully sure what the main protein is. Is this chicken, salmon, pork, tofu, or something else?",
+"options": ["Chicken", "Salmon", "Pork", "Steak", "Tofu", "Other"]
+}
+]
+}
+
+CONFIDENCE RULES
+
+Use this confidence threshold system:
+
+High confidence: 0.80 or higher
+
+Show result without asking first.
+
+Example:
+
+“Looks like chicken breast, white rice, and broccoli.”
+
+The user should still be able to edit the result.
+
+Medium confidence: 0.55 to 0.79
+
+Show a confirmation question before finalizing.
+
+Example:
+
+“I think this is chicken, but it could be salmon. Which one is it?”
+
+Low confidence: below 0.55
+
+Do not finalize macros yet. Ask the user what the food is.
+
+Example:
+
+“I’m not sure what the main protein is. Is it chicken, salmon, steak, tofu, or something else?”
+
+CLARIFICATION FEATURE
+
+This is a critical feature.
+
+If the AI cannot confidently determine food type or portion size, it should ask the user a simple question instead of making a bad estimate.
+
+Protein uncertainty example:
+
+“I’m not fully sure what the main protein is. Is this chicken, salmon, steak, pork, tofu, or something else?”
+
+Buttons:
+
+* Chicken
+* Salmon
+* Steak
+* Pork
+* Turkey
+* Tofu
+* Other
+
+If user taps “Other,” open text input:
+
+“What is the protein?”
+
+Carb uncertainty example:
+
+“What is the carb source here?”
+
+Buttons:
+
+* White rice
+* Brown rice
+* Pasta
+* Potatoes
+* Sweet potato
+* Oats
+* Bread
+* Tortilla
+* Cauliflower rice
+* Other
+
+Hidden ingredient question:
+
+If the meal looks cooked, sauced, oily, fried, or restaurant-made, ask:
+
+“Was oil, butter, dressing, or sauce added?”
+
+Buttons:
+
+* No
+* Light amount
+* Moderate amount
+* Heavy amount
+* Not sure
+
+Apply rough estimates if user does not know exact amount:
+
+{
+"no": 0,
+"light": 40,
+"moderate": 100,
+"heavy": 180,
+"not_sure": 75
+}
+
+These calories should be added as “estimated cooking oil/sauce.”
+
+Portion uncertainty example:
+
+“How much of this did you eat?”
+
+Buttons:
+
+* Small portion
+* Medium portion
+* Large portion
+* I ate half
+* I ate all
+* Enter exact amount
+
+PORTION ESTIMATION SYSTEM
+
+Portion size is the hardest part. The MVP should use heuristic estimation first.
+
+Estimate food amount using:
+
+* Food area relative to plate
+* Number of visible pieces
+* Standard plate size assumptions
+* Hand-size comparisons if hands or utensils are visible
+* Common serving size defaults
+* User’s past confirmed meals
+* Food category density
+* Whether the food appears flat, piled, sliced, liquid, sauced, or mixed
+
+DEFAULT PORTION RULES
+
+Use conservative defaults when scale is unclear.
+
+Protein defaults:
+
+{
+"chicken breast cooked": {
+"small": 100,
+"medium": 150,
+"large": 200
+},
+"salmon cooked": {
+"small": 100,
+"medium": 150,
+"large": 200
+},
+"steak cooked": {
+"small": 120,
+"medium": 180,
+"large": 250
+},
+"ground beef cooked": {
+"small": 100,
+"medium": 150,
+"large": 220
+},
+"eggs": {
+"one egg": 50,
+"two eggs": 100,
+"three eggs": 150
+}
+}
+
+Carb defaults:
+
+{
+"white rice cooked": {
+"half cup": 80,
+"one cup": 160,
+"large serving": 240
+},
+"brown rice cooked": {
+"half cup": 80,
+"one cup": 160,
+"large serving": 240
+},
+"pasta cooked": {
+"small": 100,
+"medium": 180,
+"large": 280
+},
+"potato cooked": {
+"small": 130,
+"medium": 200,
+"large": 300
+},
+"sweet potato cooked": {
+"small": 130,
+"medium": 200,
+"large": 300
+},
+"oats cooked": {
+"small": 150,
+"medium": 240,
+"large": 320
+}
+}
+
+Fat defaults:
+
+{
+"avocado": {
+"quarter": 50,
+"half": 100,
+"whole": 200
+},
+"peanut butter": {
+"one tablespoon": 16,
+"two tablespoons": 32
+},
+"olive oil": {
+"light drizzle": 5,
+"one tablespoon": 14,
+"heavy": 28
+},
+"butter": {
+"small pat": 5,
+"one tablespoon": 14,
+"heavy": 28
+}
+}
+
+MACRO CALCULATION FORMULA
+
+Once the food and serving size are known, calculate:
+
+food_macros = nutrition_per_100g * estimated_grams / 100
+
+Example:
+
+{
+"food": "chicken breast cooked",
+"estimated_grams": 150,
+"per_100g": {
+"calories": 165,
+"protein": 31,
+"carbs": 0,
+"fat": 3.6
+},
+"calculated": {
+"calories": 247.5,
+"protein": 46.5,
+"carbs": 0,
+"fat": 5.4
+}
+}
+
+Then sum all foods to create the total meal estimate.
+
+RECOMMENDED AI PROMPT FOR IMAGE ANALYSIS
+
+Use this prompt for the vision model:
+
+You are a food recognition and nutrition estimation assistant inside a fitness tracking app.
+
+Analyze the uploaded meal image.
+
+Your job is to identify each visible food item, estimate the likely portion size, and return structured JSON.
+
+Do not invent certainty. If you are unsure whether an item is chicken, salmon, pork, tofu, rice, pasta, potatoes, sauce, or something else, include the top possible alternatives and lower the confidence score.
+
+Important rules:
+
+1. Identify each visible food item separately.
+2. Estimate portion size in grams when possible.
+3. Give a confidence score from 0 to 1 for each food identification.
+4. Give a separate confidence score from 0 to 1 for portion size.
+5. Detect likely hidden calorie sources such as oil, butter, dressing, sauces, breading, frying, cheese, cream, nuts, or sugar.
+6. If confidence is below 0.80 for any major food item, generate a user-facing clarification question.
+7. If confidence is below 0.55, do not finalize the food identity. Ask the user what the item is.
+8. Never claim exact precision. These are estimates.
+9. Return JSON only.
+
+JSON format:
+
+{
+"meal_detected": true,
+"overall_confidence": 0.0,
+"foods": [
+{
+"detected_name": "",
+"category": "protein | carb | fat | vegetable | fruit | sauce | drink | dessert | unknown",
+"possible_alternatives": [],
+"confidence": 0.0,
+"estimated_portion": {
+"amount": 0,
+"unit": "grams",
+"confidence": 0.0
+},
+"visible_state": "raw | cooked | fried | grilled | baked | sauced | mixed | unknown",
+"visual_notes": ""
+}
+],
+"hidden_calorie_risks": [
+{
+"risk": "oil | butter | sauce | dressing | cheese | frying | sugar | cream | unknown",
+"confidence": 0.0,
+"suggested_question": ""
+}
+],
+"clarification_questions": [
+{
+"reason": "",
+"question": "",
+"options": []
+}
+]
+}
+
+RECOMMENDED MACRO ESTIMATION PROMPT
+
+Use this after the image model identifies foods and the user answers any clarification questions.
+
+You are a nutrition calculation assistant.
+
+Given a list of confirmed foods and estimated serving sizes, calculate calories, protein, carbohydrates, fat, fiber, sugar, and sodium when available.
+
+Use the app nutrition database as the source of truth. Do not rely only on model memory.
+
+Rules:
+
+1. Match each confirmed food to the closest nutrition database entry.
+2. Prefer cooked entries for cooked food and raw entries for raw food.
+3. If a branded product is detected, prefer branded database or barcode result.
+4. If no exact match exists, use the closest generic food match and mark it as estimated.
+5. Calculate macros based on grams consumed.
+6. Add hidden calorie estimates only if the user confirmed oil, butter, sauce, dressing, frying, cheese, or added sugar.
+7. Return a confidence score for the whole meal.
+8. Return JSON only.
+
+JSON format:
+
+{
+"meal_summary": {
+"calories": 0,
+"protein_g": 0,
+"carbs_g": 0,
+"fat_g": 0,
+"fiber_g": 0,
+"sugar_g": 0,
+"sodium_mg": 0,
+"confidence": 0.0
+},
+"items": [
+{
+"food_name": "",
+"database_match": "",
+"database_source": "USDA | Open Food Facts | internal | user_custom",
+"serving_size_g": 0,
+"calories": 0,
+"protein_g": 0,
+"carbs_g": 0,
+"fat_g": 0,
+"fiber_g": 0,
+"sugar_g": 0,
+"sodium_mg": 0,
+"confidence": 0.0,
+"notes": ""
+}
+],
+"warnings": [],
+"user_edit_suggestions": []
+}
+
+USER EXPERIENCE FLOW
+
+Screen 1: Upload Meal
+
+CTA:
+
+“Scan Your Meal”
+
+Subtext:
+
+“Take a photo and we’ll estimate calories and macros.”
+
+Instruction:
+
+“For best results, take the photo from above with the full plate visible.”
+
+Screen 2: AI Analyzing
+
+Show:
+
+“Analyzing your meal...”
+
+Then show progress states:
+
+* Identifying foods
+* Estimating portions
+* Checking nutrition data
+* Calculating macros
+
+Screen 3A: High Confidence Result
+
+Headline:
+
+“Here’s your estimated meal breakdown.”
+
+Show food cards:
+
+Grilled chicken breast
+Estimated: 150g
+248 cal | 47g protein | 0g carbs | 5g fat
+
+White rice
+Estimated: 180g
+234 cal | 4g protein | 51g carbs | 0g fat
+
+Buttons:
+
+* Looks right
+* Edit portions
+* Change food item
+* Add missing item
+* Add sauce/oil
+* Log meal
+
+Screen 3B: Medium Confidence Result
+
+Headline:
+
+“I need one quick check to make this more accurate.”
+
+Example:
+
+“Is the main protein chicken or salmon?”
+
+Buttons:
+
+* Chicken
+* Salmon
+* Steak
+* Pork
+* Tofu
+* Other
+
+After answer, calculate macros.
+
+Screen 3C: Low Confidence Result
+
+Headline:
+
+“I can see food in the image, but I’m not confident enough to estimate it accurately.”
+
+Prompt:
+
+“What foods are in this meal?”
+
+Input flow:
+
+* Add protein
+* Add carb
+* Add vegetables
+* Add sauce/oil
+* Add drink
+
+EDITING SYSTEM
+
+Users need full control.
+
+Each food card should allow the user to:
+
+* Change food name
+* Change portion
+* Change unit
+* Delete item
+* Add item
+* Mark as partially eaten
+* Save as recurring meal
+
+Example portion editor:
+
+Chicken breast
+Estimated portion: 150g
+
+Change to:
+
+* 100g
+* 150g
+* 200g
+* Custom
+
+CONFIDENCE DISPLAY
+
+Do not show raw confidence percentages to users unless necessary.
+
+Use simple confidence labels:
+
+High confidence: 0.80 or higher
+
+Label:
+
+“Confidence: High”
+
+Medium confidence: 0.55 to 0.79
+
+Label:
+
+“Confidence: Needs confirmation”
+
+Low confidence: below 0.55
+
+Label:
+
+“Confidence: Low”
+
+HANDLING HARD MEAL TYPES
+
+Mixed bowls:
+
+Examples:
+
+* Chipotle bowl
+* Poke bowl
+* Pasta bowl
+* Stir fry
+* Curry
+* Salad
+* Burrito bowl
+
+Problem:
+
+Ingredients overlap and portion sizes are hard to detect.
+
+Ask:
+
+“This looks like a mixed bowl. Can you confirm what’s inside?”
+
+Options:
+
+* Protein
+* Carb base
+* Sauce
+* Toppings
+
+Restaurant meals:
+
+Problem:
+
+Hidden oils, butter, sauces, and larger portions.
+
+Ask:
+
+“Was this homemade or from a restaurant?”
+
+If restaurant:
+
+“Restaurant meals often contain extra oil, butter, or sauce. Should I estimate this as light, moderate, or heavy added fat?”
+
+Smoothies:
+
+Problem:
+
+Photo tells very little.
+
+Ask:
+
+“What’s in the smoothie?”
+
+Options:
+
+* Protein powder
+* Fruit
+* Milk
+* Yogurt
+* Peanut butter
+* Oats
+* Other
+
+Packaged foods:
+
+If packaging is visible:
+
+“I see a packaged food. Scan the barcode for the most accurate result.”
+
+Use Open Food Facts or internal branded food database.
+
+Unclear protein:
+
+Common model confusion:
+
+* Chicken vs pork
+* Chicken vs fish
+* Salmon vs tuna
+* Beef vs lamb
+* Tofu vs cheese
+* Turkey burger vs beef burger
+
+Ask:
+
+“What is the main protein?”
+
+Do not guess if confidence is low.
+
+SAVED USER LEARNING
+
+The app should build a user-specific correction layer.
+
+When a user corrects an item, save that correction.
+
+Example:
+
+{
+"original_detection": "chicken",
+"user_correction": "salmon",
+"image_features": "pink protein fillet with rice",
+"timestamp": "2026-06-10",
+"user_id": "123"
+}
+
+Use this for future personalization:
+
+* Common breakfast foods
+* Favorite meals
+* Usual portion sizes
+* Preferred brands
+* Frequent restaurants
+* Usual protein sources
+* Typical meal timing
+
+Example:
+
+If the user often eats 200g cooked chicken breast with 1 cup of rice, future similar scans should start closer to that estimate.
+
+FOOD DATABASE SCHEMA
+
+Create this table:
+
+foods
+
+Fields:
+
+* id
+* canonical_name
+* aliases
+* category
+* source
+* source_id
+* serving_basis_g
+* calories_per_100g
+* protein_per_100g
+* carbs_per_100g
+* fat_per_100g
+* fiber_per_100g
+* sugar_per_100g
+* sodium_mg_per_100g
+* cooked_state
+* density_estimate
+* common_serving_sizes
+* created_at
+* updated_at
+
+Example aliases:
+
+{
+"canonical_name": "chicken breast cooked",
+"aliases": [
+"grilled chicken",
+"chicken breast",
+"cooked chicken",
+"plain chicken",
+"sliced chicken"
+]
+}
+
+MEAL LOG SCHEMA
+
+Create this table:
+
+meal_logs
+
+Fields:
+
+* id
+* user_id
+* image_url
+* meal_name
+* meal_time
+* total_calories
+* total_protein_g
+* total_carbs_g
+* total_fat_g
+* confidence
+* created_at
+* updated_at
+
+Create this table:
+
+meal_log_items
+
+Fields:
+
+* id
+* meal_log_id
+* food_id
+* detected_name
+* confirmed_name
+* serving_size_g
+* calories
+* protein_g
+* carbs_g
+* fat_g
+* confidence
+* user_corrected
+* notes
+
+CLARIFICATION SCHEMA
+
+Create this table:
+
+meal_clarifications
+
+Fields:
+
+* id
+* meal_log_id
+* question
+* options
+* user_answer
+* reason
+* created_at
+
+USER CORRECTION SCHEMA
+
+Create this table:
+
+user_food_corrections
+
+Fields:
+
+* id
+* user_id
+* original_detection
+* user_correction
+* image_url
+* food_category
+* correction_context
+* created_at
+
+FAVORITE MEALS SCHEMA
+
+Create this table:
+
+favorite_meals
+
+Fields:
+
+* id
+* user_id
+* meal_name
+* total_calories
+* total_protein_g
+* total_carbs_g
+* total_fat_g
+* created_at
+* updated_at
+
+Create this table:
+
+favorite_meal_items
+
+Fields:
+
+* id
+* favorite_meal_id
+* food_id
+* food_name
+* serving_size_g
+* calories
+* protein_g
+* carbs_g
+* fat_g
+
+CUSTOM FOODS SCHEMA
+
+Create this table:
+
+custom_foods
+
+Fields:
+
+* id
+* user_id
+* food_name
+* brand_name
+* serving_size_g
+* calories
+* protein_g
+* carbs_g
+* fat_g
+* fiber_g
+* sugar_g
+* sodium_mg
+* created_at
+* updated_at
+
+MVP API FLOW
+
+Endpoint 1: Upload Image
+
+POST /api/meals/analyze-image
+
+Input:
+
+{
+"user_id": "123",
+"image_url": "https://..."
+}
+
+Output:
+
+{
+"analysis_id": "abc123",
+"needs_clarification": true,
+"clarification_questions": [],
+"foods": []
+}
+
+Endpoint 2: Submit Clarifications
+
+POST /api/meals/clarify
+
+Input:
+
+{
+"analysis_id": "abc123",
+"answers": [
+{
+"question_id": "q1",
+"answer": "salmon"
+}
+]
+}
+
+Output:
+
+{
+"confirmed_foods": []
+}
+
+Endpoint 3: Calculate Macros
+
+POST /api/meals/calculate-macros
+
+Input:
+
+{
+"analysis_id": "abc123",
+"confirmed_foods": [
+{
+"name": "salmon cooked",
+"serving_size_g": 150
+},
+{
+"name": "white rice cooked",
+"serving_size_g": 180
+}
+]
+}
+
+Output:
+
+{
+"total_calories": 514,
+"protein_g": 39,
+"carbs_g": 51,
+"fat_g": 18,
+"items": []
+}
+
+RECOMMENDED FEATURE BEHAVIOR
+
+Do this:
+
+* Always let users edit results.
+* Always separate food identification confidence from portion confidence.
+* Ask clarifying questions for uncertain proteins, carbs, sauces, and mixed meals.
+* Prefer database lookup over AI memory.
+* Save user corrections.
+* Show that results are estimates.
+* Use barcode scan for packaged foods.
+* Let users create custom foods.
+* Let users save repeat meals.
+* Let users add missing items.
+* Let users mark whether they ate all, half, or part of the meal.
+
+Do not do this:
+
+* Do not pretend image macros are exact.
+* Do not rely only on the vision model for nutrition facts.
+* Do not guess between chicken and salmon when confidence is low.
+* Do not ignore oils, sauces, dressings, and butter.
+* Do not force the user through too many questions.
+* Do not ask for clarification on every tiny item.
+* Do not over-prioritize vegetables or garnishes that barely affect macros.
+
+MACRO IMPORTANCE PRIORITY
+
+The AI should focus clarification on items that meaningfully change calories or macros.
+
+High priority clarification:
+
+Ask about:
+
+* Protein type
+* Carb type
+* Portion size
+* Oil
+* Butter
+* Sauce
+* Dressing
+* Fried vs grilled
+* Full-fat vs low-fat dairy
+* Beef leanness
+* Restaurant vs homemade
+* Whether the user ate the whole portion
+
+Low priority clarification:
+
+Usually do not ask about:
+
+* Lettuce
+* Cucumber
+* Tomato
+* Small herbs
+* Spices
+* Lemon
+* Lime
+* Tiny vegetable garnishes
+
+EXAMPLE USER FLOW
+
+User uploads a photo of rice, broccoli, and a pinkish protein.
+
+AI detects:
+
+{
+"foods": [
+{
+"detected_name": "salmon",
+"possible_alternatives": ["chicken", "pork"],
+"confidence": 0.61
+},
+{
+"detected_name": "white rice",
+"confidence": 0.87
+},
+{
+"detected_name": "broccoli",
+"confidence": 0.91
+}
+],
+"clarification_questions": [
+{
+"question": "What is the main protein?",
+"options": ["Salmon", "Chicken", "Pork", "Tofu", "Other"]
+}
+]
+}
+
+App asks:
+
+“What is the main protein?”
+
+User taps:
+
+“Salmon”
+
+App calculates:
+
+Estimated Meal:
+
+Salmon, 150g
+White rice, 180g
+Broccoli, 90g
+
+Total:
+
+552 calories
+39g protein
+56g carbs
+20g fat
+
+Buttons:
+
+* Log meal
+* Edit portions
+* Add sauce/oil
+* Save as favorite
+
+FINAL VIBE CODER INSTRUCTIONS
+
+Build this as a photo-based meal scanner and macro estimator.
+
+The system should use image analysis to detect foods, not to directly determine nutrition numbers.
+
+Nutrition should come from a food database.
+
+The system should:
+
+1. Analyze uploaded meal images.
+2. Detect visible foods.
+3. Estimate portions.
+4. Check confidence.
+5. Ask the user questions when confidence is low.
+6. Use a nutrition database to calculate macros.
+7. Let users edit every item.
+8. Save the meal to their log.
+9. Save corrections to improve future results.
+
+The most important feature is the clarification flow.
+
+If the app cannot confidently tell whether something is chicken, salmon, steak, pork, tofu, rice, pasta, potato, sauce, or something else, it must ask the user before calculating final macros.
+
+The app should make the process feel fast and easy, but it should never pretend to be perfectly accurate.
+
+Use language like:
+
+“Estimated calories”
+
+“Estimated macros”
+
+“Looks like…”
+
+“Confirm this item”
+
+“I need one quick check to make this more accurate.”
+
+Do not use language like:
+
+“Exact calories”
+
+“Perfect macro count”
+
+“Guaranteed accurate”
+
+Best MVP stack:
+
+1. Vision model for food detection.
+2. USDA FoodData Central for generic nutrition.
+3. Open Food Facts for branded/barcoded foods.
+4. Internal common fitness food database.
+5. Clarifying questions when confidence is low.
+6. User corrections to personalize future estimates.
+
+This will create a strong CAL.AI-style experience without needing to train a massive custom food recognition model from scratch.

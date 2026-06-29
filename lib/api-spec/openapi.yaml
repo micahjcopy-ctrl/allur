@@ -1,0 +1,1697 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: Auth
+    description: Browser and mobile authentication endpoints.
+  - name: Coach
+    description: Conversational AI fitness coach.
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /auth/user:
+    get:
+      tags: [Auth]
+      operationId: getCurrentAuthUser
+      summary: Get the currently authenticated user
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+        - $ref: '#/components/parameters/SessionCookie'
+      responses:
+        '200':
+          description: Auth status resolved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthUserEnvelope'
+  /auth/register:
+    post:
+      tags: [Auth]
+      operationId: registerAccount
+      summary: Create a new email/password account and start a session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterAccountRequest'
+      responses:
+        '200':
+          description: Account created and session started.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthUserEnvelope'
+        '400':
+          description: Missing or invalid required fields.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Email or username already in use.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /auth/login:
+    post:
+      tags: [Auth]
+      operationId: loginAccount
+      summary: Log in with email/username and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginAccountRequest'
+      responses:
+        '200':
+          description: Logged in and session started.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthUserEnvelope'
+        '400':
+          description: Missing or invalid required fields.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Invalid credentials.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logoutAccount
+      summary: Clear the current browser session
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+        - $ref: '#/components/parameters/SessionCookie'
+      responses:
+        '200':
+          description: Session cleared.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogoutSuccess'
+  /auth/forgot-password:
+    post:
+      tags: [Auth]
+      operationId: requestPasswordReset
+      summary: Request a password reset email for a credential account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequest'
+      responses:
+        '200':
+          description: If the email matches an account, a reset link has been sent.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogoutSuccess'
+        '400':
+          description: Missing or invalid email.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /auth/reset-password:
+    post:
+      tags: [Auth]
+      operationId: resetPassword
+      summary: Set a new password using a reset token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '200':
+          description: Password updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogoutSuccess'
+        '400':
+          description: Invalid or expired token, or invalid password.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /admin/status:
+    get:
+      tags: [Auth]
+      operationId: getAdminStatus
+      summary: Whether the current user is the app owner (admin)
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+        - $ref: '#/components/parameters/SessionCookie'
+      responses:
+        '200':
+          description: Admin status resolved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminStatusEnvelope'
+  /admin/users:
+    get:
+      tags: [Admin]
+      operationId: listAdminUsers
+      summary: List all users with a fitness summary (admin only)
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+        - $ref: '#/components/parameters/SessionCookie'
+      responses:
+        '200':
+          description: The list of users.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserListEnvelope'
+        '401':
+          description: Not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Not an admin.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /admin/users/{userId}:
+    get:
+      tags: [Admin]
+      operationId: getAdminUserDetail
+      summary: Full detail for one user (admin only)
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+        - $ref: '#/components/parameters/SessionCookie'
+      responses:
+        '200':
+          description: The user detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserDetailEnvelope'
+        '401':
+          description: Not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Not an admin.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: User not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+    patch:
+      tags: [Admin]
+      operationId: updateAdminUser
+      summary: Update a user's credits or goal (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAdminUserRequest'
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+        - $ref: '#/components/parameters/SessionCookie'
+      responses:
+        '200':
+          description: Updated user detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserDetailEnvelope'
+        '400':
+          description: Invalid request, or the user has no saved data to edit.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Not an admin.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: User not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /admin/users/{userId}/remind:
+    post:
+      tags: [Admin]
+      operationId: sendUserReminder
+      summary: Email a user a nudge to finish onboarding (admin only)
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+        - $ref: '#/components/parameters/SessionCookie'
+      responses:
+        '200':
+          description: The reminder email was sent.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendReminderResult'
+        '400':
+          description: The user has no email address on file.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Not an admin.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: User not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '502':
+          description: The email could not be sent.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /me/credits:
+    get:
+      tags: [Fitness]
+      operationId: getMyCredits
+      summary: Get the authenticated user's plan and remaining usage credits
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+        - $ref: '#/components/parameters/SessionCookie'
+      responses:
+        '200':
+          description: The user's plan and current credit balance.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreditsEnvelope'
+        '401':
+          description: Not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /me/subscription:
+    get:
+      tags: [Fitness]
+      operationId: getMySubscription
+      summary: Get the authenticated user's subscription summary
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+        - $ref: '#/components/parameters/SessionCookie'
+      responses:
+        '200':
+          description: The user's current subscription summary.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubscriptionSummary'
+        '401':
+          description: Not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /me/fitness-state:
+    get:
+      tags: [Fitness]
+      operationId: getMyFitnessState
+      summary: Load the authenticated user's saved fitness state
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+        - $ref: '#/components/parameters/SessionCookie'
+      responses:
+        '200':
+          description: The saved state, or null if none exists yet.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FitnessStateEnvelope'
+        '401':
+          description: Not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+    put:
+      tags: [Fitness]
+      operationId: saveMyFitnessState
+      summary: Persist the authenticated user's fitness state
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveFitnessStateRequest'
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+        - $ref: '#/components/parameters/SessionCookie'
+      responses:
+        '200':
+          description: State saved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaveFitnessStateSuccess'
+        '400':
+          description: Invalid request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /login:
+    get:
+      tags: [Auth]
+      operationId: beginBrowserLogin
+      summary: Start the browser OIDC login flow
+      parameters:
+        - name: returnTo
+          in: query
+          required: false
+          description: Relative path to redirect to after login (must start with `/`). Defaults to `/`.
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redirect to the OIDC authorization endpoint.
+  /callback:
+    get:
+      tags: [Auth]
+      operationId: handleBrowserLoginCallback
+      summary: Complete the browser OIDC login flow
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: iss
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uri
+      responses:
+        '302':
+          description: Redirect to the `returnTo` path on success (defaults to `/`) or `/api/login` on failure.
+  /logout:
+    get:
+      tags: [Auth]
+      operationId: logoutBrowserSession
+      summary: Clear the session and begin OIDC logout
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+        - $ref: '#/components/parameters/SessionCookie'
+      responses:
+        '302':
+          description: Redirect to the OIDC provider logout URL.
+  /mobile-auth/token-exchange:
+    post:
+      tags: [Auth]
+      operationId: exchangeMobileAuthorizationCode
+      summary: Exchange a mobile OIDC code for a session token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MobileTokenExchangeRequest'
+      responses:
+        '200':
+          description: Session created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileTokenExchangeSuccess'
+        '400':
+          description: Missing or invalid required fields.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Token did not contain usable claims.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Token exchange failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /coach/chat:
+    post:
+      tags: [Coach]
+      operationId: coachChat
+      summary: Send a message to the AI coach and optionally receive an updated plan
+      description: |
+        Stateless conversational endpoint. The client sends the full message
+        history plus the user's profile, goal and current workout plan. The
+        coach replies and, when a concrete change has been agreed, returns the
+        complete updated plan to apply automatically.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CoachChatRequest'
+      responses:
+        '200':
+          description: Coach reply, with an optional plan update.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CoachReply'
+        '400':
+          description: Invalid request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Coach request failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /coach/voice:
+    post:
+      tags: [Coach]
+      operationId: coachVoice
+      summary: Send a spoken message to the AI coach and receive a spoken reply
+      description: |
+        Voice counterpart of /coach/chat. The client sends recorded audio
+        (base64) plus the same conversation context. The server transcribes the
+        audio, runs the same coach brain (so agreed plan changes are applied),
+        and returns the transcript, the reply, any plan update, and the reply
+        synthesised as base64 audio.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CoachVoiceRequest'
+      responses:
+        '200':
+          description: Coach reply with transcript and synthesised audio.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CoachVoiceReply'
+        '400':
+          description: Invalid request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Coach request failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /coach/transcribe:
+    post:
+      tags: [Coach]
+      operationId: coachTranscribe
+      summary: Transcribe a short recorded voice note to text
+      description: |
+        Lightweight speech-to-text endpoint used during onboarding so users can
+        speak their injuries or dietary restrictions instead of typing. The
+        client sends recorded audio (base64); the server detects the container
+        from the bytes, converts if needed, and returns the transcript only (no
+        coaching round-trip or synthesised audio).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TranscribeRequest'
+      responses:
+        '200':
+          description: The transcribed text.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TranscribeReply'
+        '400':
+          description: Invalid request body or no audible speech.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Transcription failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /coach/analyze-physique:
+    post:
+      tags: [Coach]
+      operationId: analyzePhysique
+      summary: Estimate body fat % and muscle development from a body photo
+      description: |
+        Vision endpoint. The client sends a single body photo (base64 data URL)
+        plus the user's profile. The server compares the photo against the
+        reference body-fat charts and the body-fat knowledge base and returns a
+        structured estimate: a body-fat range with confidence, the key visual
+        markers, accuracy limitations, a suggested training direction, and a
+        per-muscle development breakdown.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PhysiqueAnalysisRequest'
+      responses:
+        '200':
+          description: Structured body-fat and physique analysis.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PhysiqueAnalysisReply'
+        '400':
+          description: Invalid request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Analysis failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /coach/analyze-meal:
+    post:
+      tags: [Coach]
+      operationId: analyzeMeal
+      summary: Estimate a meal's calories and macros from a food photo
+      description: |
+        Vision endpoint. The client sends a single food photo (base64 data URL).
+        The server identifies the meal, lists the likely items, and returns an
+        estimated calorie and macro breakdown (protein, carbs, fat) with a
+        confidence level. Estimates are approximate, not a substitute for
+        weighing food.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MealAnalysisRequest'
+      responses:
+        '200':
+          description: Structured meal calorie and macro estimate.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MealAnalysisReply'
+        '400':
+          description: Invalid request body or the photo was not food.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Analysis failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /coach/analyze-weight:
+    post:
+      tags: [Coach]
+      operationId: analyzeWeight
+      summary: Read the lifted weight from a photo of a barbell, dumbbell, or machine stack
+      description: |
+        Vision endpoint used by the workout session logger. The client sends a
+        single photo (base64 data URL) of loaded plates, a dumbbell, or a
+        selectorized machine stack. The server reads the visible weight markings
+        and returns an estimated total weight, unit, and confidence. This is a
+        logging convenience and is NOT charged a credit.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WeightAnalysisRequest'
+      responses:
+        '200':
+          description: Structured weight estimate read from the photo.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WeightAnalysisReply'
+        '400':
+          description: Invalid request body or no weight was readable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Analysis failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /coach/personalize-plan:
+    post:
+      tags: [Coach]
+      operationId: personalizePlan
+      summary: Rebalance the workout plan from a fresh physique analysis
+      description: |
+        Takes the user's current plan, goal, profile, and most recent physique
+        analysis (body-fat estimate + per-muscle development ratings) and
+        automatically rebalances the plan: adding training volume to the
+        lagging/weak muscle groups the analysis flagged and adjusting the
+        training emphasis for the estimated body-fat level. Returns the complete
+        updated plan plus a plain-language explanation and a list of the specific
+        changes that were applied.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PersonalizePlanRequest'
+      responses:
+        '200':
+          description: The rebalanced plan with an explanation of what changed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonalizePlanReply'
+        '400':
+          description: Invalid request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Personalization failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /mobile-auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logoutMobileSession
+      summary: Delete a mobile session token
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+      responses:
+        '200':
+          description: Logout processed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogoutSuccess'
+components:
+  parameters:
+    AuthorizationSessionHeader:
+      name: Authorization
+      in: header
+      required: false
+      description: Opaque session token — `Bearer <sid>`.
+      schema:
+        type: string
+    SessionCookie:
+      name: sid
+      in: cookie
+      required: false
+      description: Browser session cookie.
+      schema:
+        type: string
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    AuthUser:
+      type: object
+      required: [id, email, firstName, lastName, profileImageUrl]
+      properties:
+        id:
+          type: string
+        email:
+          type: [string, 'null']
+          format: email
+        username:
+          type: [string, 'null']
+        firstName:
+          type: [string, 'null']
+        lastName:
+          type: [string, 'null']
+        profileImageUrl:
+          type: [string, 'null']
+    RegisterAccountRequest:
+      type: object
+      required: [email, username, password]
+      properties:
+        email:
+          type: string
+          format: email
+          description: The new account's email address.
+        username:
+          type: string
+          minLength: 3
+          maxLength: 30
+          pattern: '^[A-Za-z0-9_.-]+$'
+          description: A unique display handle (letters, numbers, and _ . - only).
+        password:
+          type: string
+          minLength: 8
+          maxLength: 200
+          description: The account password (min 8 characters).
+    LoginAccountRequest:
+      type: object
+      required: [identifier, password]
+      properties:
+        identifier:
+          type: string
+          description: The account's email address or username.
+        password:
+          type: string
+          description: The account password.
+    ForgotPasswordRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+          description: The email address to send a reset link to.
+    ResetPasswordRequest:
+      type: object
+      required: [token, password]
+      properties:
+        token:
+          type: string
+          minLength: 10
+          description: The reset token from the emailed link.
+        password:
+          type: string
+          minLength: 8
+          maxLength: 200
+          description: The new account password (min 8 characters).
+    AuthUserEnvelope:
+      type: object
+      required: [user]
+      properties:
+        user:
+          oneOf:
+            - $ref: '#/components/schemas/AuthUser'
+            - type: 'null'
+    AdminStatusEnvelope:
+      type: object
+      required: [isAdmin, isOwner]
+      properties:
+        isAdmin:
+          type: boolean
+        isOwner:
+          type: boolean
+    AdminCredits:
+      type: object
+      required: [coaching, photo, bodyScan]
+      properties:
+        coaching:
+          type: integer
+        photo:
+          type: integer
+        bodyScan:
+          type: integer
+    AdminUserSummary:
+      type: object
+      required:
+        - id
+        - email
+        - username
+        - name
+        - goal
+        - onboardingComplete
+        - planDays
+        - credits
+        - createdAt
+        - lastActive
+        - photoCount
+        - prCount
+        - weightLogCount
+        - latestWeight
+        - bodyFat
+      properties:
+        id:
+          type: string
+        email:
+          type: [string, 'null']
+        username:
+          type: [string, 'null']
+        name:
+          type: string
+        goal:
+          type: [string, 'null']
+        onboardingComplete:
+          type: boolean
+        planDays:
+          type: integer
+        credits:
+          oneOf:
+            - $ref: '#/components/schemas/AdminCredits'
+            - type: 'null'
+        createdAt:
+          type: string
+          format: date-time
+        lastActive:
+          type: [string, 'null']
+          format: date-time
+        photoCount:
+          type: integer
+        prCount:
+          type: integer
+        weightLogCount:
+          type: integer
+        latestWeight:
+          type: [number, 'null']
+        bodyFat:
+          type: [number, 'null']
+    AdminUserListEnvelope:
+      type: object
+      required: [users]
+      properties:
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminUserSummary'
+    AdminUserDetail:
+      type: object
+      required:
+        - summary
+        - profile
+        - plan
+        - programMeta
+        - prs
+        - weightLogs
+        - progressPhotos
+      properties:
+        summary:
+          $ref: '#/components/schemas/AdminUserSummary'
+        profile:
+          oneOf:
+            - type: object
+              additionalProperties: true
+            - type: 'null'
+        plan:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        programMeta:
+          oneOf:
+            - type: object
+              additionalProperties: true
+            - type: 'null'
+        prs:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        weightLogs:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        progressPhotos:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+    AdminUserDetailEnvelope:
+      type: object
+      required: [user]
+      properties:
+        user:
+          $ref: '#/components/schemas/AdminUserDetail'
+    UpdateAdminUserRequest:
+      type: object
+      properties:
+        credits:
+          $ref: '#/components/schemas/AdminCredits'
+        goal:
+          type: [string, 'null']
+          enum: ['Weight Loss', 'Muscle Gain', 'Strength', 'Athleticism', null]
+    SendReminderResult:
+      type: object
+      required: [success, sentTo]
+      properties:
+        success:
+          type: boolean
+        sentTo:
+          type: string
+          description: The email address the reminder was sent to.
+    FitnessStateEnvelope:
+      type: object
+      required: [state]
+      properties:
+        state:
+          oneOf:
+            - type: object
+              additionalProperties: true
+            - type: 'null'
+          description: The user's saved fitness state blob, or null if none saved yet.
+    CreditBalance:
+      type: object
+      required: [coaching, photo, bodyScan]
+      properties:
+        coaching:
+          type: integer
+          description: Remaining AI coaching messages/voice replies this period.
+        photo:
+          type: integer
+          description: Remaining meal-photo analyses this period.
+        bodyScan:
+          type: integer
+          description: Remaining physique scans this period.
+    CreditsEnvelope:
+      type: object
+      required: [plan, credits, periodStart]
+      properties:
+        plan:
+          type: string
+          enum: [free, base, premium]
+          description: >-
+            The user's plan. Free locks the credit-gated features; Base has the
+            usage credits below; Premium (or the owner) has unlimited usage.
+        credits:
+          $ref: '#/components/schemas/CreditBalance'
+        periodStart:
+          type: string
+          format: date-time
+          description: When the current 30-day credit period began.
+    SubscriptionSummary:
+      type: object
+      required: [plan, status, trialEnd, currentPeriodEnd, cancelAtPeriodEnd, hasEverSubscribed]
+      properties:
+        plan:
+          type: string
+          enum: [free, base, premium]
+          description: Current effective plan from the user's Stripe subscription.
+        status:
+          type: [string, 'null']
+          description: Raw Stripe subscription status (e.g. active, trialing, canceled), or null.
+        trialEnd:
+          type: [string, 'null']
+          format: date-time
+          description: When the free trial ends, if currently trialing.
+        currentPeriodEnd:
+          type: [string, 'null']
+          format: date-time
+          description: When the current billing period ends (access lapses here if canceled).
+        cancelAtPeriodEnd:
+          type: boolean
+          description: True if the subscription is set to cancel at period end.
+        hasEverSubscribed:
+          type: boolean
+          description: >-
+            True if the user has ever had any subscription (any status). Drives
+            the post-onboarding payment gate for brand-new users.
+    SaveFitnessStateRequest:
+      type: object
+      required: [state]
+      properties:
+        state:
+          type: object
+          additionalProperties: true
+          description: The full serializable fitness state to persist.
+    SaveFitnessStateSuccess:
+      type: object
+      required: [success, updatedAt]
+      properties:
+        success:
+          type: boolean
+          const: true
+        updatedAt:
+          type: string
+          format: date-time
+    MobileTokenExchangeRequest:
+      type: object
+      required: [code, code_verifier, redirect_uri, state]
+      properties:
+        code:
+          type: string
+          minLength: 1
+        code_verifier:
+          type: string
+          minLength: 1
+        redirect_uri:
+          type: string
+          minLength: 1
+          format: uri
+        state:
+          type: string
+          minLength: 1
+        nonce:
+          type: string
+          minLength: 1
+    MobileTokenExchangeSuccess:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+    LogoutSuccess:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+          const: true
+    CoachWorkoutExercise:
+      type: object
+      required: [name, sets, reps, rest]
+      properties:
+        name:
+          type: string
+        sets:
+          type: number
+        reps:
+          type: string
+        rest:
+          type: string
+        note:
+          type: string
+    CoachWorkout:
+      type: object
+      required: [dayName, title, exercises]
+      properties:
+        dayName:
+          type: string
+        title:
+          type: string
+        exercises:
+          type: array
+          items:
+            $ref: '#/components/schemas/CoachWorkoutExercise'
+    CoachMessage:
+      type: object
+      required: [role, content]
+      properties:
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+    CoachChatProfile:
+      type: object
+      required: [name, experience, targetPhysique, activityLevel]
+      properties:
+        name:
+          type: string
+        experience:
+          type: string
+        targetPhysique:
+          type: string
+        activityLevel:
+          type: string
+        injuries:
+          type: string
+          description: >-
+            Injuries, pain, or physical limitations the coach must train around.
+            Free-form guideline text gathered during onboarding (selected
+            options, typed notes, and transcribed voice notes combined).
+        dietary:
+          type: string
+          description: >-
+            Dietary restrictions and preferences the coach must respect.
+            Free-form guideline text gathered during onboarding (selected
+            options, typed notes, and transcribed voice notes combined).
+        equipment:
+          type: string
+          description: >-
+            The equipment / training facilities the user has access to. The coach
+            must only program movements the user can actually perform with this —
+            substituting within the same movement pattern otherwise.
+        dislikes:
+          type: string
+          description: >-
+            Workouts and movements the user dislikes and wants kept out of the
+            plan (especially cardio modalities). Hard "do not program" list.
+        preferences:
+          type: string
+          description: >-
+            Training styles, pickup sports, and classes the user enjoys. The
+            coach biases toward these (including as cardio alternatives) for
+            adherence.
+    CoachChatRequest:
+      type: object
+      required: [messages, goal, profile, plan]
+      properties:
+        messages:
+          type: array
+          description: Full conversation history, oldest first.
+          items:
+            $ref: '#/components/schemas/CoachMessage'
+        goal:
+          type: [string, 'null']
+          description: The user's training goal.
+        profile:
+          $ref: '#/components/schemas/CoachChatProfile'
+        plan:
+          type: array
+          description: The user's current workout plan.
+          items:
+            $ref: '#/components/schemas/CoachWorkout'
+        physique:
+          $ref: '#/components/schemas/PhysiqueContext'
+    CoachReply:
+      type: object
+      required: [reply, planUpdated]
+      properties:
+        reply:
+          type: string
+          description: The coach's conversational reply.
+        planUpdated:
+          type: boolean
+          description: True when the coach made a change to the plan.
+        planSummary:
+          type: [string, 'null']
+          description: Short human-readable summary of what changed.
+        updatedPlan:
+          type: [array, 'null']
+          description: The complete updated plan, present only when planUpdated is true.
+          items:
+            $ref: '#/components/schemas/CoachWorkout'
+    CoachVoiceRequest:
+      type: object
+      required: [audio, messages, goal, profile, plan]
+      properties:
+        audio:
+          type: string
+          description: Base64-encoded recorded audio of the user's spoken message.
+        audioFormat:
+          type: string
+          enum: [webm, wav, mp3]
+          description: Container format of the recorded audio. Defaults to webm.
+        messages:
+          type: array
+          description: Conversation history so far, oldest first (excludes this spoken turn).
+          items:
+            $ref: '#/components/schemas/CoachMessage'
+        goal:
+          type: [string, 'null']
+          description: The user's training goal.
+        profile:
+          $ref: '#/components/schemas/CoachChatProfile'
+        plan:
+          type: array
+          description: The user's current workout plan.
+          items:
+            $ref: '#/components/schemas/CoachWorkout'
+        physique:
+          $ref: '#/components/schemas/PhysiqueContext'
+    CoachVoiceReply:
+      type: object
+      required: [reply, planUpdated, userTranscript, audio]
+      properties:
+        userTranscript:
+          type: string
+          description: Transcription of what the user said.
+        reply:
+          type: string
+          description: The coach's conversational reply.
+        planUpdated:
+          type: boolean
+          description: True when the coach made a change to the plan.
+        planSummary:
+          type: [string, 'null']
+          description: Short human-readable summary of what changed.
+        updatedPlan:
+          type: [array, 'null']
+          description: The complete updated plan, present only when planUpdated is true.
+          items:
+            $ref: '#/components/schemas/CoachWorkout'
+        audio:
+          type: string
+          description: Base64-encoded synthesised audio of the coach's reply.
+        audioFormat:
+          type: string
+          description: Container format of the synthesised audio (e.g. mp3).
+    TranscribeRequest:
+      type: object
+      required: [audio]
+      properties:
+        audio:
+          type: string
+          description: Base64-encoded recorded audio of the user's spoken note.
+        audioFormat:
+          type: string
+          enum: [webm, wav, mp3]
+          description: Container format of the recorded audio. Defaults to webm.
+    TranscribeReply:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+          description: The transcribed text of the recorded voice note.
+    PhysiqueAnalysisProfile:
+      type: object
+      required: [gender, age, height, heightUnit, weight, weightUnit, experience, targetPhysique, goal]
+      properties:
+        gender:
+          type: string
+          description: "Male, Female, or empty when unknown."
+        age:
+          type: string
+        height:
+          type: string
+        heightUnit:
+          type: string
+        weight:
+          type: string
+        weightUnit:
+          type: string
+        experience:
+          type: string
+        targetPhysique:
+          type: string
+        goal:
+          type: [string, 'null']
+    PhysiqueAnalysisRequest:
+      type: object
+      required: [photos, profile]
+      properties:
+        photos:
+          type: array
+          description: >-
+            One or more of the user's body photos as base64 data URLs (e.g.
+            data:image/jpeg;base64,...). Multiple photos are treated as
+            different angles/views of the same person (e.g. front, side, back)
+            and are all considered together in a single analysis.
+          minItems: 1
+          maxItems: 4
+          items:
+            type: string
+            minLength: 1
+        profile:
+          $ref: '#/components/schemas/PhysiqueAnalysisProfile'
+    PhysiqueMusclePart:
+      type: object
+      required: [part, rating, note]
+      properties:
+        part:
+          type: string
+          description: One of Shoulders, Chest, Back, Arms, Core, Legs.
+        rating:
+          type: number
+          description: Visible development score 0-100.
+        note:
+          type: string
+          description: Short, specific observation about this muscle group.
+    PhysiqueAnalysisReply:
+      type: object
+      required: [bodyFatLow, bodyFatHigh, bodyFatMidpoint, confidence, markers, limitations, suggestedDirection, summary, parts]
+      properties:
+        bodyFatLow:
+          type: number
+          description: Low end of the estimated body-fat range (%).
+        bodyFatHigh:
+          type: number
+          description: High end of the estimated body-fat range (%).
+        bodyFatMidpoint:
+          type: number
+          description: Midpoint of the range (%), framed as an estimate not an exact value.
+        confidence:
+          type: string
+          enum: [low, medium, high]
+          description: How confident the visual estimate is.
+        markers:
+          type: array
+          description: The main visual markers supporting the estimate.
+          items:
+            type: string
+        limitations:
+          type: string
+          description: What limits the accuracy of this image-based estimate.
+        suggestedDirection:
+          type: string
+          description: The best starting training/nutrition direction given the estimate.
+        summary:
+          type: string
+          description: Warm, plain-language coaching paragraph summarising the analysis.
+        parts:
+          type: array
+          description: Per-muscle development breakdown.
+          items:
+            $ref: '#/components/schemas/PhysiqueMusclePart'
+    PhysiqueContextPart:
+      type: object
+      required: [part, rating, status, note]
+      properties:
+        part:
+          type: string
+          description: One of Shoulders, Chest, Back, Arms, Core, Legs.
+        rating:
+          type: number
+          description: Visible development score 0-100.
+        status:
+          type: string
+          enum: [strong, developing, weak]
+          description: Coarse development bucket derived from the rating.
+        note:
+          type: string
+          description: Short, specific observation about this muscle group.
+    PhysiqueContext:
+      type: object
+      description: >-
+        A condensed view of the user's most recent AI physique analysis, used to
+        personalize their training plan (body-fat estimate + per-muscle
+        development ratings).
+      required: [bodyFatLow, bodyFatHigh, bodyFatMidpoint, overallScore, parts]
+      properties:
+        bodyFatLow:
+          type: number
+          description: Low end of the estimated body-fat range (%).
+        bodyFatHigh:
+          type: number
+          description: High end of the estimated body-fat range (%).
+        bodyFatMidpoint:
+          type: number
+          description: Midpoint of the estimated body-fat range (%).
+        overallScore:
+          type: number
+          description: Average development score across all muscle groups (0-100).
+        parts:
+          type: array
+          description: Per-muscle development ratings from the latest analysis.
+          items:
+            $ref: '#/components/schemas/PhysiqueContextPart'
+    PersonalizePlanRequest:
+      type: object
+      required: [goal, profile, plan, physique]
+      properties:
+        goal:
+          type: [string, 'null']
+          description: The user's training goal.
+        profile:
+          $ref: '#/components/schemas/CoachChatProfile'
+        plan:
+          type: array
+          description: The user's current workout plan to rebalance.
+          items:
+            $ref: '#/components/schemas/CoachWorkout'
+        physique:
+          $ref: '#/components/schemas/PhysiqueContext'
+    PersonalizePlanReply:
+      type: object
+      required: [planUpdated, explanation, changes]
+      properties:
+        planUpdated:
+          type: boolean
+          description: True when the plan was rebalanced from the analysis.
+        planSummary:
+          type: [string, 'null']
+          description: Short human-readable label of the rebalance.
+        explanation:
+          type: string
+          description: Plain-language explanation of what changed and why.
+        changes:
+          type: array
+          description: Specific, human-readable changes that were applied.
+          items:
+            type: string
+        updatedPlan:
+          type: [array, 'null']
+          description: The complete rebalanced plan, present only when planUpdated is true.
+          items:
+            $ref: '#/components/schemas/CoachWorkout'
+    MealAnalysisRequest:
+      type: object
+      required: [photo]
+      properties:
+        photo:
+          type: string
+          description: The meal photo as a base64 data URL (e.g. data:image/jpeg;base64,...).
+          minLength: 1
+        note:
+          type: [string, 'null']
+          description: Optional user hint about the meal (e.g. "two servings", "cooked in butter").
+    MealFoodItem:
+      type: object
+      required:
+        [detectedName, category, alternatives, confidence, portionConfidence, grams, source, calories, protein, carbs, fat]
+      properties:
+        detectedName:
+          type: string
+          description: The food as identified by the vision model.
+        dbMatch:
+          type: [string, 'null']
+          description: Canonical name of the matched internal database food, or null if no confident match.
+        foodId:
+          type: [string, 'null']
+          description: Internal database food id, or null for an estimated/unmatched item.
+        category:
+          type: string
+          enum: [protein, carb, fat, vegetable, fruit, dairy, sauce, drink, dessert, other]
+        alternatives:
+          type: array
+          description: Other foods this item might be, best guess first.
+          items:
+            type: string
+        confidence:
+          type: number
+          description: Identification confidence from 0 to 1.
+        portionConfidence:
+          type: number
+          description: Portion-size confidence from 0 to 1.
+        grams:
+          type: number
+          description: Estimated portion in grams.
+        source:
+          type: string
+          enum: [internal, estimated]
+          description: Whether macros came from the internal nutrition database or a model estimate.
+        cookingMethod:
+          type: string
+          enum: [raw, grilled, baked, roasted, steamed, boiled, sauteed, fried, deep_fried, unknown]
+          description: How the food appears to have been cooked (affects absorbed-fat calories).
+        skinOn:
+          type: boolean
+          description: Poultry/fish skin left on (adds fat). False/absent when not applicable.
+        breaded:
+          type: boolean
+          description: Breaded or battered coating present (adds carbs and absorbed oil).
+        calories:
+          type: number
+        protein:
+          type: number
+        carbs:
+          type: number
+        fat:
+          type: number
+    MealClarification:
+      type: object
+      required: [question, options]
+      properties:
+        targetName:
+          type: [string, 'null']
+          description: detectedName of the food item this question is about, if any.
+        reason:
+          type: [string, 'null']
+          description: Why the question is being asked (e.g. low protein confidence).
+        question:
+          type: string
+        options:
+          type: array
+          items:
+            type: string
+    MealHiddenRisk:
+      type: object
+      required: [risk, question]
+      properties:
+        risk:
+          type: string
+          description: The hidden calorie source (oil, butter, sauce, dressing, cheese, frying, sugar, cream).
+        question:
+          type: string
+          description: A user-facing question to confirm the hidden ingredient.
+    MealAnalysisReply:
+      type: object
+      required: [name, items, foods, calories, protein, carbs, fat, confidence]
+      properties:
+        name:
+          type: string
+          description: Short name of the identified meal.
+        items:
+          type: array
+          description: The main foods visible in the photo (display names).
+          items:
+            type: string
+        foods:
+          type: array
+          description: Per-item structured breakdown (identification, portion, macros).
+          items:
+            $ref: '#/components/schemas/MealFoodItem'
+        clarifications:
+          type: array
+          description: Questions to ask the user when confidence is low. May be empty.
+          items:
+            $ref: '#/components/schemas/MealClarification'
+        hiddenRisks:
+          type: array
+          description: Likely hidden calorie sources to confirm (oil, sauce, etc.). May be empty.
+          items:
+            $ref: '#/components/schemas/MealHiddenRisk'
+        calories:
+          type: number
+          description: Estimated total calories (kcal).
+        protein:
+          type: number
+          description: Estimated protein in grams.
+        carbs:
+          type: number
+          description: Estimated carbohydrates in grams.
+        fat:
+          type: number
+          description: Estimated fat in grams.
+        confidence:
+          type: string
+          enum: [low, medium, high]
+          description: How confident the overall visual estimate is.
+        biggestUncertainty:
+          type: [string, 'null']
+          description: The single biggest source of uncertainty in this estimate (e.g. amount of cooking oil).
+        note:
+          type: [string, 'null']
+          description: Short coaching note or caveat about the estimate.
+    WeightAnalysisRequest:
+      type: object
+      required: [photo]
+      properties:
+        photo:
+          type: string
+          description: The equipment photo as a base64 data URL (e.g. data:image/jpeg;base64,...).
+          minLength: 1
+        exerciseName:
+          type: [string, 'null']
+          description: Optional name of the exercise being performed, to help disambiguate the setup.
+    WeightAnalysisReply:
+      type: object
+      required: [readable, weight, unit, confidence]
+      properties:
+        readable:
+          type: boolean
+          description: True only if a weight could actually be read from the photo.
+        weight:
+          type: number
+          description: Estimated total weight lifted (0 when not readable).
+        unit:
+          type: string
+          enum: [kg, lb]
+          description: The unit the weight is expressed in.
+        equipment:
+          type: [string, 'null']
+          description: What was detected (barbell, dumbbell, machine stack, etc.).
+        confidence:
+          type: string
+          enum: [low, medium, high]
+          description: How confident the visual estimate is.
+        note:
+          type: [string, 'null']
+          description: Short caveat or detail about the reading (optional).
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string

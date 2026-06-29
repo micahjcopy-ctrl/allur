@@ -1,0 +1,118 @@
+Create a more accurate AI photo-based macro estimator for our fitness app.
+
+The system should not just “guess calories.” It should follow a structured pipeline:
+
+Food Detection
+Identify every visible food item in the image:
+Protein source
+Carb source
+Vegetables/fruits
+Sauces/oils
+Hidden calorie sources
+Portion Estimation
+Estimate portion size using multiple signals:
+Plate diameter estimate
+Object size relative to plate
+Food volume
+Food density
+Number of pieces
+Cooked vs raw state
+Thickness/depth estimation
+Common serving-size references
+Weight Conversion
+Convert visual portion estimates into grams.
+
+Example:
+
+{
+  "food": "roasted potatoes",
+  "estimated_volume": "1.5 cups",
+  "estimated_weight_g": 250,
+  "confidence": 0.78
+}
+Nutrition Database Matching
+Match each detected food to a verified nutrition source like USDA FoodData Central.
+
+Each item should return:
+
+{
+  "food": "roasted chicken thigh with skin",
+  "weight_g": 180,
+  "calories": 410,
+  "protein_g": 38,
+  "carbs_g": 0,
+  "fat_g": 28,
+  "source": "USDA"
+}
+Cooking Method Adjustment
+Adjust calories/macros based on:
+Roasted vs fried vs grilled
+Skin-on vs skinless
+Added oil
+Sauces
+Butter
+Marinades
+Breaded coatings
+Confidence Ranges
+Never return one exact number only.
+
+Return:
+
+{
+  "calories": {
+    "low": 850,
+    "estimated": 980,
+    "high": 1120
+  },
+  "protein_g": {
+    "low": 48,
+    "estimated": 56,
+    "high": 64
+  },
+  "carbs_g": {
+    "low": 75,
+    "estimated": 90,
+    "high": 105
+  },
+  "fat_g": {
+    "low": 32,
+    "estimated": 44,
+    "high": 56
+  }
+}
+User Correction Loop
+Allow the user to correct the estimate:
+“That was chicken breast, not thigh”
+“There were 2 tablespoons of oil”
+“The plate was 10 inches”
+“I only ate half”
+“No skin”
+“Add sauce”
+
+Then instantly recalculate the macros.
+
+Meal Breakdown UI
+Show:
+Total calories
+Protein, carbs, fat
+Item-by-item breakdown
+Confidence score
+Biggest uncertainty factor
+
+Example:
+
+Estimated Meal: 980 calories
+
+Protein: 56g
+Carbs: 90g
+Fat: 44g
+
+Confidence: 78%
+
+Biggest uncertainty:
+Amount of cooking oil on potatoes and chicken skin.
+Accuracy Priority
+The app should be conservative and transparent. It should tell the user when the estimate is uncertain instead of pretending it is exact.
+
+Goal:
+Make the macro estimate feel like a smart nutrition coach analyzing the meal photo, not a random calorie guess.

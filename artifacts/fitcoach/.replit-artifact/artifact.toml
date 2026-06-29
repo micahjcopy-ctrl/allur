@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "ALLUR"
+version = "1.0.0"
+id = "artifacts/fitcoach"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 20176
+
+[services.development]
+run = "pnpm --filter @workspace/fitcoach run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/fitcoach", "run", "build" ]
+publicDir = "artifacts/fitcoach/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "20176"
+BASE_PATH = "/"

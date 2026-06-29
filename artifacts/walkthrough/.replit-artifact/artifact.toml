@@ -1,0 +1,31 @@
+kind = "video"
+previewPath = "/walkthrough/"
+title = "ALLUR Walkthrough"
+version = "1.0.0"
+id = "artifacts/walkthrough"
+router = "path"
+
+[[integratedSkills]]
+name = "video-js"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/walkthrough/" ]
+localPort = 20578
+
+[services.development]
+run = "pnpm --filter @workspace/walkthrough run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/walkthrough", "run", "build" ]
+publicDir = "artifacts/walkthrough/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "20578"
+BASE_PATH = "/walkthrough/"
