@@ -26,7 +26,9 @@ function getTransport(): Transporter | null {
 
   const host = process.env["SMTP_HOST"];
   const user = process.env["SMTP_USER"];
-  const pass = process.env["SMTP_PASS"];
+  // Strip whitespace: Gmail shows app passwords in spaced groups
+  // ("abcd efgh ijkl mnop") but SMTP auth expects them with no spaces.
+  const pass = process.env["SMTP_PASS"]?.replace(/\s+/g, "");
   if (!host || !user || !pass) return null;
 
   const port = Number(process.env["SMTP_PORT"] ?? 587);
