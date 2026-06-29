@@ -46,22 +46,24 @@ export function ensureStripeInitialized(): Promise<void> {
         );
       }
 
-      const stripeSync = await getStripeSync();
-
-      // Replit-only managed webhook. Off Replit, set up the webhook manually.
+      // Replit-only managed webhook. Off Replit, the webhook is configured
+      // manually in the Stripe dashboard and the data backfill happens at build
+      // time (scripts/stripe-migrate.mjs) — we do NOT backfill here because a
+      // serverless function is frozen after the response, so a long background
+      // sync would never finish. Ongoing changes arrive via the webhook.
       const isReplit = !!process.env["REPLIT_DOMAINS"];
       if (isReplit) {
+        const stripeSync = await getStripeSync();
         const base = publicBaseUrl();
         if (base) {
           await stripeSync.findOrCreateManagedWebhook(`${base}/api/stripe/webhook`);
         }
+        // On Replit (long-running), a backfill can run to completion.
+        stripeSync
+          .syncBackfill({ object: "all" })
+          .then(() => logger.info("Stripe data synced"))
+          .catch((err) => logger.error({ err }, "Stripe backfill failed"));
       }
-
-      // syncBackfill MUST be called with { object: "all" }.
-      stripeSync
-        .syncBackfill({ object: "all" })
-        .then(() => logger.info("Stripe data synced"))
-        .catch((err) => logger.error({ err }, "Stripe backfill failed"));
 
       logger.info("Stripe initialized");
     } catch (err) {
