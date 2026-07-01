@@ -18,7 +18,9 @@ import {
   ScanLine,
   Flame,
   Smartphone,
-  Download
+  Download,
+  Clock,
+  FlaskConical
 } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { usePwaInstall, buildInstallUrl } from "@/hooks/usePwaInstall";
@@ -76,7 +78,7 @@ const JOURNEY = [
   {
     step: "06",
     title: "Your plan adapts itself",
-    desc: "As your data comes in, ALLUR rebalances volume toward lagging areas and trains around your limits — automatically.",
+    desc: "As your data comes in, ALLUR sends more work to the muscle groups falling behind and trains around your limits — automatically.",
     Screen: AdaptScreen,
     callout: { icon: Zap, label: "Rebalanced", value: "Auto" }
   }
@@ -288,6 +290,7 @@ const Navbar = () => {
   };
 
   const navLinks = [
+    { id: "coach-demo", label: "Live demo" },
     { id: "how-it-works", label: "System" },
     { id: "difference", label: "Difference" },
     { id: "pricing", label: "Pricing" },
@@ -702,6 +705,366 @@ function QrBlurb({
   );
 }
 
+/* ===========================================================================
+   LIVE COACH DEMO — the "act, not talk" proof moment. The visitor picks a
+   real-life curveball and watches the coach respond and edit the plan, right
+   on the page. Fully scripted, no backend. User-controlled (no scroll hijack).
+   =========================================================================== */
+
+type DemoChange = { from: string; to: string };
+
+type DemoScenario = {
+  id: string;
+  chip: string;
+  icon: React.ElementType;
+  user: string;
+  coach: string;
+  planTitle: string;
+  changes: DemoChange[];
+  callout: { icon: React.ElementType; label: string; value: string };
+};
+
+const DEMO_SCENARIOS: DemoScenario[] = [
+  {
+    id: "time",
+    chip: "I only have 30 minutes today",
+    icon: Clock,
+    user: "Coach — I've only got 30 minutes today.",
+    coach:
+      "Got it. I compressed today's Upper A into a 30-minute express version: paired sets, shorter rest, same key lifts. Ready when you are.",
+    planTitle: "Today's session — updated",
+    changes: [
+      { from: "Upper A · 5 movements · ~60 min", to: "Upper A Express · 4 paired sets · 30 min" },
+      { from: "Rest 2–3 min between sets", to: "Rest 60–75 sec, supersets" }
+    ],
+    callout: { icon: Clock, label: "Plan updated", value: "30 min" }
+  },
+  {
+    id: "knee",
+    chip: "My knee is acting up",
+    icon: Activity,
+    user: "My knee's bugging me — squats feel sketchy.",
+    coach:
+      "Understood. I'm pulling knee-dominant work for today — you keep your leg volume with hinges and light leg press instead. I've flagged it so next week trains around it too.",
+    planTitle: "Lower body — adjusted",
+    changes: [
+      { from: "Back squat · 4 × 6", to: "Leg press (light) · 3 × 12" },
+      { from: "Walking lunges · 3 × 10", to: "Romanian deadlift · 3 × 8" }
+    ],
+    callout: { icon: Activity, label: "Trained around", value: "Knee" }
+  },
+  {
+    id: "meal",
+    chip: "I ate out — no idea what's in it",
+    icon: Camera,
+    user: "Ate out. Burrito bowl, double chicken. No clue on macros.",
+    coach:
+      "No problem — that's roughly 780 kcal with 62g of protein. Logged. I trimmed tonight's target so you still finish the day on plan.",
+    planTitle: "Nutrition — rebalanced",
+    changes: [
+      { from: "Lunch · not logged", to: "Burrito bowl · 780 kcal · 62g P" },
+      { from: "Dinner target · 900 kcal", to: "Dinner target · 720 kcal" }
+    ],
+    callout: { icon: Camera, label: "Logged", value: "780 kcal" }
+  }
+];
+
+function TypingDots() {
+  return (
+    <div className="flex items-center gap-1 px-4 py-3">
+      {[0, 1, 2].map((i) => (
+        <motion.span
+          key={i}
+          className="block w-1.5 h-1.5 rounded-full"
+          style={{ backgroundColor: "var(--lp-muted)" }}
+          animate={{ opacity: [0.25, 1, 0.25] }}
+          transition={{ duration: 1, repeat: Infinity, delay: i * 0.18 }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function CoachDemoScreen({ scenario }: { scenario: DemoScenario }) {
+  // staged reveal: 1 = user msg, 2 = typing, 3 = coach msg, 4 = plan card
+  const [stage, setStage] = useState(1);
+  const prefersReduced = useReducedMotion();
+
+  useEffect(() => {
+    if (prefersReduced) {
+      setStage(4);
+      return;
+    }
+    setStage(1);
+    const timers = [
+      setTimeout(() => setStage(2), 600),
+      setTimeout(() => setStage(3), 1700),
+      setTimeout(() => setStage(4), 2600)
+    ];
+    return () => timers.forEach(clearTimeout);
+  }, [scenario.id, prefersReduced]);
+
+  return (
+    <div className="absolute inset-0 flex flex-col" style={{ backgroundColor: "var(--lp-bg)" }}>
+      {/* header */}
+      <div
+        className="flex items-center gap-2.5 px-4 pt-9 pb-3 border-b shrink-0"
+        style={{ borderColor: "rgba(110,231,242,0.12)", backgroundColor: "rgba(11,17,32,0.6)" }}
+      >
+        <div
+          className="w-7 h-7 rounded-full flex items-center justify-center"
+          style={{ backgroundColor: "rgba(110,231,242,0.14)" }}
+        >
+          <Brain className="w-3.5 h-3.5" style={{ color: "var(--lp-cyan)" }} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-[11px] font-semibold text-[var(--lp-text)] leading-tight">ALLUR Coach</div>
+          <div className="text-[9px]" style={{ color: "var(--lp-cyan)" }}>● online</div>
+        </div>
+        <span
+          className="text-[8px] font-semibold uppercase tracking-widest px-2 py-1 rounded-full"
+          style={{ backgroundColor: "rgba(110,231,242,0.10)", color: "var(--lp-cyan)" }}
+        >
+          Live demo
+        </span>
+      </div>
+
+      {/* messages */}
+      <div className="flex-1 overflow-hidden px-3 py-3 flex flex-col gap-2.5">
+        <AnimatePresence>
+          {stage >= 1 && (
+            <motion.div
+              key={`u-${scenario.id}`}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+              className="self-end max-w-[85%] rounded-2xl rounded-br-md px-3.5 py-2.5 text-[11px] leading-snug"
+              style={{ backgroundColor: "rgba(110,231,242,0.14)", color: "var(--lp-text)" }}
+            >
+              {scenario.user}
+            </motion.div>
+          )}
+
+          {stage === 2 && (
+            <motion.div
+              key={`t-${scenario.id}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="self-start rounded-2xl rounded-bl-md"
+              style={{ backgroundColor: "rgba(255,255,255,0.05)" }}
+            >
+              <TypingDots />
+            </motion.div>
+          )}
+
+          {stage >= 3 && (
+            <motion.div
+              key={`c-${scenario.id}`}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+              className="self-start max-w-[90%] rounded-2xl rounded-bl-md px-3.5 py-2.5 text-[11px] leading-snug"
+              style={{ backgroundColor: "rgba(255,255,255,0.05)", color: "var(--lp-body)" }}
+            >
+              {scenario.coach}
+            </motion.div>
+          )}
+
+          {stage >= 4 && (
+            <motion.div
+              key={`p-${scenario.id}`}
+              initial={{ opacity: 0, y: 16, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+              className="self-stretch rounded-2xl border p-3 mt-1"
+              style={{ borderColor: "rgba(110,231,242,0.3)", backgroundColor: "rgba(11,17,32,0.8)" }}
+            >
+              <div className="flex items-center gap-1.5 mb-2.5">
+                <Zap className="w-3 h-3" style={{ color: "var(--lp-cyan)" }} />
+                <span className="text-[9px] font-semibold uppercase tracking-widest" style={{ color: "var(--lp-cyan)" }}>
+                  {scenario.planTitle}
+                </span>
+              </div>
+              <div className="space-y-2">
+                {scenario.changes.map((c, i) => (
+                  <motion.div
+                    key={c.to}
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.15 + i * 0.15, duration: 0.3 }}
+                    className="text-[10px] leading-snug"
+                  >
+                    <span className="line-through" style={{ color: "var(--lp-muted)", opacity: 0.7 }}>{c.from}</span>
+                    <span className="block font-semibold text-[var(--lp-text)]">→ {c.to}</span>
+                  </motion.div>
+                ))}
+              </div>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.55, duration: 0.3 }}
+                className="mt-3 rounded-lg text-center py-2 text-[10px] font-semibold"
+                style={{ backgroundImage: "linear-gradient(135deg, #6EE7F2, #2DD4BF)", color: "#04111A" }}
+              >
+                Approve changes ✓
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* input mock */}
+      <div className="px-3 pb-4 shrink-0">
+        <div
+          className="rounded-full border px-4 py-2.5 text-[10px]"
+          style={{ borderColor: "rgba(255,255,255,0.08)", color: "var(--lp-muted)", backgroundColor: "rgba(255,255,255,0.03)" }}
+        >
+          Message your coach…
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LiveCoachDemo() {
+  const [, setLocation] = useLocation();
+  const [active, setActive] = useState(0);
+  const scenario = DEMO_SCENARIOS[active];
+
+  return (
+    <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center max-w-6xl mx-auto">
+      {/* scenario picker */}
+      <div>
+        <p className="text-lg text-[var(--lp-body)] mb-8 leading-relaxed">
+          Every fitness app says it adapts. Here's the difference:{" "}
+          <strong className="text-[var(--lp-text)] font-semibold">ALLUR actually edits your plan.</strong>{" "}
+          Throw a real-life curveball at the coach and watch what happens — no signup, no email.
+        </p>
+        <div className="flex flex-col gap-3 mb-8">
+          {DEMO_SCENARIOS.map((s, i) => {
+            const isActive = i === active;
+            const Icon = s.icon;
+            return (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => setActive(i)}
+                aria-pressed={isActive}
+                className="text-left rounded-2xl border px-5 py-4 transition-all duration-300 flex items-center gap-3.5 cursor-pointer"
+                style={{
+                  backgroundColor: isActive ? "rgba(110,231,242,0.10)" : "rgba(11,17,32,0.5)",
+                  borderColor: isActive ? "rgba(110,231,242,0.45)" : "rgba(110,231,242,0.12)"
+                }}
+              >
+                <span
+                  className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ backgroundColor: isActive ? "rgba(110,231,242,0.16)" : "rgba(255,255,255,0.04)" }}
+                >
+                  <Icon className="w-5 h-5" style={{ color: isActive ? "var(--lp-cyan)" : "var(--lp-muted)" }} />
+                </span>
+                <span className="lp-display font-semibold" style={{ color: isActive ? "var(--lp-text)" : "var(--lp-body)" }}>
+                  "{s.chip}"
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-sm text-[var(--lp-muted)] mb-6">
+          This is the actual mechanic inside the app: the coach proposes, <span className="text-[var(--lp-text)]">you approve</span>, the plan changes. You stay in control.
+        </p>
+        <button
+          onClick={() => setLocation("/auth?mode=signup")}
+          className="lp-cta h-14 px-8 text-lg inline-flex items-center justify-center gap-2 group"
+        >
+          Build my plan
+          <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+        </button>
+        <p className="text-sm text-[var(--lp-muted)] mt-4 font-medium">
+          <span className="text-[var(--lp-text)]">$0 today</span> · 14-day free trial · Cancel anytime
+        </p>
+      </div>
+
+      {/* live phone */}
+      <div className="flex justify-center">
+        <div className="relative">
+          <div
+            className="absolute inset-0 -z-10 blur-3xl rounded-full"
+            style={{ background: "radial-gradient(circle, rgba(110,231,242,0.2), transparent 70%)" }}
+          />
+          <PhoneFrame>
+            <CoachDemoScreen scenario={scenario} />
+          </PhoneFrame>
+          <AnimatePresence mode="wait">
+            <FloatingCallout
+              key={scenario.id}
+              icon={scenario.callout.icon}
+              label={scenario.callout.label}
+              value={scenario.callout.value}
+              position="br"
+            />
+          </AnimatePresence>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ===========================================================================
+   EVIDENCE — external credibility for a product with no testimonials yet.
+   Peer-reviewed findings that argue the ALLUR thesis: results follow
+   adherence + systems, not more information.
+   =========================================================================== */
+
+const EVIDENCE = [
+  {
+    stat: "Adherence",
+    source: "JAMA · 2005",
+    finding:
+      "Across four popular diets, results tracked with how well people stuck to a plan — not which plan they picked.",
+    tie: "ALLUR's one job: make sticking to it the path of least resistance."
+  },
+  {
+    stat: "88 studies",
+    source: "Preventive Medicine · 2010",
+    finding:
+      "A meta-analysis of 88 trials found personalized programs beat generic ones — and programs that adapt over time worked best of all.",
+    tie: "Your plan here is personal on day one and re-personalizes every week."
+  },
+  {
+    stat: "94 studies",
+    source: "Psychology meta-analysis · 2006",
+    finding:
+      "People who decide in advance exactly when and how they'll act follow through at far higher rates than people who just intend to.",
+    tie: "That's the daily action path: open the app, see exactly what today is."
+  },
+  {
+    stat: "Log often, lose more",
+    source: "Obesity · 2019",
+    finding:
+      "How often people tracked their food predicted their success — not how much time they spent doing it.",
+    tie: "So logging a meal here takes one photo, not ten minutes."
+  }
+];
+
+const TIMELINE_WEEKS = [
+  {
+    week: "Week one",
+    title: "The guessing stops.",
+    desc: "You open the app. It tells you exactly what today is — the workout, the targets, nothing else. You do it and get on with your life."
+  },
+  {
+    week: "Week two",
+    title: "It clicks.",
+    desc: "Meals take seconds to log. The plan bends around your busy Tuesday instead of breaking. You stop negotiating with yourself."
+  },
+  {
+    week: "Week three",
+    title: "Momentum.",
+    desc: "You're not there yet — but you can feel the difference. And you haven't started over once. That's the whole point."
+  }
+];
+
 export default function Landing() {
   const [, setLocation] = useLocation();
   const heroRef = useRef<HTMLElement>(null);
@@ -739,6 +1102,11 @@ export default function Landing() {
 
   const handleSignup = () => setLocation("/auth?mode=signup");
 
+  const scrollToDemo = () => {
+    const el = document.getElementById("coach-demo");
+    if (el) el.scrollIntoView({ behavior: "smooth" });
+  };
+
   const marqueeItems = [
     "Adaptive Training",
     "AI Coach",
@@ -759,9 +1127,9 @@ export default function Landing() {
           <img
             src={`${BASE_URL}lp-hero.png`}
             alt="Athlete training"
-            className="w-full h-full object-cover object-center opacity-55"
+            className="w-full h-full object-cover object-center opacity-40"
           />
-          <div className="absolute inset-0" style={{ background: "linear-gradient(to top, var(--lp-bg) 8%, rgba(5,8,22,0.72) 45%, rgba(5,8,22,0.35) 100%)" }} />
+          <div className="absolute inset-0" style={{ background: "linear-gradient(to top, var(--lp-bg) 8%, rgba(5,8,22,0.78) 45%, rgba(5,8,22,0.45) 100%)" }} />
           <div className="absolute inset-0" style={{ background: "linear-gradient(to right, var(--lp-bg) 0%, rgba(5,8,22,0.4) 45%, transparent 100%)" }} />
           <div className="absolute inset-0 lp-halo opacity-80" />
         </motion.div>
@@ -788,8 +1156,8 @@ export default function Landing() {
             </h1>
 
             <p className="text-lg md:text-xl text-[var(--lp-body)] mb-10 leading-relaxed max-w-2xl">
-              ALLUR gives you a <strong className="text-[var(--lp-text)] font-semibold">personalized training and nutrition system</strong> that{" "}
-              <span className="lp-underline">adapts in real time</span> — so you make progress faster, with far less friction.
+              ALLUR builds a <strong className="text-[var(--lp-text)] font-semibold">training and nutrition plan around your body, your schedule, and your equipment</strong> — then{" "}
+              <span className="lp-underline">rebuilds it every time life changes.</span> Don't take our word for it: try the coach below.
             </p>
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
@@ -797,19 +1165,20 @@ export default function Landing() {
                 onClick={handleSignup}
                 className="lp-cta w-full sm:w-auto h-16 px-10 text-lg inline-flex items-center justify-center gap-2 group"
               >
-                Start your transformation
+                Build my plan
                 <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </button>
               <button
-                onClick={() => setLocation("/auth?mode=login")}
-                className="lp-cta-ghost w-full sm:w-auto h-16 px-10 text-lg inline-flex items-center justify-center backdrop-blur-sm"
+                onClick={scrollToDemo}
+                className="lp-cta-ghost w-full sm:w-auto h-16 px-10 text-lg inline-flex items-center justify-center gap-2 backdrop-blur-sm"
               >
-                Sign in
+                Try the live demo
+                <ArrowDown className="w-4 h-4" />
               </button>
             </div>
 
             <p className="text-sm text-[var(--lp-muted)] mt-6 font-medium">
-              <span className="text-[var(--lp-text)]">14-day free trial</span> · Cancel anytime
+              <span className="text-[var(--lp-text)]">$0 today</span> · 14-day free trial · Cancel anytime
             </p>
           </motion.div>
         </motion.div>
@@ -899,6 +1268,11 @@ export default function Landing() {
                   Not because you don't care — because{" "}
                   <span className="lp-underline">the path is fragmented.</span>
                 </p>
+
+                <p>
+                  So drop the guilt. <strong className="text-[var(--lp-text)] font-semibold">It was never your discipline — it was the system.</strong>{" "}
+                  Every app you've tried tracked what happened. None of them steered what happens next.
+                </p>
               </div>
             </motion.div>
 
@@ -976,7 +1350,7 @@ export default function Landing() {
               {
                 icon: Zap,
                 title: "A self-adjusting system",
-                outcomes: ["Rebalances volume toward lagging areas", "Trains around injuries & busy weeks"]
+                outcomes: ["Sends more work where you lag behind", "Trains around injuries & busy weeks"]
               }
             ].map((feature, i) => (
               <motion.div
@@ -1023,9 +1397,69 @@ export default function Landing() {
               onClick={handleSignup}
               className="lp-cta h-14 px-8 text-lg inline-flex items-center justify-center"
             >
-              Get started now
+              Start my free trial
             </button>
           </motion.div>
+        </div>
+      </section>
+
+      {/* LIVE COACH DEMO — the act-not-talk proof, user-controlled */}
+      <section id="coach-demo" className="py-24 md:py-32 border-y border-[var(--lp-border)]/60 relative overflow-hidden" style={{ backgroundColor: "var(--lp-bg-feature)" }}>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] lp-halo opacity-50" />
+        <div className="max-w-7xl mx-auto px-6 relative z-10">
+          <div className="text-center mb-14 md:mb-20">
+            <span className="lp-kicker mb-4 block">Try it right now</span>
+            <h2 className="lp-display text-4xl md:text-6xl font-semibold mb-4">
+              Talk is cheap. <span style={{ color: "var(--lp-cyan)" }}>Watch it act.</span>
+            </h2>
+          </div>
+          <LiveCoachDemo />
+        </div>
+      </section>
+
+      {/* EVIDENCE — external research credibility */}
+      <section className="py-24 md:py-32 relative overflow-hidden" style={{ backgroundColor: "var(--lp-bg)" }}>
+        <div className="max-w-6xl mx-auto px-6 relative z-10">
+          <div className="text-center mb-14 md:mb-16 max-w-3xl mx-auto">
+            <span className="lp-kicker mb-4 block inline-flex items-center gap-2 justify-center">
+              <FlaskConical className="w-3.5 h-3.5" /> The science
+            </span>
+            <h2 className="lp-display text-4xl md:text-5xl font-semibold mb-4">
+              You don't have a <span className="lp-underline">willpower problem.</span>
+            </h2>
+            <p className="text-xl text-[var(--lp-muted)]">
+              Decades of peer-reviewed research point the same way: results follow the{" "}
+              <span className="text-[var(--lp-text)]">system</span>, not the information. ALLUR is built on exactly that.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 md:gap-6">
+            {EVIDENCE.map((e, i) => (
+              <motion.div
+                key={e.source}
+                initial={{ opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-60px" }}
+                transition={{ duration: 0.5, delay: i * 0.08 }}
+                className="lp-card lp-card-hover p-7"
+                style={{ borderTop: "2px solid rgba(45,212,191,0.5)" }}
+              >
+                <div className="flex items-baseline justify-between gap-3 mb-4 flex-wrap">
+                  <span className="lp-display text-2xl md:text-3xl font-bold" style={{ color: "var(--lp-cyan)" }}>{e.stat}</span>
+                  <span className="lp-kicker">{e.source}</span>
+                </div>
+                <p className="text-[var(--lp-body)] leading-relaxed mb-4">{e.finding}</p>
+                <p className="text-sm font-medium text-[var(--lp-text)] flex items-start gap-2">
+                  <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" style={{ color: "var(--lp-cyan)" }} />
+                  <span>{e.tie}</span>
+                </p>
+              </motion.div>
+            ))}
+          </div>
+
+          <p className="text-xs text-[var(--lp-muted)] text-center mt-10 leading-relaxed max-w-3xl mx-auto opacity-70">
+            Dansinger et al., JAMA 2005 · Krebs, Prochaska & Rossi, Preventive Medicine 2010 · Gollwitzer & Sheeran, Advances in Experimental Social Psychology 2006 · Harvey et al., Obesity 2019. Independent research on behavior change — not studies of ALLUR itself.
+          </p>
         </div>
       </section>
 
@@ -1064,7 +1498,7 @@ export default function Landing() {
         <div className="hidden lg:grid grid-cols-2 gap-16 max-w-7xl mx-auto px-6">
           <div>
             {JOURNEY.map((s, i) => (
-              <div key={i} className="min-h-[78vh] flex flex-col justify-center">
+              <div key={i} className="min-h-[62vh] flex flex-col justify-center">
                 <motion.div animate={{ opacity: activeStep === i ? 1 : 0.3 }} transition={{ duration: 0.4 }}>
                   <div className="flex items-center gap-3 mb-5">
                     <span
@@ -1161,6 +1595,9 @@ export default function Landing() {
           <button onClick={handleSignup} className="lp-cta h-16 px-10 text-lg inline-flex items-center justify-center">
             Build my plan
           </button>
+          <p className="text-sm text-[var(--lp-muted)] mt-4 font-medium">
+            <span className="text-[var(--lp-text)]">$0 today</span> · 14-day free trial · Cancel anytime
+          </p>
         </div>
       </section>
 
@@ -1323,9 +1760,10 @@ export default function Landing() {
               { q: "I've tried fitness apps before. They don't work.", a: <>Because most apps are passive — they collect data, but they don't coach you through change. <strong className="text-[var(--lp-text)] font-semibold">ALLUR helps shape what happens next</strong>, combining personalized planning, progress feedback, easier tracking, and real-time adaptation.</> },
               { q: "This sounds complicated.", a: <>The technology is sophisticated. Your experience shouldn't feel that way. ALLUR handles the personalization, data, and adjustments behind the scenes so you can focus on the only thing that matters: the next step.</> },
               { q: "I don't have time.", a: <>That's exactly why this works. ALLUR is designed to reduce time spent planning workouts, figuring out macros, logging meals, and restarting. Spend less time organizing fitness, and more time doing it.</> },
-              { q: "AI can't really coach me.", a: <>Bad AI chats. Good systems guide action. ALLUR uses your onboarding, progress, goals, injuries, and training context to shape what you should do next — and updates your plan instead of just talking at you.</> },
+              { q: "AI can't really coach me.", a: <>Bad AI chats. Good systems guide action. ALLUR uses your onboarding, progress, goals, injuries, and training context to shape what you should do next — and updates your plan instead of just talking at you. <strong className="text-[var(--lp-text)] font-semibold">Try it yourself in the live demo above.</strong></> },
               { q: "I struggle to stay consistent.", a: <>Most people don't need more guilt — they need less friction. ALLUR makes consistency easier with daily clarity, simplified logging, visible progress, and fast adjustments. <strong className="text-[var(--lp-text)] font-semibold">The goal is making progress easier to sustain.</strong></> },
-              { q: "Macro tracking is tedious.", a: <>Usually, yes. That's why ALLUR lets you snap a meal photo, review the analysis, and log it in seconds. Stay aware without making food tracking feel like a second job.</> }
+              { q: "Macro tracking is tedious.", a: <>Usually, yes. That's why ALLUR lets you snap a meal photo, review the analysis, and log it in seconds. Stay aware without making food tracking feel like a second job.</> },
+              { q: "Why trust an app this new?", a: <>Fair question — ALLUR is in early access, and we'd rather say that plainly than fake a wall of five-star reviews. What you get in return: founder-level pricing, a coach that ships improvements weekly, and a 14-day trial so the product has to prove itself before you pay a cent. <strong className="text-[var(--lp-text)] font-semibold">The system is built on published behavior-change research</strong> — see the science section above.</> }
             ].map((faq, i) => (
               <AccordionItem
                 key={i}
@@ -1396,14 +1834,51 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* THE FIRST THREE WEEKS — aspiration timeline */}
+      <section className="py-24 md:py-32 relative overflow-hidden" style={{ backgroundColor: "var(--lp-bg-alt)" }}>
+        <div className="max-w-6xl mx-auto px-6 relative z-10">
+          <div className="text-center mb-14 md:mb-16">
+            <span className="lp-kicker mb-4 block">The first three weeks</span>
+            <h2 className="lp-display text-4xl md:text-5xl font-semibold mb-4">
+              What changing actually <span className="lp-underline">feels like.</span>
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 relative">
+            <div className="hidden md:block absolute top-7 left-[16%] right-[16%] h-px" style={{ backgroundColor: "rgba(110,231,242,0.2)" }} />
+            {TIMELINE_WEEKS.map((w, i) => (
+              <motion.div
+                key={w.week}
+                initial={{ opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-60px" }}
+                transition={{ duration: 0.5, delay: i * 0.12 }}
+                className="relative text-center md:text-left"
+              >
+                <div
+                  className="lp-display w-14 h-14 rounded-full flex items-center justify-center font-bold text-lg mx-auto md:mx-0 mb-5 border relative z-10"
+                  style={{ backgroundColor: "var(--lp-bg)", borderColor: "rgba(110,231,242,0.4)", color: "var(--lp-cyan)" }}
+                >
+                  {i + 1}
+                </div>
+                <span className="lp-kicker mb-2 block">{w.week}</span>
+                <h3 className="lp-display text-2xl font-semibold mb-3">{w.title}</h3>
+                <p className="text-[var(--lp-body)] leading-relaxed">{w.desc}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* PRICING — #04070F, darkest + cleanest, cyan spotlight on selected tier */}
       <section id="pricing" className="py-24 md:py-32 border-y border-[var(--lp-border)]/60" style={{ backgroundColor: "var(--lp-bg-cta)" }}>
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-16">
             <span className="lp-kicker mb-4 block">Pricing</span>
             <h2 className="lp-display text-4xl md:text-5xl font-semibold mb-4">Elite coaching, accessible pricing.</h2>
-            <p className="text-xl text-[var(--lp-muted)]">
-              You're not paying for more information. You're paying for <span className="lp-underline">less friction.</span>
+            <p className="text-xl text-[var(--lp-muted)] max-w-2xl mx-auto">
+              A human coach runs <span className="text-[var(--lp-text)]">$150–300 a month.</span> ALLUR gives you the adaptive system for{" "}
+              <span className="lp-underline">less than a protein tub.</span>
             </p>
           </div>
 
@@ -1428,8 +1903,9 @@ export default function Landing() {
               </ul>
 
               <button onClick={handleSignup} className="lp-cta-ghost w-full h-14 text-lg inline-flex items-center justify-center">
-                Start 14-day free trial
+                Start my 14-day free trial
               </button>
+              <p className="text-xs text-[var(--lp-muted)] text-center mt-3">$0 today · Cancel anytime</p>
             </div>
 
             {/* Premium — selected tier, cyan spotlight */}
@@ -1463,8 +1939,14 @@ export default function Landing() {
               <button onClick={handleSignup} className="lp-cta w-full h-14 text-lg inline-flex items-center justify-center">
                 Get Premium
               </button>
+              <p className="text-xs text-[var(--lp-muted)] text-center mt-3 relative z-10">Cancel anytime, in the app, in seconds</p>
             </div>
           </div>
+
+          <p className="text-center text-[var(--lp-muted)] mt-12 max-w-2xl mx-auto leading-relaxed">
+            Worried about wasting another three months on a plan that doesn't fit?{" "}
+            <span className="text-[var(--lp-text)]">That can't happen here</span> — if the plan doesn't fit, you tell the coach and it changes. If life blows up your week, the plan bends. If you cancel, your data stays. Nothing is permanent — that's the point.
+          </p>
         </div>
       </section>
 
@@ -1483,18 +1965,18 @@ export default function Landing() {
             <span style={{ color: "var(--lp-cyan)" }}>Start transforming.</span>
           </h2>
           <p className="text-xl md:text-2xl text-[var(--lp-body)] mb-12 max-w-2xl mx-auto">
-            Follow a system built to adapt with you — and{" "}
-            <span className="lp-underline">build your ideal body faster,</span> with less stress and less guesswork.
+            Three weeks from now, you could be someone who{" "}
+            <span className="lp-underline">hasn't started over once.</span> Follow a system built to adapt with you.
           </p>
           <button
             onClick={handleSignup}
             className="lp-cta h-16 px-12 text-xl inline-flex items-center justify-center gap-2 group"
           >
-            Start with ALLUR now
+            Build my plan
             <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
           </button>
           <p className="text-sm text-[var(--lp-muted)] mt-6 font-medium">
-            <span className="text-[var(--lp-text)]">14-day free trial</span> · Cancel anytime
+            <span className="text-[var(--lp-text)]">$0 today</span> · 14-day free trial · Cancel anytime
           </p>
         </div>
       </section>
@@ -1527,6 +2009,14 @@ export default function Landing() {
                 <AccordionItem value="f4" style={{ borderColor: "var(--lp-border)" }}>
                   <AccordionTrigger className="text-left font-medium text-[var(--lp-text)]">Is this for weight loss or muscle building?</AccordionTrigger>
                   <AccordionContent className="text-[var(--lp-muted)]">Both. ALLUR supports physique transformation broadly — fat loss, muscle gain, recomposition, and aesthetic goals depending on your inputs.</AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="f5" style={{ borderColor: "var(--lp-border)" }}>
+                  <AccordionTrigger className="text-left font-medium text-[var(--lp-text)]">Do I need a credit card for the trial?</AccordionTrigger>
+                  <AccordionContent className="text-[var(--lp-muted)]">Yes — the 14-day trial requires a card, but you pay $0 today and nothing until day 15. You can cancel inside the app in seconds, and your data stays if you ever come back.</AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="f6" style={{ borderColor: "var(--lp-border)" }}>
+                  <AccordionTrigger className="text-left font-medium text-[var(--lp-text)]">Is ALLUR finished?</AccordionTrigger>
+                  <AccordionContent className="text-[var(--lp-muted)]">ALLUR is in early access. The core system — adaptive plans, the AI coach, photo macro logging, physique analysis — is live and improving weekly. Early members lock in current pricing.</AccordionContent>
                 </AccordionItem>
               </Accordion>
             </div>
