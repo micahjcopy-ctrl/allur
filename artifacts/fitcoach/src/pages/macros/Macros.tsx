@@ -132,7 +132,11 @@ export default function Macros() {
 
       const meal = (await res.json()) as MealAnalysisReply;
       refreshCredits();
-      setReview({ photoUrl: url, analysis: meal });
+      // Persist a small copy, never the original: full-res phone photos are
+      // multi-MB as data URLs and a single one pushes the account state blob
+      // past the platform's request-body limit, silently breaking ALL saves.
+      const stored = await downscaleImage(url, 640, 0.72).catch(() => photo);
+      setReview({ photoUrl: stored, analysis: meal });
     } catch (err) {
       toast({
         variant: "destructive",
