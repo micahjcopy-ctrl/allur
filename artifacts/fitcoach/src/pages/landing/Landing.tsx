@@ -1065,6 +1065,53 @@ const TIMELINE_WEEKS = [
   }
 ];
 
+/* ---------- v2 visual system: gradient type + rotating hero word ---------- */
+
+const GRADIENT_TEXT: React.CSSProperties = {
+  backgroundImage: "linear-gradient(100deg, #6EE7F2 0%, #2DD4BF 60%, #6EE7F2 120%)",
+  WebkitBackgroundClip: "text",
+  backgroundClip: "text",
+  color: "transparent"
+};
+
+const ROTATING_WORDS = ["guessing.", "starting over.", "winging it.", "restarting."];
+
+function RotatingWord() {
+  const [index, setIndex] = useState(0);
+  const prefersReduced = useReducedMotion();
+
+  useEffect(() => {
+    if (prefersReduced) return;
+    const id = setInterval(() => setIndex((i) => (i + 1) % ROTATING_WORDS.length), 2400);
+    return () => clearInterval(id);
+  }, [prefersReduced]);
+
+  if (prefersReduced) return <span>guessing.</span>;
+
+  return (
+    <span className="relative inline-block align-baseline">
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.span
+          key={ROTATING_WORDS[index]}
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -16 }}
+          transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
+          className="inline-block"
+        >
+          {ROTATING_WORDS[index]}
+        </motion.span>
+      </AnimatePresence>
+    </span>
+  );
+}
+
+const HERO_CHIPS = [
+  { icon: Zap, label: "Adapts every week" },
+  { icon: Camera, label: "Snap-a-meal macros" },
+  { icon: Brain, label: "24/7 coach in your pocket" }
+] as const;
+
 export default function Landing() {
   const [, setLocation] = useLocation();
   const heroRef = useRef<HTMLElement>(null);
@@ -1121,86 +1168,118 @@ export default function Landing() {
     <div className="allur-lp w-full min-h-screen overflow-x-clip">
       <Navbar />
 
-      {/* HERO — #050816 with a faint cyan halo echoing the logo ring */}
-      <section ref={heroRef} className="relative pt-32 pb-24 md:pt-40 md:pb-32 overflow-hidden flex items-center min-h-[100vh]">
-        <motion.div style={{ y: heroImageY }} className="absolute inset-0 z-0 scale-110">
-          <img
-            src={`${BASE_URL}lp-hero.png`}
-            alt="Athlete training"
-            className="w-full h-full object-cover object-center opacity-40"
+      {/* HERO v2 — pure product + type. No stock photo: layered aurora, grid,
+          rotating pain-word headline, gradient payoff line, live cycling app. */}
+      <section ref={heroRef} className="relative pt-32 pb-20 md:pt-36 md:pb-24 overflow-hidden flex items-center min-h-[100vh]">
+        {/* layered background */}
+        <div className="absolute inset-0 z-0">
+          <div className="absolute inset-0 lp-vlines opacity-40" />
+          <motion.div
+            aria-hidden
+            className="absolute -top-48 -left-48 w-[680px] h-[680px] rounded-full blur-3xl"
+            style={{ background: "radial-gradient(circle, rgba(110,231,242,0.16), transparent 65%)" }}
+            animate={prefersReduced ? undefined : { x: [0, 70, 0], y: [0, 40, 0] }}
+            transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
           />
-          <div className="absolute inset-0" style={{ background: "linear-gradient(to top, var(--lp-bg) 8%, rgba(5,8,22,0.78) 45%, rgba(5,8,22,0.45) 100%)" }} />
-          <div className="absolute inset-0" style={{ background: "linear-gradient(to right, var(--lp-bg) 0%, rgba(5,8,22,0.4) 45%, transparent 100%)" }} />
-          <div className="absolute inset-0 lp-halo opacity-80" />
-        </motion.div>
+          <motion.div
+            aria-hidden
+            className="absolute -bottom-56 right-[-12%] w-[760px] h-[760px] rounded-full blur-3xl"
+            style={{ background: "radial-gradient(circle, rgba(45,212,191,0.14), transparent 65%)" }}
+            animate={prefersReduced ? undefined : { x: [0, -60, 0], y: [0, -35, 0] }}
+            transition={{ duration: 22, repeat: Infinity, ease: "easeInOut" }}
+          />
+          <div className="absolute inset-0 lp-halo opacity-70" />
+          <div className="absolute inset-0" style={{ background: "linear-gradient(to top, var(--lp-bg) 4%, transparent 45%)" }} />
+        </div>
 
         <motion.div style={{ y: heroTextY, opacity: heroOpacity }} className="max-w-7xl mx-auto px-6 relative z-10 w-full">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-            className="max-w-4xl"
-          >
-            <div
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-7 backdrop-blur-sm border lp-kicker"
-              style={{ backgroundColor: "rgba(110,231,242,0.08)", borderColor: "rgba(110,231,242,0.25)" }}
+          <div className="grid grid-cols-1 lg:grid-cols-[1.15fr_0.85fr] gap-14 lg:gap-10 items-center">
+            {/* copy column */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
             >
-              <Zap className="w-3.5 h-3.5" />
-              <span>The adaptive body transformation app</span>
-            </div>
-
-            <h1 className="lp-display text-5xl sm:text-6xl lg:text-7xl xl:text-8xl font-bold mb-7">
-              Stop guessing your way
-              <br />
-              to a <span style={{ color: "var(--lp-cyan)" }}>better body.</span>
-            </h1>
-
-            <p className="text-lg md:text-xl text-[var(--lp-body)] mb-10 leading-relaxed max-w-2xl">
-              ALLUR builds a <strong className="text-[var(--lp-text)] font-semibold">training and nutrition plan around your body, your schedule, and your equipment</strong> — then{" "}
-              <span className="lp-underline">rebuilds it every time life changes.</span> Don't take our word for it: try the coach below.
-            </p>
-
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-              <button
-                onClick={handleSignup}
-                className="lp-cta w-full sm:w-auto h-16 px-10 text-lg inline-flex items-center justify-center gap-2 group"
+              <div
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-7 backdrop-blur-sm border lp-kicker"
+                style={{ backgroundColor: "rgba(110,231,242,0.08)", borderColor: "rgba(110,231,242,0.25)" }}
               >
-                Build my plan
-                <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </button>
-              <button
-                onClick={scrollToDemo}
-                className="lp-cta-ghost w-full sm:w-auto h-16 px-10 text-lg inline-flex items-center justify-center gap-2 backdrop-blur-sm"
-              >
-                Try the live demo
-                <ArrowDown className="w-4 h-4" />
-              </button>
-            </div>
+                <Zap className="w-3.5 h-3.5" />
+                <span>The adaptive body transformation system</span>
+              </div>
 
-            <p className="text-sm text-[var(--lp-muted)] mt-6 font-medium">
-              <span className="text-[var(--lp-text)]">$0 today</span> · 14-day free trial · Cancel anytime
-            </p>
-          </motion.div>
-        </motion.div>
+              <h1 className="lp-display text-5xl sm:text-6xl lg:text-7xl 2xl:text-8xl font-bold mb-7 leading-[1.04]">
+                Stop <RotatingWord />
+                <br />
+                <span style={GRADIENT_TEXT}>Start progressing.</span>
+              </h1>
 
-        {/* floating live app console — sets the command-center tone */}
-        <motion.div
-          initial={{ opacity: 0, x: 40 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.6, duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
-          style={prefersReduced ? undefined : { y: heroPhoneY }}
-          className="absolute right-12 top-1/2 -translate-y-1/2 z-[6] hidden 2xl:block"
-        >
-          <div className="relative">
-            <div
-              className="absolute inset-0 -z-10 blur-3xl rounded-full"
-              style={{ background: "radial-gradient(circle, rgba(110,231,242,0.18), transparent 70%)" }}
-            />
-            <PhoneFrame>
-              <DashboardScreen />
-            </PhoneFrame>
-            <FloatingCallout icon={Activity} label="Adapting now" value="Live" position="tl" />
-            <FloatingCallout icon={Flame} label="Streak" value="12 days" position="br" />
+              <p className="text-lg md:text-xl text-[var(--lp-body)] mb-9 leading-relaxed max-w-xl">
+                ALLUR builds your training and nutrition around{" "}
+                <strong className="text-[var(--lp-text)] font-semibold">your body, your schedule, your equipment</strong>{" "}
+                — then rebuilds it every time life happens.{" "}
+                <span className="lp-underline">You bring the reps. It brings the system.</span>
+              </p>
+
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+                <button
+                  onClick={handleSignup}
+                  className="lp-cta w-full sm:w-auto h-16 px-10 text-lg inline-flex items-center justify-center gap-2 group"
+                >
+                  Build my plan
+                  <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </button>
+                <button
+                  onClick={scrollToDemo}
+                  className="lp-cta-ghost w-full sm:w-auto h-16 px-10 text-lg inline-flex items-center justify-center gap-2 backdrop-blur-sm"
+                >
+                  Try the live demo
+                  <ArrowDown className="w-4 h-4" />
+                </button>
+              </div>
+
+              <p className="text-sm text-[var(--lp-muted)] mt-6 font-medium">
+                <span className="text-[var(--lp-text)]">$0 today</span> · 14-day free trial · Cancel anytime
+              </p>
+
+              {/* proof chips */}
+              <div className="flex flex-wrap gap-3 mt-8">
+                {HERO_CHIPS.map((c) => {
+                  const ChipIcon = c.icon;
+                  return (
+                    <span
+                      key={c.label}
+                      className="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-medium text-[var(--lp-body)] backdrop-blur-sm"
+                      style={{ borderColor: "rgba(110,231,242,0.2)", backgroundColor: "rgba(11,17,32,0.5)" }}
+                    >
+                      <ChipIcon className="w-3.5 h-3.5" style={{ color: "var(--lp-cyan)" }} />
+                      {c.label}
+                    </span>
+                  );
+                })}
+              </div>
+            </motion.div>
+
+            {/* product column — the app IS the hero image */}
+            <motion.div
+              initial={{ opacity: 0, y: 40, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ delay: 0.35, duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+              style={prefersReduced ? undefined : { y: heroPhoneY }}
+              className="relative hidden lg:flex justify-center"
+            >
+              <div className="relative">
+                <div
+                  className="absolute -inset-10 -z-10 blur-3xl rounded-full"
+                  style={{ background: "radial-gradient(circle, rgba(110,231,242,0.22), transparent 70%)" }}
+                />
+                <PhoneFrame>
+                  <AutoCyclingScreen interval={2600} />
+                </PhoneFrame>
+                <FloatingCallout icon={Activity} label="Adapting now" value="Live" position="tl" />
+                <FloatingCallout icon={Flame} label="Streak" value="12 days" position="br" />
+              </div>
+            </motion.div>
           </div>
         </motion.div>
 
@@ -1220,7 +1299,12 @@ export default function Landing() {
       {/* MARQUEE BAND */}
       <div
         className="relative py-5 overflow-hidden border-y"
-        style={{ backgroundColor: "rgba(110,231,242,0.04)", borderColor: "rgba(110,231,242,0.12)" }}
+        style={{
+          backgroundColor: "rgba(110,231,242,0.04)",
+          borderColor: "rgba(110,231,242,0.12)",
+          WebkitMaskImage: "linear-gradient(to right, transparent, black 10%, black 90%, transparent)",
+          maskImage: "linear-gradient(to right, transparent, black 10%, black 90%, transparent)"
+        }}
       >
         <div className="flex w-max animate-marquee">
           {[...marqueeItems, ...marqueeItems].map((item, i) => (
@@ -1312,7 +1396,7 @@ export default function Landing() {
               className="h-16 md:h-20 object-contain mx-auto mb-8"
             />
             <h2 className="lp-display text-5xl md:text-6xl font-bold mb-8">
-              ALLUR <span style={{ color: "var(--lp-cyan)" }}>fixes that.</span>
+              ALLUR <span style={GRADIENT_TEXT}>fixes that.</span>
             </h2>
             <p className="text-xl md:text-2xl text-[var(--lp-body)] mb-12 leading-relaxed">
               Instead of piecing your transformation together from scattered tools and generic advice, ALLUR gives you{" "}
@@ -1363,8 +1447,11 @@ export default function Landing() {
               >
                 <div className="flex items-center gap-4 mb-4">
                   <div
-                    className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
-                    style={{ backgroundColor: "rgba(110,231,242,0.10)" }}
+                    className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border"
+                    style={{
+                      backgroundImage: "linear-gradient(135deg, rgba(110,231,242,0.18), rgba(45,212,191,0.08))",
+                      borderColor: "rgba(110,231,242,0.25)"
+                    }}
                   >
                     <feature.icon className="w-5 h-5" style={{ color: "var(--lp-cyan)" }} />
                   </div>
@@ -1410,7 +1497,7 @@ export default function Landing() {
           <div className="text-center mb-14 md:mb-20">
             <span className="lp-kicker mb-4 block">Try it right now</span>
             <h2 className="lp-display text-4xl md:text-6xl font-semibold mb-4">
-              Talk is cheap. <span style={{ color: "var(--lp-cyan)" }}>Watch it act.</span>
+              Talk is cheap. <span style={GRADIENT_TEXT}>Watch it act.</span>
             </h2>
           </div>
           <LiveCoachDemo />
@@ -1648,7 +1735,9 @@ export default function Landing() {
           >
             <span className="lp-kicker mb-4 block">The difference</span>
             <h2 className="lp-display text-4xl md:text-5xl font-semibold mb-8">
-              Why most people struggle to transform.
+              Most people don't fail.
+              <br />
+              <span style={GRADIENT_TEXT}>Their systems do.</span>
             </h2>
 
             <p className="text-lg text-[var(--lp-body)] mb-8">
@@ -1875,7 +1964,9 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-16">
             <span className="lp-kicker mb-4 block">Pricing</span>
-            <h2 className="lp-display text-4xl md:text-5xl font-semibold mb-4">Elite coaching, accessible pricing.</h2>
+            <h2 className="lp-display text-4xl md:text-5xl font-semibold mb-4">
+              Elite coaching. <span style={GRADIENT_TEXT}>Not elite prices.</span>
+            </h2>
             <p className="text-xl text-[var(--lp-muted)] max-w-2xl mx-auto">
               A human coach runs <span className="text-[var(--lp-text)]">$150–300 a month.</span> ALLUR gives you the adaptive system for{" "}
               <span className="lp-underline">less than a protein tub.</span>
@@ -1953,16 +2044,19 @@ export default function Landing() {
       {/* FINAL CTA — cleanest, highest-contrast section, halo ring behind CTA */}
       <section className="py-32 md:py-40 relative overflow-hidden" style={{ backgroundColor: "var(--lp-bg-cta)" }}>
         <div className="absolute inset-0 z-0">
-          <img src={`${BASE_URL}lp-hero.png`} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover opacity-20" />
-          <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, var(--lp-bg-cta), rgba(4,7,15,0.85), var(--lp-bg-cta))" }} />
+          <div className="absolute inset-0 lp-vlines opacity-30" />
+          <div
+            className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] blur-3xl"
+            style={{ background: "radial-gradient(ellipse, rgba(110,231,242,0.12), transparent 65%)" }}
+          />
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] lp-halo opacity-80" />
         </div>
 
         <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
           <h2 className="lp-display text-5xl md:text-6xl lg:text-7xl font-bold mb-8">
-            Stop piecing it together.
+            The last restart
             <br />
-            <span style={{ color: "var(--lp-cyan)" }}>Start transforming.</span>
+            <span style={GRADIENT_TEXT}>you'll ever need.</span>
           </h2>
           <p className="text-xl md:text-2xl text-[var(--lp-body)] mb-12 max-w-2xl mx-auto">
             Three weeks from now, you could be someone who{" "}
