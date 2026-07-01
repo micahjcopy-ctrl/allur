@@ -1074,6 +1074,44 @@ const GRADIENT_TEXT: React.CSSProperties = {
   color: "transparent"
 };
 
+/** Blur-to-sharp reveal used on section headers — makes scrolling feel like
+    content is being uncovered rather than just appearing. */
+function Reveal({
+  children,
+  className,
+  delay = 0
+}: {
+  children: React.ReactNode;
+  className?: string;
+  delay?: number;
+}) {
+  const prefersReduced = useReducedMotion();
+  return (
+    <motion.div
+      initial={prefersReduced ? false : { opacity: 0, y: 48, filter: "blur(10px)" }}
+      whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+      viewport={{ once: true, margin: "-80px" }}
+      transition={{ duration: 0.8, delay, ease: [0.16, 1, 0.3, 1] }}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+/** Thin gradient bar at the very top that fills as you scroll — constant,
+    subtle feedback that the page is progressing/revealing. */
+function ScrollProgressBar() {
+  const { scrollYProgress } = useScroll();
+  return (
+    <motion.div
+      aria-hidden
+      className="fixed top-0 left-0 right-0 h-[2px] z-[60] origin-left"
+      style={{ scaleX: scrollYProgress, backgroundImage: "linear-gradient(90deg, #6EE7F2, #2DD4BF)" }}
+    />
+  );
+}
+
 const ROTATING_WORDS = ["guessing.", "starting over.", "winging it.", "restarting."];
 
 function RotatingWord() {
@@ -1166,6 +1204,7 @@ export default function Landing() {
 
   return (
     <div className="allur-lp w-full min-h-screen overflow-x-clip">
+      <ScrollProgressBar />
       <Navbar />
 
       {/* HERO v2 — pure product + type. No stock photo: layered aurora, grid,
@@ -1494,12 +1533,12 @@ export default function Landing() {
       <section id="coach-demo" className="py-24 md:py-32 border-y border-[var(--lp-border)]/60 relative overflow-hidden" style={{ backgroundColor: "var(--lp-bg-feature)" }}>
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] lp-halo opacity-50" />
         <div className="max-w-7xl mx-auto px-6 relative z-10">
-          <div className="text-center mb-14 md:mb-20">
+          <Reveal className="text-center mb-14 md:mb-20">
             <span className="lp-kicker mb-4 block">Try it right now</span>
             <h2 className="lp-display text-4xl md:text-6xl font-semibold mb-4">
               Talk is cheap. <span style={GRADIENT_TEXT}>Watch it act.</span>
             </h2>
-          </div>
+          </Reveal>
           <LiveCoachDemo />
         </div>
       </section>
@@ -1507,7 +1546,7 @@ export default function Landing() {
       {/* EVIDENCE — external research credibility */}
       <section className="py-24 md:py-32 relative overflow-hidden" style={{ backgroundColor: "var(--lp-bg)" }}>
         <div className="max-w-6xl mx-auto px-6 relative z-10">
-          <div className="text-center mb-14 md:mb-16 max-w-3xl mx-auto">
+          <Reveal className="text-center mb-14 md:mb-16 max-w-3xl mx-auto">
             <span className="lp-kicker mb-4 block inline-flex items-center gap-2 justify-center">
               <FlaskConical className="w-3.5 h-3.5" /> The science
             </span>
@@ -1518,7 +1557,7 @@ export default function Landing() {
               Decades of peer-reviewed research point the same way: results follow the{" "}
               <span className="text-[var(--lp-text)]">system</span>, not the information. ALLUR is built on exactly that.
             </p>
-          </div>
+          </Reveal>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 md:gap-6">
             {EVIDENCE.map((e, i) => (
@@ -1573,13 +1612,15 @@ export default function Landing() {
       {/* HOW IT WORKS — #050816 */}
       {/* THE SYSTEM — sticky scroll-storytelling through live app screen states */}
       <section id="how-it-works" ref={stepsRef} className="relative" style={{ backgroundColor: "var(--lp-bg)" }}>
-        <div className="max-w-7xl mx-auto px-6 pt-24 md:pt-32 text-center">
+        <Reveal className="max-w-7xl mx-auto px-6 pt-24 md:pt-32 text-center">
           <span className="lp-kicker mb-4 block">The system</span>
-          <h2 className="lp-display text-4xl md:text-5xl font-semibold mb-4">Step inside the system</h2>
+          <h2 className="lp-display text-4xl md:text-5xl font-semibold mb-4">
+            Step inside <span style={GRADIENT_TEXT}>the system.</span>
+          </h2>
           <p className="text-xl text-[var(--lp-muted)] max-w-2xl mx-auto">
             Scroll to watch ALLUR move from setup to a living, self-adjusting transformation engine.
           </p>
-        </div>
+        </Reveal>
 
         {/* desktop: sticky device, copy scrolls, screen states swap with the narrative */}
         <div className="hidden lg:grid grid-cols-2 gap-16 max-w-7xl mx-auto px-6">
@@ -1699,7 +1740,7 @@ export default function Landing() {
           style={{ background: "radial-gradient(circle, rgba(110,231,242,0.10), transparent 70%)" }}
         />
         <div className="relative max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16 md:mb-20">
+          <Reveal className="text-center mb-16 md:mb-20">
             <span className="lp-kicker mb-4 block">The command center</span>
             <h2 className="lp-display text-4xl md:text-6xl font-semibold mb-4">
               Your transformation,<br className="hidden md:block" /> running as one live system
@@ -1707,7 +1748,7 @@ export default function Landing() {
             <p className="text-xl text-[var(--lp-muted)] max-w-2xl mx-auto">
               Training, nutrition, analysis, and coaching — one connected operating system that adapts in real time.
             </p>
-          </div>
+          </Reveal>
 
           <FeatureShowcase />
         </div>
@@ -1717,13 +1758,22 @@ export default function Landing() {
       <section id="difference" className="py-24 md:py-32 border-y border-[var(--lp-border)]/60 relative overflow-hidden" style={{ backgroundColor: "var(--lp-bg-alt)" }}>
         <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-24 relative z-10">
           <motion.div
-            initial={{ opacity: 0, x: -30 }}
-            whileInView={{ opacity: 1, x: 0 }}
+            initial={{ opacity: 0, x: -30, filter: "blur(8px)" }}
+            whileInView={{ opacity: 1, x: 0, filter: "blur(0px)" }}
             viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="relative"
+            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+            className="relative flex justify-center items-center"
           >
-            <img src={`${BASE_URL}ai-coach.png`} alt="AI Coach" loading="lazy" decoding="async" className="w-full lp-card !rounded-3xl" />
+            <div className="relative">
+              <div
+                className="absolute -inset-12 -z-10 blur-3xl rounded-full"
+                style={{ background: "radial-gradient(circle, rgba(110,231,242,0.2), transparent 70%)" }}
+              />
+              <PhoneFrame>
+                <CoachScreen />
+              </PhoneFrame>
+              <FloatingCallout icon={Brain} label="Plan updated" value="Live" position="br" />
+            </div>
           </motion.div>
 
           <motion.div
@@ -1816,7 +1866,7 @@ export default function Landing() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
             <ImageCard
-              image={`${BASE_URL}lp-form.png`}
+              image={`${BASE_URL}screens/coach.jpg`}
               icon={ScanLine}
               eyebrow="Coach in your pocket"
               title="Know exactly"
@@ -1824,7 +1874,7 @@ export default function Landing() {
               desc="Ask the AI coach anything — substitutions, intensity, technique cues, or a shorter session. It answers in your context and updates your plan instantly."
             />
             <ImageCard
-              image={`${BASE_URL}lp-flexible.png`}
+              image={`${BASE_URL}screens/plan.jpg`}
               icon={Activity}
               eyebrow="Built for real life"
               title="Adapts"
@@ -1839,10 +1889,10 @@ export default function Landing() {
       {/* OBJECTIONS — #050816 */}
       <section className="py-24 md:py-32" style={{ backgroundColor: "var(--lp-bg)" }}>
         <div className="max-w-4xl mx-auto px-6">
-          <div className="text-center mb-16">
+          <Reveal className="text-center mb-16">
             <span className="lp-kicker mb-4 block">Common hesitations</span>
             <h2 className="lp-display text-4xl md:text-5xl font-semibold mb-4">And why that's exactly why ALLUR exists.</h2>
-          </div>
+          </Reveal>
 
           <Accordion type="single" collapsible className="w-full space-y-4">
             {[
@@ -1883,8 +1933,17 @@ export default function Landing() {
               See how it works
             </button>
           </div>
-          <div className="flex-1">
-            <img src={`${BASE_URL}nutrition-scan.png`} alt="Nutrition Scanner" loading="lazy" decoding="async" className="w-full lp-card !rounded-3xl" />
+          <div className="flex-1 flex justify-center">
+            <div className="relative">
+              <div
+                className="absolute -inset-12 -z-10 blur-3xl rounded-full"
+                style={{ background: "radial-gradient(circle, rgba(110,231,242,0.2), transparent 70%)" }}
+              />
+              <PhoneFrame>
+                <MealScreen />
+              </PhoneFrame>
+              <FloatingCallout icon={Camera} label="Logged" value="620 kcal" position="br" />
+            </div>
           </div>
         </div>
       </section>
@@ -1926,12 +1985,12 @@ export default function Landing() {
       {/* THE FIRST THREE WEEKS — aspiration timeline */}
       <section className="py-24 md:py-32 relative overflow-hidden" style={{ backgroundColor: "var(--lp-bg-alt)" }}>
         <div className="max-w-6xl mx-auto px-6 relative z-10">
-          <div className="text-center mb-14 md:mb-16">
+          <Reveal className="text-center mb-14 md:mb-16">
             <span className="lp-kicker mb-4 block">The first three weeks</span>
             <h2 className="lp-display text-4xl md:text-5xl font-semibold mb-4">
-              What changing actually <span className="lp-underline">feels like.</span>
+              What changing actually <span style={GRADIENT_TEXT}>feels like.</span>
             </h2>
-          </div>
+          </Reveal>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 relative">
             <div className="hidden md:block absolute top-7 left-[16%] right-[16%] h-px" style={{ backgroundColor: "rgba(110,231,242,0.2)" }} />
@@ -1962,7 +2021,7 @@ export default function Landing() {
       {/* PRICING — #04070F, darkest + cleanest, cyan spotlight on selected tier */}
       <section id="pricing" className="py-24 md:py-32 border-y border-[var(--lp-border)]/60" style={{ backgroundColor: "var(--lp-bg-cta)" }}>
         <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
+          <Reveal className="text-center mb-16">
             <span className="lp-kicker mb-4 block">Pricing</span>
             <h2 className="lp-display text-4xl md:text-5xl font-semibold mb-4">
               Elite coaching. <span style={GRADIENT_TEXT}>Not elite prices.</span>
@@ -1971,7 +2030,7 @@ export default function Landing() {
               A human coach runs <span className="text-[var(--lp-text)]">$150–300 a month.</span> ALLUR gives you the adaptive system for{" "}
               <span className="lp-underline">less than a protein tub.</span>
             </p>
-          </div>
+          </Reveal>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
             {/* Base */}
@@ -2052,7 +2111,7 @@ export default function Landing() {
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] lp-halo opacity-80" />
         </div>
 
-        <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
+        <Reveal className="max-w-4xl mx-auto px-6 text-center relative z-10">
           <h2 className="lp-display text-5xl md:text-6xl lg:text-7xl font-bold mb-8">
             The last restart
             <br />
@@ -2072,7 +2131,7 @@ export default function Landing() {
           <p className="text-sm text-[var(--lp-muted)] mt-6 font-medium">
             <span className="text-[var(--lp-text)]">$0 today</span> · 14-day free trial · Cancel anytime
           </p>
-        </div>
+        </Reveal>
       </section>
 
       {/* FOOTER — #03060D */}
