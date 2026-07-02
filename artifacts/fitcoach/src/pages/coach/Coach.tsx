@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { MobileLayout } from "@/components/layout/MobileLayout";
-import { useFitCoach, composeGuideline, composeEquipment, composeDislikes, composePreferences, buildPhysiqueContext, physiqueLabel, type Workout } from "@/context/FitCoachContext";
+import { useFitCoach, composeGuideline, composeEquipment, composeDislikes, composePreferences, buildPhysiqueContext, physiqueLabel, type Workout, type ProgramMeta } from "@/context/FitCoachContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -21,6 +21,33 @@ interface CoachVoiceReply extends CoachReply {
   userTranscript: string;
   audio: string;
   audioFormat?: string;
+}
+
+// Days whose title reads as cardio/rest/recovery aren't counted toward the
+// "N-Day <split>" label, so a plan of Push/Pull/Legs + 2 cardio days still
+// reads as "3-Day Push/Pull/Legs", matching how the presets are named.
+const NON_LIFT_DAY_RE = /cardio|rest|recovery|zone\s*2|mobility|walk/i;
+
+// Keep the Plan summary card honest after the coach edits the plan. The old code
+// changed the workout days but left programMeta frozen at its onboarding value,
+// so the header could claim "5-Day Upper/Lower/Push/Pull/Legs · 6 days/week"
+// while the actual plan was something else. Everything shown on the card that is
+// derivable from the plan (split name + days/week) is recomputed here; the rest
+// (philosophy, volume model, etc.) is preserved.
+function syncMetaToPlan(plan: Workout[], prev: ProgramMeta | null): ProgramMeta | null {
+  if (!prev) return prev;
+  const scheduled = plan.filter((d) => d.exercises.length > 0);
+  const liftTitles = Array.from(
+    new Set(
+      scheduled
+        .filter((d) => !NON_LIFT_DAY_RE.test(d.title))
+        .map((d) => d.title.trim())
+        .filter(Boolean),
+    ),
+  );
+  const splitName =
+    liftTitles.length > 0 ? `${liftTitles.length}-Day ${liftTitles.join("/")}` : prev.splitName;
+  return { ...prev, daysPerWeek: scheduled.length, splitName };
 }
 
 function blobToBase64(blob: Blob): Promise<string> {
@@ -46,6 +73,8 @@ export default function Coach() {
     goal,
     workoutPlan,
     setWorkoutPlan,
+    programMeta,
+    setProgramMeta,
     physiqueAnalysis,
   } = useFitCoach();
   const { toast } = useToast();
@@ -90,6 +119,8 @@ export default function Coach() {
   const applyCoachReply = (data: CoachReply) => {
     if (data.planUpdated && data.updatedPlan) {
       setWorkoutPlan(data.updatedPlan);
+      // Keep the Plan summary card in sync with the new days/split.
+      setProgramMeta(syncMetaToPlan(data.updatedPlan, programMeta));
       toast({
         title: "Plan updated",
         description: data.planSummary ?? "Your training plan was adjusted.",
