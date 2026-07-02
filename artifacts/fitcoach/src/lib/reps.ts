@@ -27,3 +27,51 @@ export async function awardReps(type: RepEventType): Promise<{ awarded: number; 
     return null;
   }
 }
+
+export type QuestKey = "tour_complete" | "first_meal" | "first_workout" | "first_scan" | "first_friend";
+
+// Award a one-time activation-quest bonus. Silent + idempotent server-side.
+export async function completeQuest(key: QuestKey): Promise<{ awarded: number; alreadyDone: boolean } | null> {
+  try {
+    const res = await fetch(`${apiBase()}/api/squad/quest`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ key, day: localDay() }),
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as { awarded: number; alreadyDone: boolean };
+  } catch {
+    return null;
+  }
+}
+
+// Persist a referral code captured from a ?ref= link until the user is signed
+// in and can claim it.
+const REF_KEY = "allur_ref";
+export function captureRefFromUrl() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get("ref");
+    if (ref) localStorage.setItem(REF_KEY, ref.trim().toUpperCase());
+  } catch {
+    /* ignore */
+  }
+}
+
+// Redeem a stored referral code once the user is authenticated. No-op if none.
+export async function claimStoredReferral(): Promise<void> {
+  try {
+    const code = localStorage.getItem(REF_KEY);
+    if (!code) return;
+    await fetch(`${apiBase()}/api/referral/claim`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ code }),
+    });
+    localStorage.removeItem(REF_KEY);
+  } catch {
+    /* ignore — will retry next load since we only remove on success path above */
+  }
+}
