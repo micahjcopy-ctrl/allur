@@ -1,15 +1,24 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { MobileLayout } from "@/components/layout/MobileLayout";
 import { GoalPreview } from "@/components/GoalPreview";
 import { useFitCoach } from "@/context/FitCoachContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Camera, Mic, Target, Flame, Zap, UtensilsCrossed } from "lucide-react";
-import { Link } from "wouter";
+import { Camera, Mic, Target, Flame, Zap, UtensilsCrossed, Gift, ChevronRight } from "lucide-react";
+import { Link, useLocation } from "wouter";
+import { WelcomeTour, hasSeenTour } from "@/components/WelcomeTour";
+import { GettingStarted } from "@/components/GettingStarted";
 
 export default function Dashboard() {
   const { profile, goal, workoutPlan, credits, isPremium, meals, macroTarget, physiqueAnalysis } = useFitCoach();
+  const [, setLocation] = useLocation();
+  const [tourOpen, setTourOpen] = useState(false);
+
+  // First run on this device → show the walkthrough.
+  useEffect(() => {
+    if (!hasSeenTour()) setTourOpen(true);
+  }, []);
 
   const bodyFatLabel = physiqueAnalysis ? `${physiqueAnalysis.bodyFatEstimate}%` : "—";
 
@@ -35,6 +44,28 @@ export default function Dashboard() {
             <span className="font-bold text-lg">{profile.name?.[0] || "A"}</span>
           </div>
         </header>
+
+        {/* First-run walkthrough */}
+        <WelcomeTour open={tourOpen} onClose={() => setTourOpen(false)} />
+
+        {/* Getting-started checklist (hides itself once complete) */}
+        <GettingStarted />
+
+        {/* Referral banner — give a month, get a month */}
+        <button
+          type="button"
+          onClick={() => setLocation("/refer")}
+          className="w-full flex items-center gap-3 rounded-2xl border border-primary/30 bg-primary/5 px-4 py-3 text-left"
+        >
+          <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+            <Gift className="w-5 h-5 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm">Give a month, get a month</p>
+            <p className="text-xs text-muted-foreground">Refer a friend — you both get free Premium.</p>
+          </div>
+          <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
+        </button>
 
         <div className="grid grid-cols-2 gap-4">
           <Card className="bg-card/50 border-border">
