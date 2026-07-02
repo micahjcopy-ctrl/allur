@@ -11,22 +11,22 @@
   "categories": ["health", "fitness", "lifestyle"],
   "icons": [
     {
-      "src": "/icons/allur-icon-512.png",
+      "src": "/icons/allur-icon-192.png",
       "type": "image/png",
-      "sizes": "1024x1024",
+      "sizes": "192x192",
       "purpose": "any"
     },
     {
       "src": "/icons/allur-icon-512.png",
       "type": "image/png",
-      "sizes": "1024x1024",
+      "sizes": "512x512",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/allur-icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
       "purpose": "maskable"
-    },
-    {
-      "src": "/favicon.svg",
-      "type": "image/svg+xml",
-      "sizes": "any",
-      "purpose": "any"
     }
   ]
 }

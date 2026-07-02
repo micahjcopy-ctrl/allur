@@ -5,7 +5,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { OUT_OF_CREDITS_STATUS, outOfCreditsToast } from "@/lib/credits";
 import { LockedFeature } from "@/components/subscription/LockedFeature";
-import { Camera, UtensilsCrossed, Sparkles, Trash2, Flame, Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Camera, UtensilsCrossed, Sparkles, Trash2, Flame, Loader2, Pencil, Type, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import MealReview, { type MealAnalysisReply } from "./MealReview";
@@ -61,7 +62,23 @@ export default function Macros() {
   const [dragActive, setDragActive] = useState(false);
   const [analyzing, setAnalyzing] = useState<string | null>(null);
   const [review, setReview] = useState<{ photoUrl: string; analysis: MealAnalysisReply } | null>(null);
+  // A captured photo held for the user to add a note before it's analyzed.
+  const [pending, setPending] = useState<string | null>(null);
+  const [note, setNote] = useState("");
   const busyRef = useRef(false);
+
+  // Empty analysis used to open the review sheet in text-only mode (log a food
+  // by name, no photo).
+  const EMPTY_ANALYSIS: MealAnalysisReply = {
+    name: "Meal",
+    items: [],
+    foods: [],
+    calories: 0,
+    protein: 0,
+    carbs: 0,
+    fat: 0,
+    confidence: "low",
+  };
 
   const today = new Date().toDateString();
   const todayMeals = meals.filter(m => new Date(m.date).toDateString() === today);
@@ -85,33 +102,42 @@ export default function Macros() {
       if (file) toast({ variant: "destructive", title: "Not an image", description: "Please choose a photo of your meal." });
       return;
     }
-    if (!hasCredit("photo")) {
-      toast(outOfCreditsToast("photo logs"));
-      return;
-    }
-    busyRef.current = true;
+    // Hold the photo so the user can add a note before it's analyzed. The
+    // credit check happens at analyze time, not here.
     const reader = new FileReader();
     reader.onload = () => {
-      const url = reader.result as string;
-      setAnalyzing(url);
-      void analyzeMeal(url);
+      setNote("");
+      setPending(reader.result as string);
     };
     reader.onerror = () => {
-      busyRef.current = false;
-      setAnalyzing(null);
       toast({ variant: "destructive", title: "Couldn't read file", description: "Please try another photo." });
     };
     reader.readAsDataURL(file);
   };
 
-  const analyzeMeal = async (url: string) => {
+  // Kick off analysis of the held photo, sending the optional note along.
+  const analyzePending = () => {
+    if (!pending || busyRef.current) return;
+    if (!hasCredit("photo")) {
+      toast(outOfCreditsToast("photo logs"));
+      return;
+    }
+    const url = pending;
+    const noteVal = note.trim();
+    setPending(null);
+    busyRef.current = true;
+    setAnalyzing(url);
+    void analyzeMeal(url, noteVal);
+  };
+
+  const analyzeMeal = async (url: string, mealNote?: string) => {
     try {
       const photo = await downscaleImage(url);
       const res = await fetch(`${apiBase()}/api/coach/analyze-meal`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ photo }),
+        body: JSON.stringify({ photo, note: mealNote || undefined }),
       });
 
       if (res.status === OUT_OF_CREDITS_STATUS) {
@@ -226,27 +252,81 @@ export default function Macros() {
               <p className="text-sm text-muted-foreground">Estimating calories &amp; macros from your photo.</p>
             </div>
           </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => fileInput.current?.click()}
-            onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
-            onDragLeave={() => setDragActive(false)}
-            onDrop={(e) => { e.preventDefault(); setDragActive(false); handleFile(e.dataTransfer.files?.[0]); }}
-            className={cn(
-              "w-full rounded-2xl border border-dashed p-6 flex flex-col items-center justify-center text-center gap-2 transition-colors",
-              dragActive ? "border-primary bg-primary/10 text-primary" : "border-border bg-secondary/40 hover:bg-secondary text-foreground"
-            )}
-          >
-            <div className="p-3 bg-primary/20 rounded-full">
-              <Camera className="w-6 h-6 text-primary" />
+        ) : pending ? (
+          /* Photo captured — let the user add a note before analysis. */
+          <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 space-y-3">
+            <div className="flex items-start gap-3">
+              <img src={pending} alt="Your meal" className="w-16 h-16 rounded-xl object-cover shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-sm">Add a note before we analyze?</p>
+                <p className="text-xs text-muted-foreground">Optional — tell the AI anything the photo can't show.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setPending(null); setNote(""); }}
+                aria-label="Discard photo"
+                className="p-1 text-muted-foreground hover:text-foreground shrink-0"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
-            <span className="font-semibold">Snap a meal</span>
-            <span className="text-xs text-muted-foreground">
-              <span className="hidden sm:inline">Drop a photo or click to upload</span>
-              <span className="sm:hidden">Take a photo or pick from library</span>
-            </span>
-          </button>
+            <div className="flex items-center gap-1.5 rounded-lg border border-border bg-background/60 px-2.5">
+              <Pencil className="w-3.5 h-3.5 text-primary shrink-0" />
+              <Input
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") analyzePending(); }}
+                placeholder='e.g. "chicken thigh, not breast" · "cooked in butter"'
+                className="h-10 border-0 bg-transparent px-1 text-sm focus-visible:ring-0"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={analyzePending}
+                className="flex-1 h-11 rounded-xl bg-primary text-primary-foreground font-semibold inline-flex items-center justify-center gap-2"
+              >
+                <Sparkles className="w-4 h-4" /> Analyze meal
+              </button>
+              <button
+                type="button"
+                onClick={() => { setPending(null); setNote(""); fileInput.current?.click(); }}
+                className="h-11 px-4 rounded-xl bg-secondary text-foreground font-medium"
+              >
+                Retake
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2.5">
+            <button
+              type="button"
+              onClick={() => fileInput.current?.click()}
+              onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
+              onDragLeave={() => setDragActive(false)}
+              onDrop={(e) => { e.preventDefault(); setDragActive(false); handleFile(e.dataTransfer.files?.[0]); }}
+              className={cn(
+                "w-full rounded-2xl border border-dashed p-6 flex flex-col items-center justify-center text-center gap-2 transition-colors",
+                dragActive ? "border-primary bg-primary/10 text-primary" : "border-border bg-secondary/40 hover:bg-secondary text-foreground"
+              )}
+            >
+              <div className="p-3 bg-primary/20 rounded-full">
+                <Camera className="w-6 h-6 text-primary" />
+              </div>
+              <span className="font-semibold">Snap a meal</span>
+              <span className="text-xs text-muted-foreground">
+                <span className="hidden sm:inline">Drop a photo or click to upload</span>
+                <span className="sm:hidden">Take a photo or pick from library</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setReview({ photoUrl: "", analysis: EMPTY_ANALYSIS })}
+              className="w-full rounded-xl border border-border bg-secondary/30 hover:bg-secondary py-3 flex items-center justify-center gap-2 text-sm font-medium text-muted-foreground transition-colors"
+            >
+              <Type className="w-4 h-4" /> Add food by name instead
+            </button>
+          </div>
         )}
 
         {/* Meal log */}
