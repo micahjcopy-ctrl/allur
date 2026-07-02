@@ -99,6 +99,67 @@ export default function Squad() {
   const [joining, setJoining] = useState(false);
   const [dueling, setDueling] = useState<string | null>(null);
   const [showNotifications, setShowNotifications] = useState(false);
+  // "unsupported" | "unavailable" (server keys missing) | "off" | "on" | "blocked"
+  const [pushState, setPushState] = useState<string>("unsupported");
+  const [pushBusy, setPushBusy] = useState(false);
+
+  useEffect(() => {
+    void (async () => {
+      if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) return;
+      try {
+        const res = await fetch(`${apiBase()}/api/squad/push/public-key`, { credentials: "include" });
+        const { enabled } = (await res.json()) as { enabled: boolean };
+        if (!enabled) {
+          setPushState("unavailable");
+          return;
+        }
+        if (Notification.permission === "denied") {
+          setPushState("blocked");
+          return;
+        }
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        setPushState(sub ? "on" : "off");
+      } catch {
+        setPushState("unavailable");
+      }
+    })();
+  }, []);
+
+  const enablePush = async () => {
+    if (pushBusy) return;
+    setPushBusy(true);
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        setPushState(permission === "denied" ? "blocked" : "off");
+        return;
+      }
+      const res = await fetch(`${apiBase()}/api/squad/push/public-key`, { credentials: "include" });
+      const { key } = (await res.json()) as { key: string | null };
+      if (!key) {
+        setPushState("unavailable");
+        return;
+      }
+      const raw = atob(key.replace(/-/g, "+").replace(/_/g, "/"));
+      const appKey = new Uint8Array([...raw].map((c) => c.charCodeAt(0)));
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: appKey });
+      const json = sub.toJSON();
+      await fetch(`${apiBase()}/api/squad/push/subscribe`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ endpoint: sub.endpoint, keys: json.keys }),
+      });
+      setPushState("on");
+      toast({ title: "Notifications on", description: "Duels, Respect, and your Monday recap — max a few a week." });
+    } catch {
+      toast({ variant: "destructive", title: "Couldn't enable notifications", description: "Try again in a moment." });
+    } finally {
+      setPushBusy(false);
+    }
+  };
 
   const load = async () => {
     try {
@@ -445,6 +506,35 @@ export default function Squad() {
               </div>
             ))}
           </section>
+        )}
+
+        {/* Push notifications opt-in */}
+        {(pushState === "off" || pushState === "blocked") && (
+          <Card className="border-border bg-card/60">
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="p-2.5 rounded-full bg-primary/15 shrink-0">
+                <Bell className="w-4 h-4 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold">Duel updates & Monday recap</p>
+                <p className="text-xs text-muted-foreground">
+                  {pushState === "blocked"
+                    ? "Notifications are blocked in your browser settings for this app."
+                    : "Coach-voice only, a few per week. Never guilt."}
+                </p>
+              </div>
+              {pushState === "off" && (
+                <button
+                  type="button"
+                  onClick={() => void enablePush()}
+                  disabled={pushBusy}
+                  className="h-9 px-4 rounded-md bg-primary text-primary-foreground text-xs font-semibold disabled:opacity-50 shrink-0"
+                >
+                  {pushBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Turn on"}
+                </button>
+              )}
+            </CardContent>
+          </Card>
         )}
 
         {/* Invite */}
