@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useFitCoach, type SessionExercise } from "@/context/FitCoachContext";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { awardReps } from "@/lib/reps";
+import { awardReps, completeQuest } from "@/lib/reps";
 import {
   ChevronLeft,
   Check,
@@ -260,6 +260,7 @@ export default function Session() {
   const handleFinish = () => {
     finishWorkoutSession(session.id);
     void awardReps("workout");
+    void completeQuest("first_workout");
     toast({
       title: "Workout complete",
       description: `${completedCount} of ${total} exercises logged. Nice work.`,
