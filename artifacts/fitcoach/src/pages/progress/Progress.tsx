@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { OUT_OF_CREDITS_STATUS, outOfCreditsToast, needsSubscriptionToast } from "@/lib/credits";
 import { cn } from "@/lib/utils";
-import { awardReps } from "@/lib/reps";
+import { awardReps, completeQuest } from "@/lib/reps";
 import { Camera, TrendingUp, Trophy, UploadCloud, Flame, ScanLine, Sparkles, Loader2, CheckCircle2, AlertTriangle, X, ChevronDown, ChevronUp, Plus, ArrowUp, ArrowDown, ArrowRight, GitCompareArrows } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { motion } from "framer-motion";
@@ -382,6 +382,7 @@ export default function Progress() {
       const reply = (await res.json()) as PhysiqueAnalysisReply;
       const analysis = buildPhysiqueAnalysisFromReply(profile, photosForWeek.map((p) => p.url), reply);
       refreshCredits();
+      void completeQuest("first_scan");
       setPhysiqueAnalysisForWeek(week, analysis);
       // A freshly-run scan is authoritative for its week: push the new midpoint
       // onto the week's BF% so the card reflects this analysis, not a stale value.
