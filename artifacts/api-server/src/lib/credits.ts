@@ -1,5 +1,5 @@
 import { and, eq, gt, sql } from "drizzle-orm";
-import { db, userCreditsTable } from "@workspace/db";
+import { db, userCreditsTable, premiumGrantsTable } from "@workspace/db";
 import { isAdminUserId } from "./admin";
 
 /**
@@ -51,6 +51,17 @@ const PERIOD_MS = 30 * 24 * 60 * 60 * 1000;
  */
 export async function getUserPlan(userId: string): Promise<UserPlan> {
   if (await isAdminUserId(userId)) return "premium";
+  // Referral reward: an active Premium grant (outside Stripe) counts as premium.
+  try {
+    const [grant] = await db
+      .select()
+      .from(premiumGrantsTable)
+      .where(eq(premiumGrantsTable.userId, userId))
+      .limit(1);
+    if (grant && grant.until.getTime() > Date.now()) return "premium";
+  } catch {
+    /* grants table missing / transient — fall through to Stripe */
+  }
   try {
     const { getUserPlanFromStripe } = await import("./stripe/plan");
     return await getUserPlanFromStripe(userId);
