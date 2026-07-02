@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { motion, MotionConfig, useScroll, useTransform, useMotionValueEvent, useReducedMotion, useInView, AnimatePresence } from "framer-motion";
+import { motion, MotionConfig, useScroll, useTransform, useMotionValueEvent, useReducedMotion, useInView, useSpring, animate, AnimatePresence } from "framer-motion";
 import {
   ChevronRight,
   Activity,
@@ -285,7 +285,7 @@ const Navbar = () => {
 
   const handleScrollTo = (id: string) => {
     const el = document.getElementById(id);
-    if (el) el.scrollIntoView({ behavior: "smooth" });
+    if (el) smoothScrollToEl(el);
     setMobileMenuOpen(false);
   };
 
@@ -1074,6 +1074,200 @@ const GRADIENT_TEXT: React.CSSProperties = {
   color: "transparent"
 };
 
+/* ---------- Tier 1 animation system: smooth scroll + kinetic type +
+   magnetic CTAs + count-up numbers (see ALLUR-Animation-WOW-Plan) ---------- */
+
+/** Minimal surface of the Lenis smooth-scroll instance we use. */
+type LenisLike = {
+  raf: (time: number) => void;
+  destroy: () => void;
+  scrollTo: (target: HTMLElement, opts?: { offset?: number }) => void;
+};
+
+/** Module-level Lenis handle so nav/CTA scroll helpers can route through it. */
+let lenisInstance: LenisLike | null = null;
+
+/** Site-wide inertial smooth scrolling. The single biggest "expensive feel"
+    upgrade — every existing parallax/scroll-linked animation rides on it.
+    Loaded from CDN as progressive enhancement (fails soft to native scroll);
+    skipped entirely for reduced-motion users; native touch scroll untouched. */
+function useSmoothScroll(enabled: boolean) {
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+    let rafId = 0;
+    let lenis: LenisLike | null = null;
+
+    import(/* @vite-ignore */ "https://unpkg.com/lenis@1.3.4/dist/lenis.mjs")
+      .then((mod: { default: new (opts: { lerp: number; wheelMultiplier: number }) => LenisLike }) => {
+        if (cancelled) return;
+        lenis = new mod.default({ lerp: 0.09, wheelMultiplier: 1 });
+        lenisInstance = lenis;
+        const loop = (time: number) => {
+          lenis!.raf(time);
+          rafId = requestAnimationFrame(loop);
+        };
+        rafId = requestAnimationFrame(loop);
+      })
+      .catch(() => {
+        /* CDN unavailable — native scroll still works fine */
+      });
+
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(rafId);
+      lenis?.destroy();
+      lenisInstance = null;
+    };
+  }, [enabled]);
+}
+
+/** Scroll an element into view through Lenis when active (keeps easing
+    consistent), falling back to native smooth scroll. */
+function smoothScrollToEl(el: HTMLElement) {
+  if (lenisInstance) lenisInstance.scrollTo(el, { offset: -72 });
+  else el.scrollIntoView({ behavior: "smooth" });
+}
+
+/** Kinetic typography: splits text into words, each rising out of an
+    overflow-hidden mask with a stagger. Award-site headline treatment. */
+function KineticWords({
+  text,
+  wordStyle,
+  delay = 0,
+  className
+}: {
+  text: string;
+  wordStyle?: React.CSSProperties;
+  delay?: number;
+  className?: string;
+}) {
+  const prefersReduced = useReducedMotion();
+  if (prefersReduced) {
+    return (
+      <span className={className} style={wordStyle}>
+        {text}
+      </span>
+    );
+  }
+  const words = text.split(" ");
+  return (
+    <span className={className}>
+      <span className="sr-only">{text}</span>
+      {words.map((w, i) => (
+        <span
+          key={`${w}-${i}`}
+          aria-hidden
+          className="inline-block overflow-hidden align-bottom pb-[0.12em] -mb-[0.12em]"
+        >
+          <motion.span
+            className="inline-block"
+            style={wordStyle}
+            initial={{ y: "115%" }}
+            whileInView={{ y: "0%" }}
+            viewport={{ once: true, margin: "-80px" }}
+            transition={{ duration: 0.7, delay: delay + i * 0.07, ease: [0.16, 1, 0.3, 1] }}
+          >
+            {w}
+            {i < words.length - 1 ? " " : ""}
+          </motion.span>
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/** Magnetic CTA: button leans toward the cursor within its bounds and springs
+    back on leave. Pointer-fine devices only; taps get a springy press. */
+function MagneticButton({
+  children,
+  className,
+  onClick,
+  strength = 0.25
+}: {
+  children: React.ReactNode;
+  className?: string;
+  onClick?: () => void;
+  strength?: number;
+}) {
+  const prefersReduced = useReducedMotion();
+  const ref = useRef<HTMLButtonElement>(null);
+  const x = useSpring(0, { stiffness: 260, damping: 18, mass: 0.6 });
+  const y = useSpring(0, { stiffness: 260, damping: 18, mass: 0.6 });
+
+  const handleMove = (e: React.MouseEvent) => {
+    if (prefersReduced || !ref.current) return;
+    if (!window.matchMedia("(pointer: fine)").matches) return;
+    const r = ref.current.getBoundingClientRect();
+    x.set((e.clientX - (r.left + r.width / 2)) * strength);
+    y.set((e.clientY - (r.top + r.height / 2)) * strength);
+  };
+  const reset = () => {
+    x.set(0);
+    y.set(0);
+  };
+
+  return (
+    <motion.button
+      ref={ref}
+      onMouseMove={handleMove}
+      onMouseLeave={reset}
+      onClick={onClick}
+      whileTap={prefersReduced ? undefined : { scale: 0.96 }}
+      style={{ x, y }}
+      className={className}
+    >
+      {children}
+    </motion.button>
+  );
+}
+
+/** Number that counts up from 0 when it scrolls into view. */
+function CountUp({
+  to,
+  decimals = 0,
+  prefix = "",
+  suffix = "",
+  duration = 1.1,
+  className,
+  style
+}: {
+  to: number;
+  decimals?: number;
+  prefix?: string;
+  suffix?: string;
+  duration?: number;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const inView = useInView(ref, { once: true, margin: "-40px" });
+  const prefersReduced = useReducedMotion();
+  const [value, setValue] = useState(0);
+
+  useEffect(() => {
+    if (!inView) return;
+    if (prefersReduced) {
+      setValue(to);
+      return;
+    }
+    const controls = animate(0, to, {
+      duration,
+      ease: [0.16, 1, 0.3, 1],
+      onUpdate: (v) => setValue(v)
+    });
+    return () => controls.stop();
+  }, [inView, prefersReduced, to, duration]);
+
+  return (
+    <span ref={ref} className={className} style={style}>
+      {prefix}
+      {value.toFixed(decimals)}
+      {suffix}
+    </span>
+  );
+}
+
 /** Blur-to-sharp reveal used on section headers — makes scrolling feel like
     content is being uncovered rather than just appearing. */
 function Reveal({
@@ -1164,6 +1358,7 @@ export default function Landing() {
   const heroPhoneY = useTransform(scrollYProgress, [0, 1], ["0%", "-18%"]);
 
   const prefersReduced = useReducedMotion();
+  useSmoothScroll(!prefersReduced);
 
   const stepsRef = useRef<HTMLElement>(null);
   const [activeStep, setActiveStep] = useState(0);
@@ -1189,7 +1384,7 @@ export default function Landing() {
 
   const scrollToDemo = () => {
     const el = document.getElementById("coach-demo");
-    if (el) el.scrollIntoView({ behavior: "smooth" });
+    if (el) smoothScrollToEl(el);
   };
 
   const marqueeItems = [
@@ -1250,7 +1445,7 @@ export default function Landing() {
               <h1 className="lp-display text-5xl sm:text-6xl lg:text-7xl 2xl:text-8xl font-bold mb-7 leading-[1.04]">
                 Stop <RotatingWord />
                 <br />
-                <span style={GRADIENT_TEXT}>Start progressing.</span>
+                <KineticWords text="Start progressing." wordStyle={GRADIENT_TEXT} delay={0.25} />
               </h1>
 
               <p className="text-lg md:text-xl text-[var(--lp-body)] mb-9 leading-relaxed max-w-xl">
@@ -1261,20 +1456,20 @@ export default function Landing() {
               </p>
 
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-                <button
+                <MagneticButton
                   onClick={handleSignup}
                   className="lp-cta w-full sm:w-auto h-16 px-10 text-lg inline-flex items-center justify-center gap-2 group"
                 >
                   Build my plan
                   <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </button>
-                <button
+                </MagneticButton>
+                <MagneticButton
                   onClick={scrollToDemo}
                   className="lp-cta-ghost w-full sm:w-auto h-16 px-10 text-lg inline-flex items-center justify-center gap-2 backdrop-blur-sm"
                 >
                   Try the live demo
                   <ArrowDown className="w-4 h-4" />
-                </button>
+                </MagneticButton>
               </div>
 
               <p className="text-sm text-[var(--lp-muted)] mt-6 font-medium">
@@ -1337,7 +1532,7 @@ export default function Landing() {
 
       {/* MARQUEE BAND */}
       <div
-        className="relative py-5 overflow-hidden border-y"
+        className="relative py-5 overflow-hidden border-y group"
         style={{
           backgroundColor: "rgba(110,231,242,0.04)",
           borderColor: "rgba(110,231,242,0.12)",
@@ -1345,7 +1540,7 @@ export default function Landing() {
           maskImage: "linear-gradient(to right, transparent, black 10%, black 90%, transparent)"
         }}
       >
-        <div className="flex w-max animate-marquee">
+        <div className="flex w-max animate-marquee group-hover:[animation-play-state:paused]">
           {[...marqueeItems, ...marqueeItems].map((item, i) => (
             <div key={i} className="flex items-center gap-4 px-8 shrink-0">
               <Zap className="w-4 h-4 shrink-0" style={{ color: "var(--lp-cyan)" }} />
@@ -1367,9 +1562,9 @@ export default function Landing() {
             >
               <span className="lp-kicker mb-4 block">The real problem</span>
               <h2 className="lp-display text-4xl md:text-5xl font-semibold mb-8">
-                You don't need more
+                <KineticWords text="You don't need more" />
                 <br />
-                <span className="text-[var(--lp-muted)]">fitness information.</span>
+                <KineticWords text="fitness information." className="text-[var(--lp-muted)]" delay={0.22} />
               </h2>
 
               <div className="space-y-6 text-lg text-[var(--lp-body)]">
@@ -1435,7 +1630,7 @@ export default function Landing() {
               className="h-16 md:h-20 object-contain mx-auto mb-8"
             />
             <h2 className="lp-display text-5xl md:text-6xl font-bold mb-8">
-              ALLUR <span style={GRADIENT_TEXT}>fixes that.</span>
+              <KineticWords text="ALLUR" /> <KineticWords text="fixes that." wordStyle={GRADIENT_TEXT} delay={0.1} />
             </h2>
             <p className="text-xl md:text-2xl text-[var(--lp-body)] mb-12 leading-relaxed">
               Instead of piecing your transformation together from scattered tools and generic advice, ALLUR gives you{" "}
@@ -1519,12 +1714,12 @@ export default function Landing() {
               <br className="hidden sm:block" />
               <span className="text-[var(--lp-text)]">you follow a system that keeps getting smarter around you.</span>
             </p>
-            <button
+            <MagneticButton
               onClick={handleSignup}
               className="lp-cta h-14 px-8 text-lg inline-flex items-center justify-center"
             >
               Start my free trial
-            </button>
+            </MagneticButton>
           </motion.div>
         </div>
       </section>
@@ -1536,7 +1731,7 @@ export default function Landing() {
           <Reveal className="text-center mb-14 md:mb-20">
             <span className="lp-kicker mb-4 block">Try it right now</span>
             <h2 className="lp-display text-4xl md:text-6xl font-semibold mb-4">
-              Talk is cheap. <span style={GRADIENT_TEXT}>Watch it act.</span>
+              <KineticWords text="Talk is cheap." /> <KineticWords text="Watch it act." wordStyle={GRADIENT_TEXT} delay={0.22} />
             </h2>
           </Reveal>
           <LiveCoachDemo />
@@ -1615,7 +1810,7 @@ export default function Landing() {
         <Reveal className="max-w-7xl mx-auto px-6 pt-24 md:pt-32 text-center">
           <span className="lp-kicker mb-4 block">The system</span>
           <h2 className="lp-display text-4xl md:text-5xl font-semibold mb-4">
-            Step inside <span style={GRADIENT_TEXT}>the system.</span>
+            <KineticWords text="Step inside" /> <KineticWords text="the system." wordStyle={GRADIENT_TEXT} delay={0.15} />
           </h2>
           <p className="text-xl text-[var(--lp-muted)] max-w-2xl mx-auto">
             Scroll to watch ALLUR move from setup to a living, self-adjusting transformation engine.
@@ -1785,9 +1980,9 @@ export default function Landing() {
           >
             <span className="lp-kicker mb-4 block">The difference</span>
             <h2 className="lp-display text-4xl md:text-5xl font-semibold mb-8">
-              Most people don't fail.
+              <KineticWords text="Most people don't fail." />
               <br />
-              <span style={GRADIENT_TEXT}>Their systems do.</span>
+              <KineticWords text="Their systems do." wordStyle={GRADIENT_TEXT} delay={0.28} />
             </h2>
 
             <p className="text-lg text-[var(--lp-body)] mb-8">
@@ -1924,14 +2119,16 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto px-6 flex flex-col-reverse lg:flex-row items-center gap-16 relative z-10">
           <div className="flex-1">
             <span className="lp-kicker mb-4 block">Nutrition</span>
-            <h2 className="lp-display text-4xl md:text-5xl font-semibold mb-6">Track macros without the spreadsheet.</h2>
+            <h2 className="lp-display text-4xl md:text-5xl font-semibold mb-6">
+              <KineticWords text="Track macros without the spreadsheet." />
+            </h2>
             <p className="text-lg text-[var(--lp-body)] mb-8 leading-relaxed">
               No more searching databases for every ingredient. Take a photo of your meal. ALLUR's AI analyzes the food, estimates calories and macros, and lets you{" "}
               <span className="lp-underline">log it in seconds.</span>
             </p>
-            <button onClick={handleSignup} className="lp-cta-ghost h-12 px-8 inline-flex items-center justify-center">
+            <MagneticButton onClick={handleSignup} className="lp-cta-ghost h-12 px-8 inline-flex items-center justify-center">
               See how it works
-            </button>
+            </MagneticButton>
           </div>
           <div className="flex-1 flex justify-center">
             <div className="relative">
@@ -1954,7 +2151,7 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto px-6 relative z-10">
           <div className="text-center mb-14">
             <h2 className="lp-display text-3xl md:text-5xl font-semibold">
-              One system. <span style={{ color: "var(--lp-cyan)" }}>Everything covered.</span>
+              <KineticWords text="One system." /> <KineticWords text="Everything covered." wordStyle={{ color: "var(--lp-cyan)" }} delay={0.15} />
             </h2>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 md:gap-6">
@@ -1988,7 +2185,7 @@ export default function Landing() {
           <Reveal className="text-center mb-14 md:mb-16">
             <span className="lp-kicker mb-4 block">The first three weeks</span>
             <h2 className="lp-display text-4xl md:text-5xl font-semibold mb-4">
-              What changing actually <span style={GRADIENT_TEXT}>feels like.</span>
+              <KineticWords text="What changing actually" /> <KineticWords text="feels like." wordStyle={GRADIENT_TEXT} delay={0.22} />
             </h2>
           </Reveal>
 
@@ -2024,7 +2221,7 @@ export default function Landing() {
           <Reveal className="text-center mb-16">
             <span className="lp-kicker mb-4 block">Pricing</span>
             <h2 className="lp-display text-4xl md:text-5xl font-semibold mb-4">
-              Elite coaching. <span style={GRADIENT_TEXT}>Not elite prices.</span>
+              <KineticWords text="Elite coaching." /> <KineticWords text="Not elite prices." wordStyle={GRADIENT_TEXT} delay={0.15} />
             </h2>
             <p className="text-xl text-[var(--lp-muted)] max-w-2xl mx-auto">
               A human coach runs <span className="text-[var(--lp-text)]">$150–300 a month.</span> ALLUR gives you the adaptive system for{" "}
@@ -2038,7 +2235,7 @@ export default function Landing() {
               <div className="mb-8">
                 <h3 className="lp-display text-2xl font-semibold mb-2">Base</h3>
                 <div className="flex items-end gap-1 mb-2">
-                  <span className="lp-display text-5xl font-bold">$12.99</span>
+                  <CountUp to={12.99} decimals={2} prefix="$" className="lp-display text-5xl font-bold" />
                   <span className="text-[var(--lp-muted)] mb-1">/mo</span>
                 </div>
                 <p className="font-medium" style={{ color: "var(--lp-cyan)" }}>14-day free trial included</p>
@@ -2052,9 +2249,9 @@ export default function Landing() {
                 ))}
               </ul>
 
-              <button onClick={handleSignup} className="lp-cta-ghost w-full h-14 text-lg inline-flex items-center justify-center">
+              <MagneticButton onClick={handleSignup} className="lp-cta-ghost w-full h-14 text-lg inline-flex items-center justify-center">
                 Start my 14-day free trial
-              </button>
+              </MagneticButton>
               <p className="text-xs text-[var(--lp-muted)] text-center mt-3">$0 today · Cancel anytime</p>
             </div>
 
@@ -2072,7 +2269,7 @@ export default function Landing() {
               <div className="mb-8 relative z-10">
                 <h3 className="lp-display text-2xl font-semibold mb-2">Premium</h3>
                 <div className="flex items-end gap-1 mb-2">
-                  <span className="lp-display text-5xl font-bold">$29.99</span>
+                  <CountUp to={29.99} decimals={2} prefix="$" className="lp-display text-5xl font-bold" />
                   <span className="mb-1" style={{ color: "rgba(110,231,242,0.8)" }}>/mo</span>
                 </div>
                 <p className="text-[var(--lp-muted)]">For maximum adaptation</p>
@@ -2086,9 +2283,9 @@ export default function Landing() {
                 <li className="flex gap-3"><CheckCircle2 className="w-5 h-5 shrink-0" style={{ color: "var(--lp-cyan)" }} /> Priority plan rebalancing</li>
               </ul>
 
-              <button onClick={handleSignup} className="lp-cta w-full h-14 text-lg inline-flex items-center justify-center">
+              <MagneticButton onClick={handleSignup} className="lp-cta w-full h-14 text-lg inline-flex items-center justify-center">
                 Get Premium
-              </button>
+              </MagneticButton>
               <p className="text-xs text-[var(--lp-muted)] text-center mt-3 relative z-10">Cancel anytime, in the app, in seconds</p>
             </div>
           </div>
@@ -2113,21 +2310,21 @@ export default function Landing() {
 
         <Reveal className="max-w-4xl mx-auto px-6 text-center relative z-10">
           <h2 className="lp-display text-5xl md:text-6xl lg:text-7xl font-bold mb-8">
-            The last restart
+            <KineticWords text="The last restart" />
             <br />
-            <span style={GRADIENT_TEXT}>you'll ever need.</span>
+            <KineticWords text="you'll ever need." wordStyle={GRADIENT_TEXT} delay={0.24} />
           </h2>
           <p className="text-xl md:text-2xl text-[var(--lp-body)] mb-12 max-w-2xl mx-auto">
             Three weeks from now, you could be someone who{" "}
             <span className="lp-underline">hasn't started over once.</span> Follow a system built to adapt with you.
           </p>
-          <button
+          <MagneticButton
             onClick={handleSignup}
             className="lp-cta h-16 px-12 text-xl inline-flex items-center justify-center gap-2 group"
           >
             Build my plan
             <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-          </button>
+          </MagneticButton>
           <p className="text-sm text-[var(--lp-muted)] mt-6 font-medium">
             <span className="text-[var(--lp-text)]">$0 today</span> · 14-day free trial · Cancel anytime
           </p>
