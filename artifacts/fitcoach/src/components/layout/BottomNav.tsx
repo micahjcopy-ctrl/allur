@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "wouter";
-import { Home, Dumbbell, TrendingUp, Mic, User } from "lucide-react";
+import { Home, Dumbbell, TrendingUp, Mic, User, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function BottomNav() {
@@ -11,6 +11,7 @@ export function BottomNav() {
     { name: "Plan", href: "/plan", icon: Dumbbell },
     { name: "Progress", href: "/progress", icon: TrendingUp },
     { name: "Coach", href: "/coach", icon: Mic },
+    { name: "Squad", href: "/squad", icon: Users },
     { name: "Account", href: "/account", icon: User },
   ];
 
