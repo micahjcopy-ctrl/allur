@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { OUT_OF_CREDITS_STATUS, outOfCreditsToast, needsSubscriptionToast } from "@/lib/credits";
 import { cn } from "@/lib/utils";
+import { awardReps } from "@/lib/reps";
 import { Camera, TrendingUp, Trophy, UploadCloud, Flame, ScanLine, Sparkles, Loader2, CheckCircle2, AlertTriangle, X, ChevronDown, ChevronUp, Plus, ArrowUp, ArrowDown, ArrowRight, GitCompareArrows } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { motion } from "framer-motion";
@@ -471,6 +472,7 @@ export default function Progress() {
     const w = parseFloat(newWeight);
     if (!isNaN(w)) {
       addWeightLog(w);
+      void awardReps("checkin");
       setNewWeight("");
       toast({ title: "Weight logged", description: `Recorded ${w}${profile.weightUnit}` });
     }
