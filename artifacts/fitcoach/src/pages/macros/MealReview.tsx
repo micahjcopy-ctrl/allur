@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { useFitCoach, type MacroBreakdown } from "@/context/FitCoachContext";
 import { useToast } from "@/hooks/use-toast";
 import { OUT_OF_CREDITS_STATUS, outOfCreditsToast } from "@/lib/credits";
+import { awardReps } from "@/lib/reps";
 import {
   Check,
   Plus,
@@ -488,6 +489,7 @@ export default function MealReview({
       items: items.map((i) => i.name),
       macros,
     });
+    void awardReps("meal");
     toast({ title: "Meal logged", description: `${mealName.trim() || "Meal"} added to today.` });
     onClose();
   };
