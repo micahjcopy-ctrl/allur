@@ -97,6 +97,26 @@ export const squadNotificationsTable = pgTable(
   (t) => [index("squad_notifications_user_idx").on(t.userId, t.createdAt)],
 );
 
+// Web Push subscriptions. One row per browser/device; a user may have several.
+// Endpoint is globally unique per the Push API spec, so it's the natural key.
+export const pushSubscriptionsTable = pgTable(
+  "push_subscriptions",
+  {
+    endpoint: varchar("endpoint").primaryKey(),
+    userId: varchar("user_id")
+      .notNull()
+      .references(() => usersTable.id, { onDelete: "cascade" }),
+    p256dh: varchar("p256dh").notNull(),
+    auth: varchar("auth").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  },
+  (t) => [index("push_subscriptions_user_idx").on(t.userId)],
+);
+
+export type PushSubscription = typeof pushSubscriptionsTable.$inferSelect;
+
 export type Friendship = typeof friendshipsTable.$inferSelect;
 export type PointsEvent = typeof pointsEventsTable.$inferSelect;
 export type Duel = typeof duelsTable.$inferSelect;
