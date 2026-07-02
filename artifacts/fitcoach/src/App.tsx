@@ -16,6 +16,7 @@ import Dashboard from "@/pages/dashboard/Dashboard";
 import Plan from "@/pages/plan/Plan";
 import Progress from "@/pages/progress/Progress";
 import Macros from "@/pages/macros/Macros";
+import Squad from "@/pages/squad/Squad";
 import Coach from "@/pages/coach/Coach";
 import Account from "@/pages/account/Account";
 import Settings from "@/pages/settings/Settings";
@@ -90,6 +91,7 @@ function RouteGuard() {
       <Route path="/plan" component={Plan} />
       <Route path="/progress" component={Progress} />
       <Route path="/macros" component={Macros} />
+      <Route path="/squad" component={Squad} />
       <Route path="/coach" component={Coach} />
       <Route path="/account" component={Account} />
       <Route path="/settings" component={Settings} />
