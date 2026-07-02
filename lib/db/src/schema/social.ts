@@ -117,6 +117,43 @@ export const pushSubscriptionsTable = pgTable(
 
 export type PushSubscription = typeof pushSubscriptionsTable.$inferSelect;
 
+// Premium entitlement granted outside Stripe (referral rewards). One row per
+// user; `until` is extended (stacked) each time a reward lands. getUserPlan()
+// treats an active grant as "premium".
+export const premiumGrantsTable = pgTable("premium_grants", {
+  userId: varchar("user_id")
+    .primaryKey()
+    .references(() => usersTable.id, { onDelete: "cascade" }),
+  until: timestamp("until", { withTimezone: true }).notNull(),
+  source: varchar("source").notNull().default("referral"),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .default(sql`now()`),
+});
+
+// Referral attribution + reward state. One row per referred user (a person can
+// only be referred once). Rewarded when the referred user starts a trial.
+export const referralsTable = pgTable(
+  "referrals",
+  {
+    referredId: varchar("referred_id")
+      .primaryKey()
+      .references(() => usersTable.id, { onDelete: "cascade" }),
+    referrerId: varchar("referrer_id")
+      .notNull()
+      .references(() => usersTable.id, { onDelete: "cascade" }),
+    status: varchar("status").notNull().default("pending"), // pending | rewarded
+    rewardedAt: timestamp("rewarded_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  },
+  (t) => [index("referrals_referrer_idx").on(t.referrerId)],
+);
+
+export type PremiumGrant = typeof premiumGrantsTable.$inferSelect;
+export type Referral = typeof referralsTable.$inferSelect;
+
 export type Friendship = typeof friendshipsTable.$inferSelect;
 export type PointsEvent = typeof pointsEventsTable.$inferSelect;
 export type Duel = typeof duelsTable.$inferSelect;

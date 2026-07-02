@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useFitCoach } from "@/context/FitCoachContext";
-import { localDay } from "@/lib/reps";
+import { localDay, completeQuest } from "@/lib/reps";
 import { cn } from "@/lib/utils";
 import {
   Users,
@@ -220,6 +220,7 @@ export default function Squad() {
     setJoining(false);
     if (r.ok) {
       setCode("");
+      void completeQuest("first_friend");
       toast({ title: "Squad up 👊", description: "You're now training together." });
       void load();
     } else {
