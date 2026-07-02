@@ -17,6 +17,7 @@ import Plan from "@/pages/plan/Plan";
 import Progress from "@/pages/progress/Progress";
 import Macros from "@/pages/macros/Macros";
 import Squad from "@/pages/squad/Squad";
+import Refer from "@/pages/refer/Refer";
 import Coach from "@/pages/coach/Coach";
 import Account from "@/pages/account/Account";
 import Settings from "@/pages/settings/Settings";
@@ -31,6 +32,7 @@ import { isStandalone } from "@/hooks/usePwaInstall";
 import Privacy from "@/pages/legal/Privacy";
 import Terms from "@/pages/legal/Terms";
 import InstallAppPrompt from "@/components/InstallAppPrompt";
+import { captureRefFromUrl, claimStoredReferral } from "@/lib/reps";
 
 const queryClient = new QueryClient();
 
@@ -92,6 +94,7 @@ function RouteGuard() {
       <Route path="/progress" component={Progress} />
       <Route path="/macros" component={Macros} />
       <Route path="/squad" component={Squad} />
+      <Route path="/refer" component={Refer} />
       <Route path="/coach" component={Coach} />
       <Route path="/account" component={Account} />
       <Route path="/settings" component={Settings} />
@@ -107,6 +110,16 @@ function AuthGate() {
   const [location, setLocation] = useLocation();
   // Installed PWA vs. browser tab — branches the signed-out entry experience.
   const standalone = isStandalone();
+
+  // Capture a ?ref= code as early as possible (works on the landing page too).
+  useEffect(() => {
+    captureRefFromUrl();
+  }, []);
+
+  // Once signed in, redeem any stored referral code (idempotent server-side).
+  useEffect(() => {
+    if (!isLoading && authUser) void claimStoredReferral();
+  }, [isLoading, authUser]);
 
   useEffect(() => {
     if (location === "/admin") return;
