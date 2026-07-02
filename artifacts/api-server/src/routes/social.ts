@@ -8,9 +8,11 @@ import {
   pointsEventsTable,
   duelsTable,
   squadNotificationsTable,
+  pushSubscriptionsTable,
 } from "@workspace/db";
 import { and, desc, eq, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { getUserPlan } from "../lib/credits";
+import { sendPushToUser, vapidPublicKey, pushConfigured } from "../lib/push";
 
 /* ===========================================================================
    Squad — friends, Reps (adherence points), Momentum (adaptive streak),
@@ -77,8 +79,19 @@ async function friendIdsOf(userId: string): Promise<string[]> {
   return rows.map((r) => (r.userId === userId ? r.friendId : r.userId));
 }
 
+const PUSH_TITLES: Record<string, string> = {
+  respect: "Respect 👊",
+  friend_joined: "Squad up",
+  duel_started: "You've been challenged ⚔️",
+  duel_won: "Duel won 🏆",
+  duel_lost: "Duel finished",
+  weekly_bonus: "Weekly challenge complete 💪",
+};
+
 async function notify(userId: string, type: string, body: string, actorId?: string) {
   await db.insert(squadNotificationsTable).values({ userId, type, body, actorId: actorId ?? null });
+  // Mirror to Web Push (best-effort; awaited so serverless doesn't kill it).
+  await sendPushToUser(userId, { title: PUSH_TITLES[type] ?? "ALLUR", body });
 }
 
 function displayName(u: { username: string | null; firstName: string | null; email: string | null }): string {
@@ -507,6 +520,88 @@ router.post("/squad/duel", async (req: Request, res: Response) => {
   );
 
   res.json({ success: true, duelId: duel.id, endAt: endAt.toISOString() });
+});
+
+// ---------------------------------------------------------------------------
+// Web Push: public key + subscribe/unsubscribe.
+// ---------------------------------------------------------------------------
+router.get("/squad/push/public-key", (_req: Request, res: Response) => {
+  const key = vapidPublicKey();
+  res.json({ key, enabled: !!key });
+});
+
+router.post("/squad/push/subscribe", async (req: Request, res: Response) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const endpoint = typeof req.body?.endpoint === "string" ? req.body.endpoint : "";
+  const p256dh = typeof req.body?.keys?.p256dh === "string" ? req.body.keys.p256dh : "";
+  const auth = typeof req.body?.keys?.auth === "string" ? req.body.keys.auth : "";
+  if (!endpoint.startsWith("https://") || !p256dh || !auth) {
+    res.status(400).json({ error: "Invalid subscription." });
+    return;
+  }
+  await db
+    .insert(pushSubscriptionsTable)
+    .values({ endpoint, userId, p256dh, auth })
+    .onConflictDoUpdate({
+      target: pushSubscriptionsTable.endpoint,
+      set: { userId, p256dh, auth },
+    });
+  res.json({ success: true });
+});
+
+router.post("/squad/push/unsubscribe", async (req: Request, res: Response) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const endpoint = typeof req.body?.endpoint === "string" ? req.body.endpoint : "";
+  if (endpoint) {
+    await db
+      .delete(pushSubscriptionsTable)
+      .where(and(eq(pushSubscriptionsTable.endpoint, endpoint), eq(pushSubscriptionsTable.userId, userId)));
+  }
+  res.json({ success: true });
+});
+
+// ---------------------------------------------------------------------------
+// GET /cron/weekly-recap — Monday recap push to every subscribed user.
+// Triggered by Vercel Cron. Guarded by CRON_SECRET when configured.
+// ---------------------------------------------------------------------------
+router.get("/cron/weekly-recap", async (req: Request, res: Response) => {
+  const secret = process.env.CRON_SECRET;
+  const authHeader = req.headers.authorization ?? "";
+  const fromVercelCron = (req.headers["user-agent"] ?? "").includes("vercel-cron");
+  if (secret ? authHeader !== `Bearer ${secret}` : !fromVercelCron) {
+    res.status(401).json({ error: "Unauthorized." });
+    return;
+  }
+  if (!pushConfigured()) {
+    res.json({ sent: 0, reason: "push not configured" });
+    return;
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  // Last completed week (the recap covers the week that just ended).
+  const thisWeek = weekWindow(today);
+  const lastWeekEndDate = new Date(thisWeek.start + "T00:00:00Z");
+  lastWeekEndDate.setUTCDate(lastWeekEndDate.getUTCDate() - 1);
+  const lastWeek = weekWindow(lastWeekEndDate.toISOString().slice(0, 10));
+
+  const subs = await db
+    .select({ userId: pushSubscriptionsTable.userId })
+    .from(pushSubscriptionsTable)
+    .groupBy(pushSubscriptionsTable.userId);
+  let sent = 0;
+  for (const { userId } of subs) {
+    const reps = (await repsByUser([userId], lastWeek.start, lastWeek.end)).get(userId) ?? 0;
+    const momentum = await computeMomentum(userId, today);
+    const body =
+      reps > 0
+        ? `Last week: ${reps} Reps · Momentum ${momentum.weeks}w. This week's challenge is live — first session sets the tone.`
+        : `New week, clean slate. Your plan is ready — one session today starts the Momentum.`;
+    await sendPushToUser(userId, { title: "Your week with ALLUR", body });
+    sent += 1;
+  }
+  res.json({ sent });
 });
 
 // ---------------------------------------------------------------------------
