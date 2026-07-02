@@ -1143,6 +1143,12 @@ function KineticWords({
   className?: string;
 }) {
   const prefersReduced = useReducedMotion();
+  // In-view detection must live on the (visible) wrapper: the animated words
+  // start fully clipped by their overflow-hidden masks, and IntersectionObserver
+  // never fires for fully-clipped elements.
+  const ref = useRef<HTMLSpanElement>(null);
+  const inView = useInView(ref, { once: true, margin: "-60px" });
+
   if (prefersReduced) {
     return (
       <span className={className} style={wordStyle}>
@@ -1152,7 +1158,7 @@ function KineticWords({
   }
   const words = text.split(" ");
   return (
-    <span className={className}>
+    <span ref={ref} className={className}>
       <span className="sr-only">{text}</span>
       {words.map((w, i) => (
         <span
@@ -1164,8 +1170,7 @@ function KineticWords({
             className="inline-block"
             style={wordStyle}
             initial={{ y: "115%" }}
-            whileInView={{ y: "0%" }}
-            viewport={{ once: true, margin: "-80px" }}
+            animate={inView ? { y: "0%" } : { y: "115%" }}
             transition={{ duration: 0.7, delay: delay + i * 0.07, ease: [0.16, 1, 0.3, 1] }}
           >
             {w}
