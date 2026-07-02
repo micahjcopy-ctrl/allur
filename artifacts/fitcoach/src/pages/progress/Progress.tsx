@@ -315,8 +315,13 @@ export default function Progress() {
   const handleAngleFile = (file: File | undefined, week: number, view: PhotoAngle) => {
     if (!file || !file.type.startsWith("image/")) return;
     const reader = new FileReader();
-    reader.onload = () => {
-      addAnglePhoto(week, view, reader.result as string);
+    reader.onload = async () => {
+      // Store a downscaled copy — a full-res phone photo as a data URL can
+      // exceed the platform's request-body limit on its own and silently break
+      // account syncing. 900px keeps plenty of detail for physique scans.
+      const raw = reader.result as string;
+      const stored = await downscaleImage(raw, 900, 0.78).catch(() => raw);
+      addAnglePhoto(week, view, stored);
       toast({ title: `Week ${week} · ${view} added`, description: "Add more angles or log your body fat %." });
     };
     reader.readAsDataURL(file);

@@ -22,6 +22,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useFitCoach, type MacroBreakdown } from "@/context/FitCoachContext";
 import { useToast } from "@/hooks/use-toast";
+import { OUT_OF_CREDITS_STATUS, outOfCreditsToast } from "@/lib/credits";
 import {
   Check,
   Plus,
@@ -34,6 +35,7 @@ import {
   Sparkles,
   Info,
   ChefHat,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -258,10 +260,12 @@ export default function MealReview({
   analysis: MealAnalysisReply;
   onClose: () => void;
 }) {
-  const { addMeal } = useFitCoach();
+  const { addMeal, hasCredit, refreshCredits } = useFitCoach();
   const { toast } = useToast();
 
   const [mealName, setMealName] = useState(analysis.name || "Meal");
+  const [note, setNote] = useState("");
+  const [reanalyzing, setReanalyzing] = useState(false);
   const [items, setItems] = useState<ReviewItem[]>(
     () => analysis.foods.map((f) => recompute(toReviewItem(f))),
   );
@@ -414,6 +418,59 @@ export default function MealReview({
     });
   };
 
+  // Re-run the AI analysis with a user correction the photo can't show
+  // (e.g. "chicken thigh, not breast", "cooked in butter"). Replaces the
+  // item list with the updated estimate; manual tweaks are re-applied by hand.
+  const reanalyzeWithNote = async () => {
+    const trimmed = note.trim();
+    if (!trimmed || reanalyzing) return;
+    if (!hasCredit("photo")) {
+      toast(outOfCreditsToast("photo logs"));
+      return;
+    }
+    setReanalyzing(true);
+    try {
+      const base = import.meta.env.BASE_URL.replace(/\/+$/, "");
+      const res = await fetch(`${base}/api/coach/analyze-meal`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ photo: photoUrl, note: trimmed }),
+      });
+      if (res.status === OUT_OF_CREDITS_STATUS) {
+        refreshCredits();
+        toast(outOfCreditsToast("photo logs"));
+        return;
+      }
+      if (!res.ok) {
+        let message = "Couldn't update the analysis. Please try again.";
+        try {
+          const body = (await res.json()) as { error?: string };
+          if (body?.error) message = body.error;
+        } catch {
+          /* keep default message */
+        }
+        throw new Error(message);
+      }
+      const updated = (await res.json()) as MealAnalysisReply;
+      refreshCredits();
+      setItems(updated.foods.map((f) => recompute(toReviewItem(f))));
+      setClarifications(updated.clarifications ?? []);
+      setHiddenAnswers({});
+      if (updated.name) setMealName(updated.name);
+      setNote("");
+      toast({ title: "Analysis updated", description: "Recalculated with your note." });
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Update failed",
+        description: err instanceof Error ? err.message : "Something went wrong. Please try again.",
+      });
+    } finally {
+      setReanalyzing(false);
+    }
+  };
+
   const handleLog = () => {
     if (items.length === 0) {
       toast({ variant: "destructive", title: "Nothing to log", description: "Add at least one item." });
@@ -462,6 +519,41 @@ export default function MealReview({
             These are estimates from your photo, grounded in a nutrition database. Tweak anything
             before logging.
           </p>
+
+          {/* Correction note — tell the AI what the photo can't show */}
+          <div className="rounded-xl border border-border bg-secondary/30 p-3 space-y-2">
+            <p className="text-xs font-medium flex items-center gap-1.5">
+              <Pencil className="w-3.5 h-3.5 text-primary" /> Know something the photo doesn't show?
+            </p>
+            <div className="flex gap-2">
+              <Input
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void reanalyzeWithNote();
+                }}
+                placeholder='e.g. "chicken thigh, not breast"'
+                className="h-9 text-sm"
+                disabled={reanalyzing}
+              />
+              <button
+                type="button"
+                onClick={() => void reanalyzeWithNote()}
+                disabled={reanalyzing || !note.trim()}
+                className="h-9 px-3 rounded-md bg-primary text-primary-foreground text-xs font-semibold disabled:opacity-50 inline-flex items-center gap-1.5 shrink-0"
+              >
+                {reanalyzing ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Sparkles className="w-3.5 h-3.5" />
+                )}
+                Update
+              </button>
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              Re-analyzes the photo with your note · uses 1 photo credit
+            </p>
+          </div>
 
           {/* Biggest source of uncertainty */}
           {analysis.biggestUncertainty && (

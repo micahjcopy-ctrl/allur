@@ -13,6 +13,7 @@ import {
   getGetAdminStatusQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "@/hooks/use-toast";
 
 export type { ProgramMeta } from "@/data/trainingKnowledge";
 
@@ -799,12 +800,36 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
       // Scope the cache per user so switching accounts refetches instead of
       // reusing the previous user's blob.
       queryKey: [...getGetMyFitnessStateQueryKey(), userId ?? "anon"],
-      retry: false,
+      // A single failed read used to disable persistence for the whole session
+      // (defaults rendered, writer never enabled) with no warning. Retry a few
+      // times and refetch on reconnect so one network blip can't strand a user
+      // in a non-saving session.
+      retry: 3,
+      refetchOnReconnect: true,
       staleTime: Infinity,
       refetchOnWindowFocus: false,
     },
   });
-  const { mutate: saveFitnessState } = useSaveMyFitnessState();
+  const saveErrorToastAtRef = useRef(0);
+  const { mutate: saveFitnessState } = useSaveMyFitnessState({
+    mutation: {
+      retry: 2,
+      onError: () => {
+        // Persistence failures used to be completely silent — the UI kept
+        // showing "saved" data that evaporated on reload. Tell the user, but
+        // rate-limit the toast so a flaky connection doesn't spam them.
+        const now = Date.now();
+        if (now - saveErrorToastAtRef.current < 30_000) return;
+        saveErrorToastAtRef.current = now;
+        toast({
+          variant: "destructive",
+          title: "Changes aren't saving",
+          description:
+            "Your latest changes couldn't sync to your account. Check your connection — we'll keep retrying.",
+        });
+      },
+    },
+  });
 
   // Server-authoritative usage credits. The balance + plan come from the server
   // (userCreditsTable); the client only reads them and refreshes after a spend.
@@ -1037,6 +1062,24 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
     ],
   );
 
+  // Safety net for account syncing: the platform rejects request bodies over
+  // ~4.5MB, and one oversized inline photo used to brick EVERY subsequent save
+  // for the account. Photos above the cap are dropped from the persisted copy
+  // only (the in-session UI keeps showing them).
+  const MAX_PERSISTED_PHOTO_CHARS = 300_000; // ~220KB decoded
+  const slimPhoto = (url: string): string =>
+    url && url.startsWith("data:") && url.length > MAX_PERSISTED_PHOTO_CHARS ? "" : url;
+  const slimForPersist = (s: PersistedFitCoachState): PersistedFitCoachState => ({
+    ...s,
+    meals: s.meals.map((m) => ({ ...m, photoUrl: slimPhoto(m.photoUrl) })),
+    progressPhotos: s.progressPhotos.map((p) => ({ ...p, url: slimPhoto(p.url) })),
+    physiqueAnalyses: s.physiqueAnalyses.map((a) => ({
+      ...a,
+      photoUrl: slimPhoto(a.photoUrl),
+      photoUrls: (a.photoUrls ?? []).map(slimPhoto),
+    })),
+  });
+
   // Backfill the program-start anchor once the user has onboarded. New users get
   // "now"; existing users (saved before this field existed) are healed from their
   // earliest logged data so their timeline doesn't reset to Week 1. Runs only
@@ -1060,7 +1103,7 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
     if (hydratedUserIdRef.current !== userId) return;
     const handle = setTimeout(() => {
       saveFitnessState({
-        data: { state: persistable as unknown as Record<string, unknown> },
+        data: { state: slimForPersist(persistable) as unknown as Record<string, unknown> },
       });
     }, 800);
     return () => clearTimeout(handle);
