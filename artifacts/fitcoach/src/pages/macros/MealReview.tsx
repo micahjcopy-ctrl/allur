@@ -275,7 +275,10 @@ export default function MealReview({
   );
   const [hiddenAnswers, setHiddenAnswers] = useState<Record<string, AddedFatLevel>>({});
   const [editingUid, setEditingUid] = useState<string | null>(null);
-  const [addingItem, setAddingItem] = useState(false);
+  // Text-only mode: no photo → open the food search immediately so the user can
+  // build the meal by name.
+  const textOnly = !photoUrl;
+  const [addingItem, setAddingItem] = useState(textOnly && analysis.foods.length === 0);
 
   const totals = useMemo<FoodMacros>(
     () => sumMacros(items.map((i) => i.macros)),
@@ -501,12 +504,10 @@ export default function MealReview({
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         {/* Header */}
-        <div className="relative">
-          <img src={photoUrl} alt="Your meal" className="w-full h-32 object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
-          <div className="absolute bottom-3 left-4 right-4">
+        {textOnly ? (
+          <div className="px-4 pt-5 pb-3 border-b border-border">
             <p className="text-xs font-medium uppercase tracking-wider text-primary flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5" /> Estimated breakdown
+              <Sparkles className="w-3.5 h-3.5" /> Add food by name
             </p>
             <Input
               value={mealName}
@@ -514,15 +515,32 @@ export default function MealReview({
               className="mt-1 h-8 bg-transparent border-0 px-0 text-xl font-bold focus-visible:ring-0"
             />
           </div>
-        </div>
+        ) : (
+          <div className="relative">
+            <img src={photoUrl} alt="Your meal" className="w-full h-32 object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
+            <div className="absolute bottom-3 left-4 right-4">
+              <p className="text-xs font-medium uppercase tracking-wider text-primary flex items-center gap-1">
+                <Sparkles className="w-3.5 h-3.5" /> Estimated breakdown
+              </p>
+              <Input
+                value={mealName}
+                onChange={(e) => setMealName(e.target.value)}
+                className="mt-1 h-8 bg-transparent border-0 px-0 text-xl font-bold focus-visible:ring-0"
+              />
+            </div>
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
           <p className="text-xs text-muted-foreground">
-            These are estimates from your photo, grounded in a nutrition database. Tweak anything
-            before logging.
+            {textOnly
+              ? "Search foods below and adjust portions. Macros come from the nutrition database."
+              : "These are estimates from your photo, grounded in a nutrition database. Tweak anything before logging."}
           </p>
 
-          {/* Correction note — tell the AI what the photo can't show */}
+          {/* Correction note — tell the AI what the photo can't show. Photo-only. */}
+          {!textOnly && (
           <div className="rounded-xl border border-border bg-secondary/30 p-3 space-y-2">
             <p className="text-xs font-medium flex items-center gap-1.5">
               <Pencil className="w-3.5 h-3.5 text-primary" /> Know something the photo doesn't show?
@@ -556,6 +574,7 @@ export default function MealReview({
               Re-analyzes the photo with your note · uses 1 photo credit
             </p>
           </div>
+          )}
 
           {/* Biggest source of uncertainty */}
           {analysis.biggestUncertainty && (
