@@ -9,6 +9,8 @@ import {
   duelsTable,
   squadNotificationsTable,
   pushSubscriptionsTable,
+  premiumGrantsTable,
+  referralsTable,
 } from "@workspace/db";
 import { and, desc, eq, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { getUserPlan } from "../lib/credits";
@@ -40,6 +42,19 @@ const REP_CATALOG: Record<string, { points: number; dailyCap: number }> = {
 const WEEKLY_TARGET = 600; // solo weekly challenge target
 const WEEKLY_BONUS = 150;
 const DUEL_WIN_REPS = 100;
+
+// One-time activation quests → bonus Reps the first time each is completed.
+// Stored as points_events with type `quest:<key>` so the "once ever" guard is a
+// simple existence check.
+const QUEST_CATALOG: Record<string, { points: number; label: string }> = {
+  tour_complete: { points: 25, label: "Take the tour" },
+  first_meal: { points: 30, label: "Log your first meal" },
+  first_workout: { points: 50, label: "Finish your first workout" },
+  first_scan: { points: 40, label: "Run your first body-composition scan" },
+  first_friend: { points: 25, label: "Add your first friend" },
+};
+
+const REFERRAL_REWARD_DAYS = 30;
 
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -224,6 +239,65 @@ async function settleExpiredDuels(userId: string) {
   }
 }
 
+// Grant (or extend) a Premium entitlement by N days. Stacks on top of any
+// remaining time so multiple rewards add up.
+async function grantPremiumDays(userId: string, days: number) {
+  const [existing] = await db
+    .select()
+    .from(premiumGrantsTable)
+    .where(eq(premiumGrantsTable.userId, userId));
+  const base = existing && existing.until.getTime() > Date.now() ? existing.until.getTime() : Date.now();
+  const until = new Date(base + days * 24 * 60 * 60 * 1000);
+  await db
+    .insert(premiumGrantsTable)
+    .values({ userId, until, source: "referral" })
+    .onConflictDoUpdate({ target: premiumGrantsTable.userId, set: { until, updatedAt: new Date() } });
+}
+
+// Complete any of my referrals (either side) whose referred user has started a
+// trial. Idempotent: rewards both people once, then marks the row rewarded.
+async function settleReferrals(userId: string) {
+  const rows = await db
+    .select()
+    .from(referralsTable)
+    .where(
+      and(
+        eq(referralsTable.status, "pending"),
+        or(eq(referralsTable.referrerId, userId), eq(referralsTable.referredId, userId)),
+      ),
+    );
+  for (const r of rows) {
+    // "Started a trial" = the referred user is no longer on the free plan.
+    const referredPlan = await getUserPlan(r.referredId);
+    if (referredPlan === "free") continue;
+    await db
+      .update(referralsTable)
+      .set({ status: "rewarded", rewardedAt: new Date() })
+      .where(eq(referralsTable.referredId, r.referredId));
+    await grantPremiumDays(r.referrerId, REFERRAL_REWARD_DAYS);
+    await grantPremiumDays(r.referredId, REFERRAL_REWARD_DAYS);
+    const users = await db
+      .select()
+      .from(usersTable)
+      .where(inArray(usersTable.id, [r.referrerId, r.referredId]));
+    const nameOf = (id: string) => {
+      const u = users.find((x) => x.id === id);
+      return u ? displayName(u) : "a friend";
+    };
+    await notify(r.referrerId, "friend_joined", `${nameOf(r.referredId)} started their trial — you both just earned a free month of Premium. 🎁`, r.referredId);
+    await notify(r.referredId, "friend_joined", `Welcome gift unlocked: a free month of Premium, on ${nameOf(r.referrerId)}. 🎁`, r.referrerId);
+  }
+}
+
+// Completed one-time quest keys for a user.
+async function completedQuests(userId: string): Promise<string[]> {
+  const rows = await db
+    .select({ type: pointsEventsTable.type })
+    .from(pointsEventsTable)
+    .where(and(eq(pointsEventsTable.userId, userId), sql`${pointsEventsTable.type} like 'quest:%'`));
+  return rows.map((r) => r.type.slice("quest:".length));
+}
+
 // ---------------------------------------------------------------------------
 // GET /squad/overview — everything the Squad tab needs in one call.
 // ---------------------------------------------------------------------------
@@ -236,6 +310,7 @@ router.get("/squad/overview", async (req: Request, res: Response) => {
   const plan = await getUserPlan(userId);
 
   await settleExpiredDuels(userId);
+  await settleReferrals(userId);
 
   // invite code (create once)
   let [invite] = await db.select().from(squadInvitesTable).where(eq(squadInvitesTable.userId, userId));
@@ -327,7 +402,103 @@ router.get("/squad/overview", async (req: Request, res: Response) => {
       createdAt: n.createdAt.toISOString(),
     })),
     unreadCount: notifications.filter((n) => !n.readAt).length,
+    quests: await completedQuests(userId),
   });
+});
+
+// ---------------------------------------------------------------------------
+// POST /squad/quest { key } — award a one-time activation-quest bonus.
+// ---------------------------------------------------------------------------
+router.post("/squad/quest", async (req: Request, res: Response) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const key = typeof req.body?.key === "string" ? req.body.key : "";
+  const quest = QUEST_CATALOG[key];
+  if (!quest) {
+    res.status(400).json({ error: "Unknown quest." });
+    return;
+  }
+  const type = `quest:${key}`;
+  const [already] = await db
+    .select()
+    .from(pointsEventsTable)
+    .where(and(eq(pointsEventsTable.userId, userId), eq(pointsEventsTable.type, type)))
+    .limit(1);
+  if (already) {
+    res.json({ awarded: 0, alreadyDone: true });
+    return;
+  }
+  await db.insert(pointsEventsTable).values({ userId, type, points: quest.points, day: resolveDay(req.body?.day) });
+  res.json({ awarded: quest.points, alreadyDone: false });
+});
+
+// ---------------------------------------------------------------------------
+// Referral loop — give a month, get a month.
+// ---------------------------------------------------------------------------
+router.get("/referral/status", async (req: Request, res: Response) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  await settleReferrals(userId);
+
+  let [invite] = await db.select().from(squadInvitesTable).where(eq(squadInvitesTable.userId, userId));
+  if (!invite) {
+    const code = crypto.randomBytes(4).toString("hex").toUpperCase();
+    [invite] = await db.insert(squadInvitesTable).values({ code, userId }).returning();
+  }
+
+  const mine = await db.select().from(referralsTable).where(eq(referralsTable.referrerId, userId));
+  const rewarded = mine.filter((r) => r.status === "rewarded").length;
+  const pending = mine.filter((r) => r.status === "pending").length;
+
+  const [grant] = await db.select().from(premiumGrantsTable).where(eq(premiumGrantsTable.userId, userId));
+  const premiumUntil = grant && grant.until.getTime() > Date.now() ? grant.until.toISOString() : null;
+
+  res.json({
+    code: invite.code,
+    joined: rewarded,
+    pending,
+    monthsEarned: rewarded, // one referral = one free month
+    rewardDays: REFERRAL_REWARD_DAYS,
+    premiumUntil,
+  });
+});
+
+// POST /referral/claim { code } — attribute a freshly-signed-up user to a
+// referrer (and auto-friend them). Safe to call repeatedly; only the first
+// attribution sticks.
+router.post("/referral/claim", async (req: Request, res: Response) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const code = typeof req.body?.code === "string" ? req.body.code.trim().toUpperCase() : "";
+  if (!code) {
+    res.status(400).json({ error: "Missing code." });
+    return;
+  }
+  // Already referred? No-op.
+  const [existing] = await db.select().from(referralsTable).where(eq(referralsTable.referredId, userId));
+  if (existing) {
+    res.json({ success: true, already: true });
+    return;
+  }
+  const [invite] = await db.select().from(squadInvitesTable).where(eq(squadInvitesTable.code, code));
+  if (!invite || invite.userId === userId) {
+    res.json({ success: false });
+    return;
+  }
+  await db.insert(referralsTable).values({ referredId: userId, referrerId: invite.userId, status: "pending" });
+  // Auto-friend the two (ordered pair, ignore if already friends).
+  const [a, b] = [userId, invite.userId].sort();
+  const friends = await db
+    .select()
+    .from(friendshipsTable)
+    .where(and(eq(friendshipsTable.userId, a), eq(friendshipsTable.friendId, b)));
+  if (friends.length === 0) {
+    await db.insert(friendshipsTable).values({ userId: a, friendId: b });
+  }
+  // Settle immediately in case the user already subscribed before claiming.
+  await settleReferrals(userId);
+  res.json({ success: true });
 });
 
 // ---------------------------------------------------------------------------
