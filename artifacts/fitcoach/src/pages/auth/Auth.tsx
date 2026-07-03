@@ -27,7 +27,7 @@ type View = "signup" | "login" | "forgot";
 
 export default function Auth() {
   const { toast } = useToast();
-  const { refreshAuth } = useAccount();
+  const { refreshAuth, setAuthUser } = useAccount();
   const [, setLocation] = useLocation();
   const initialView: View =
     new URLSearchParams(
@@ -75,15 +75,20 @@ export default function Auth() {
       return;
     }
     try {
-      await registerMut.mutateAsync({
+      const envelope = await registerMut.mutateAsync({
         data: { email: email.trim(), username: username.trim(), password },
       });
+      // Seed the auth cache synchronously so `authUser` is non-null before we
+      // navigate — otherwise the signed-out guard can bounce the brand-new user
+      // to the marketing page before the auth query refetch lands.
+      setAuthUser(envelope);
       // Offer to save the new login to the browser / OS password manager (native
       // "Save password?" prompt). Best-effort — never blocks the flow.
       await offerToSaveCredential(email.trim(), password, username.trim());
       await refreshAuth();
       toast({ title: "Welcome to ALLUR", description: "Your account is ready." });
-      setLocation("/");
+      // A brand-new account always needs onboarding — go straight there.
+      setLocation("/onboarding");
     } catch (err) {
       toast({ title: "Sign up failed", description: errorMessage(err, "Please try again."), variant: "destructive" });
     }
@@ -92,9 +97,12 @@ export default function Auth() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await loginMut.mutateAsync({
+      const envelope = await loginMut.mutateAsync({
         data: { identifier: identifier.trim(), password: loginPassword },
       });
+      // Seed the auth cache synchronously (see signup) so the RouteGuard can
+      // route to dashboard/onboarding without a marketing-page bounce.
+      setAuthUser(envelope);
       await offerToSaveCredential(identifier.trim(), loginPassword);
       await refreshAuth();
       toast({ title: "Welcome back" });
