@@ -34,6 +34,7 @@ import {
   type CookingMethod,
 } from "@workspace/nutrition";
 import { requireCredit } from "../lib/creditGuard";
+import { makeRateLimit } from "../lib/rateLimit";
 import { buildCoachSystemPrompt, buildPersonalizePlanPrompt } from "../lib/coachPrompt";
 import {
   buildBodyFatSystemPrompt,
@@ -51,31 +52,15 @@ const router: IRouter = Router();
 // access (defaults to a broadly-available model).
 const CHAT_MODEL = process.env["OPENAI_CHAT_MODEL"] || "gpt-4o";
 
-// Lightweight per-IP rate limiter. The coach endpoints call paid LLM/STT/TTS
-// APIs and the app has no per-user auth, so this caps trivial cost abuse from a
-// single client without blocking normal back-and-forth conversation. Each
-// bucket keeps its own hit map so a cheap chat turn and an expensive vision
-// call can be throttled independently.
-function makeRateLimit(limit: number, windowMs: number) {
-  const hits = new Map<string, number[]>();
-  return function rateLimit(req: Request, res: Response, next: NextFunction): void {
-    const key = req.ip ?? "unknown";
-    const now = Date.now();
-    const recent = (hits.get(key) ?? []).filter((t) => now - t < windowMs);
-    if (recent.length >= limit) {
-      res.status(429).json({ error: "Slow down a moment and try again." });
-      return;
-    }
-    recent.push(now);
-    hits.set(key, recent);
-    next();
-  };
-}
-
+// Per-IP rate limiters for the coach endpoints, which call paid LLM/STT/TTS
+// APIs. Backed by a shared Postgres counter (see lib/rateLimit.ts) so the caps
+// hold across all serverless instances rather than per-instance on Vercel.
+// Separate named buckets so a cheap chat turn and an expensive vision call are
+// throttled independently.
 // Text/voice coaching: chatty, low cost per call.
-const rateLimit = makeRateLimit(20, 60_000);
+const rateLimit = makeRateLimit("coach", 20, 60_000);
 // Vision analysis: paid per call and far more expensive, so throttle it harder.
-const visionRateLimit = makeRateLimit(6, 60_000);
+const visionRateLimit = makeRateLimit("vision", 6, 60_000);
 
 // Photos are downscaled client-side before upload; cap the decoded image well
 // above that (~3 MB) so a legitimate phone photo always fits but a crafted

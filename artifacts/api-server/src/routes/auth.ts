@@ -27,6 +27,7 @@ import { db, usersTable, passwordResetTokensTable } from "@workspace/db";
 import { and, eq, gt, isNull, or, sql } from "drizzle-orm";
 import { sendEmail } from "../lib/email";
 import { publicBaseUrl } from "../lib/appUrl";
+import { makeRateLimit } from "../lib/rateLimit";
 import {
   clearSession,
   getOidcConfig,
@@ -44,32 +45,11 @@ const OIDC_COOKIE_TTL = 10 * 60 * 1000;
 const router: IRouter = Router();
 
 // Per-IP limiter for the credential auth endpoints. Blunts online password
-// guessing on /auth/login and registration abuse on /auth/register. In-memory,
-// mirrors the coach route limiter; relies on `trust proxy` for the real client
-// IP behind Replit's reverse proxy.
-function makeRateLimit(limit: number, windowMs: number) {
-  const hits = new Map<string, number[]>();
-  return function rateLimit(
-    req: Request,
-    res: Response,
-    next: NextFunction,
-  ): void {
-    const key = req.ip ?? "unknown";
-    const now = Date.now();
-    const recent = (hits.get(key) ?? []).filter((t) => now - t < windowMs);
-    if (recent.length >= limit) {
-      res
-        .status(429)
-        .json({ error: "Too many attempts. Please wait a minute and try again." });
-      return;
-    }
-    recent.push(now);
-    hits.set(key, recent);
-    next();
-  };
-}
-
-const authRateLimit = makeRateLimit(10, 60_000);
+// guessing on /auth/login and registration abuse on /auth/register. Backed by a
+// shared Postgres counter (see lib/rateLimit.ts) so the limit holds across all
+// serverless instances — an in-memory Map only ever limits per-instance on
+// Vercel and is trivially bypassed by spreading requests across cold starts.
+const authRateLimit = makeRateLimit("auth", 10, 60_000);
 
 // Replit OIDC is only available when REPL_ID is provisioned (i.e. running on
 // Replit). Off Replit (e.g. Vercel) the app uses email/username/password auth
