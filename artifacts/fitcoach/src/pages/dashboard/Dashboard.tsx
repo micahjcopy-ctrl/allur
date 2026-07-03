@@ -1,17 +1,26 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { MobileLayout } from "@/components/layout/MobileLayout";
 import { GoalPreview } from "@/components/GoalPreview";
-import { useFitCoach } from "@/context/FitCoachContext";
+import { useFitCoach, dayKeyOf } from "@/context/FitCoachContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Camera, Mic, Target, Flame, Zap, UtensilsCrossed, Gift, ChevronRight } from "lucide-react";
+import { Camera, Mic, Target, Flame, Zap, UtensilsCrossed, Gift, ChevronRight, Moon, CheckCircle2 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { WelcomeTour, hasSeenTour } from "@/components/WelcomeTour";
 import { GettingStarted } from "@/components/GettingStarted";
 
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+// Offset (0-6) of a plan day relative to today, wrapping around the week.
+const dayOffset = (dayName: string, todayIdx: number): number => {
+  const idx = WEEKDAYS.findIndex((d) => d.toLowerCase() === dayName.trim().toLowerCase());
+  if (idx === -1) return 99;
+  return (idx - todayIdx + 7) % 7;
+};
+
 export default function Dashboard() {
-  const { profile, goal, workoutPlan, credits, isPremium, meals, macroTarget, physiqueAnalysis } = useFitCoach();
+  const { profile, goal, workoutPlan, credits, isPremium, meals, macroTarget, physiqueAnalyses, restDaysCompleted, toggleRestDayComplete } = useFitCoach();
   const [, setLocation] = useLocation();
   const [tourOpen, setTourOpen] = useState(false);
 
@@ -20,9 +29,31 @@ export default function Dashboard() {
     if (!hasSeenTour()) setTourOpen(true);
   }, []);
 
-  const bodyFatLabel = physiqueAnalysis ? `${physiqueAnalysis.bodyFatEstimate}%` : "—";
+  // Body fat from the MOST RECENT scan by date — not the highest program week —
+  // so the number on the home screen always matches the analysis the user just
+  // ran (re-scanning an earlier week used to leave this stale).
+  const latestScan = useMemo(() => {
+    if (physiqueAnalyses.length === 0) return null;
+    return [...physiqueAnalyses].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+    )[0];
+  }, [physiqueAnalyses]);
+  const bodyFatLabel = latestScan ? `${latestScan.bodyFatEstimate}%` : "—";
 
-  const todayWorkout = workoutPlan[0]; // mock today
+  // Resolve TODAY's actual plan day (by weekday name), and the next one after
+  // it, so "what's next" is always real — never just the first array entry.
+  const todayIdx = new Date().getDay();
+  const ordered = useMemo(
+    () =>
+      [...workoutPlan]
+        .map((w) => ({ w, offset: dayOffset(w.dayName, todayIdx) }))
+        .sort((a, b) => a.offset - b.offset),
+    [workoutPlan, todayIdx],
+  );
+  const todayWorkout = ordered.find((o) => o.offset === 0)?.w ?? null;
+  const nextUp = ordered.find((o) => o.offset > 0)?.w ?? null;
+  const todayKey = dayKeyOf();
+  const restDayDone = restDaysCompleted.includes(todayKey);
 
   const today = new Date().toDateString();
   const todayMeals = meals.filter(m => new Date(m.date).toDateString() === today);
@@ -30,6 +61,7 @@ export default function Dashboard() {
   const consumedProtein = todayMeals.reduce((sum, m) => sum + m.macros.protein, 0);
   const consumedCarbs = todayMeals.reduce((sum, m) => sum + m.macros.carbs, 0);
   const consumedFat = todayMeals.reduce((sum, m) => sum + m.macros.fat, 0);
+  const caloriesLeft = Math.max(macroTarget.calories - consumedCals, 0);
   const calPct = Math.min((consumedCals / macroTarget.calories) * 100, 100);
 
   return (
@@ -51,82 +83,60 @@ export default function Dashboard() {
         {/* Getting-started checklist (hides itself once complete) */}
         <GettingStarted />
 
-        {/* Referral banner — give a month, get a month */}
-        <button
-          type="button"
-          onClick={() => setLocation("/refer")}
-          className="w-full flex items-center gap-3 rounded-2xl border border-primary/30 bg-primary/5 px-4 py-3 text-left"
-        >
-          <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
-            <Gift className="w-5 h-5 text-primary" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold text-sm">Give a month, get a month</p>
-            <p className="text-xs text-muted-foreground">Refer a friend — you both get free Premium.</p>
-          </div>
-          <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
-        </button>
-
-        <div className="grid grid-cols-2 gap-4">
-          <Card className="bg-card/50 border-border">
-            <CardContent className="p-4 flex flex-col gap-2">
-              <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                <Target className="w-4 h-4 text-primary" />
-                <span className="text-xs font-medium uppercase tracking-wider">GOAL</span>
-              </div>
-              <span className="text-lg font-bold">{goal || "Set a Goal"}</span>
-            </CardContent>
-          </Card>
-          <Card className="bg-card/50 border-border">
-            <CardContent className="p-4 flex flex-col gap-2">
-              <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                <Flame className="w-4 h-4 text-primary" />
-                <span className="text-xs font-medium uppercase tracking-wider">BODY FAT (EST)</span>
-              </div>
-              <span className="text-lg font-bold">{bodyFatLabel}</span>
-            </CardContent>
-          </Card>
-        </div>
-
-        <GoalPreview />
-
+        {/* WHAT'S NEXT — today's real workout (or rest day) is always the first
+            thing on screen, so it's never ambiguous what to do right now. */}
         <div className="bg-hero-gradient rounded-3xl border border-border p-6 relative overflow-hidden group">
           <div className="absolute top-0 right-0 p-6 opacity-10">
-            <Zap className="w-24 h-24" />
+            {todayWorkout ? <Zap className="w-24 h-24" /> : <Moon className="w-24 h-24" />}
           </div>
           <div className="relative z-10">
             <div className="inline-block bg-primary/20 text-primary px-3 py-1 rounded-full text-xs font-bold mb-4">
-              TODAY'S PLAN
+              UP NEXT · TODAY
             </div>
-            <h2 className="text-2xl font-bold mb-1">{todayWorkout?.title || "Rest Day"}</h2>
-            <p className="text-muted-foreground mb-6">{todayWorkout?.exercises.length || 0} movements planned</p>
-            
-            <Link href="/plan" className="w-full">
-              <Button className="w-full rounded-full h-12 bg-primary text-black font-bold hover:bg-primary/90">
-                View Workout
-              </Button>
-            </Link>
+            {todayWorkout ? (
+              <>
+                <h2 className="text-2xl font-bold mb-1">{todayWorkout.title}</h2>
+                <p className="text-muted-foreground mb-6">{todayWorkout.exercises.length} movements planned</p>
+                <Link href="/plan" className="w-full">
+                  <Button className="w-full rounded-full h-12 bg-primary text-black font-bold hover:bg-primary/90">
+                    Start Today's Workout
+                  </Button>
+                </Link>
+              </>
+            ) : (
+              <>
+                <h2 className="text-2xl font-bold mb-1">{restDayDone ? "Rest day — done" : "Rest Day"}</h2>
+                <p className="text-muted-foreground mb-6">
+                  {nextUp ? `Next workout: ${nextUp.dayName} · ${nextUp.title}` : "Recover, walk, and refuel."}
+                </p>
+                <Button
+                  onClick={() => toggleRestDayComplete(todayKey)}
+                  className="w-full rounded-full h-12 bg-primary text-black font-bold hover:bg-primary/90"
+                >
+                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                  {restDayDone ? "Rest day complete ✓ (tap to undo)" : "Mark Rest Day as Done"}
+                </Button>
+              </>
+            )}
           </div>
         </div>
 
+        {/* CALORIES LEFT — the other "what do I do next" number, front and center. */}
         <Card className="border-border bg-card/50 overflow-hidden">
           <CardContent className="p-5 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-muted-foreground">
                 <UtensilsCrossed className="w-4 h-4 text-primary" />
-                <span className="text-xs font-medium uppercase tracking-wider">Macro Counter</span>
+                <span className="text-xs font-medium uppercase tracking-wider">Nutrition · Today</span>
               </div>
-              <span className="text-xs text-muted-foreground">Today</span>
+              <span className="text-xs text-muted-foreground">{consumedCals} / {macroTarget.calories} kcal eaten</span>
             </div>
 
             <div className="flex items-end justify-between">
-              <p className="text-2xl font-bold">
-                {consumedCals}
-                <span className="text-sm font-medium text-muted-foreground"> / {macroTarget.calories} kcal</span>
+              <p className="text-3xl font-bold">
+                {caloriesLeft.toLocaleString()}
+                <span className="text-sm font-medium text-muted-foreground"> kcal left today</span>
               </p>
-              <span className="text-xs text-muted-foreground">
-                {Math.max(macroTarget.calories - consumedCals, 0)} left
-              </span>
             </div>
 
             <div className="h-2 rounded-full bg-secondary overflow-hidden">
@@ -169,6 +179,45 @@ export default function Dashboard() {
             </Card>
           </Link>
         </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <Card className="bg-card/50 border-border">
+            <CardContent className="p-4 flex flex-col gap-2">
+              <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                <Target className="w-4 h-4 text-primary" />
+                <span className="text-xs font-medium uppercase tracking-wider">GOAL</span>
+              </div>
+              <span className="text-lg font-bold">{goal || "Set a Goal"}</span>
+            </CardContent>
+          </Card>
+          <Card className="bg-card/50 border-border">
+            <CardContent className="p-4 flex flex-col gap-2">
+              <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                <Flame className="w-4 h-4 text-primary" />
+                <span className="text-xs font-medium uppercase tracking-wider">BODY FAT (EST)</span>
+              </div>
+              <span className="text-lg font-bold">{bodyFatLabel}</span>
+            </CardContent>
+          </Card>
+        </div>
+
+        <GoalPreview />
+
+        {/* Referral banner — give a month, get a month */}
+        <button
+          type="button"
+          onClick={() => setLocation("/refer")}
+          className="w-full flex items-center gap-3 rounded-2xl border border-primary/30 bg-primary/5 px-4 py-3 text-left"
+        >
+          <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+            <Gift className="w-5 h-5 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm">Give a month, get a month</p>
+            <p className="text-xs text-muted-foreground">Refer a friend — you both get free Premium.</p>
+          </div>
+          <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
+        </button>
 
         <Card className="border-border bg-card/50">
           <CardHeader className="pb-2">

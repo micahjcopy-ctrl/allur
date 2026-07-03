@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { completeQuest } from "@/lib/reps";
 import { cn } from "@/lib/utils";
@@ -26,6 +26,12 @@ const STEPS = [
 
 export function WelcomeTour({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [step, setStep] = useState(0);
+
+  // Always start from the first step when (re)opened — e.g. replaying from
+  // Settings after having finished the tour before.
+  useEffect(() => {
+    if (open) setStep(0);
+  }, [open]);
   const last = step === STEPS.length - 1;
   const S = STEPS[step];
   const Icon = S.icon;

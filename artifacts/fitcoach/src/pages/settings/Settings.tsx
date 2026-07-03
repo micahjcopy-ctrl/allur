@@ -19,7 +19,8 @@ import {
 } from "@/context/FitCoachContext";
 import { physiqueOptionsFor } from "@/data/physiques";
 import { useToast } from "@/hooks/use-toast";
-import { ChevronLeft, Loader2 } from "lucide-react";
+import { WelcomeTour } from "@/components/WelcomeTour";
+import { ChevronLeft, Loader2, PlayCircle, ChevronRight } from "lucide-react";
 
 const GOALS: Exclude<Goal, null>[] = ["Weight Loss", "Muscle Gain", "Strength", "Athleticism"];
 
@@ -59,6 +60,7 @@ export default function Settings() {
   const [draft, setDraft] = useState<UserProfile>({ ...profile });
   const [draftGoal, setDraftGoal] = useState<Goal>(goal);
   const [saving, setSaving] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false);
 
   const physiqueOptions = useMemo(() => physiqueOptionsFor(draft.gender), [draft.gender]);
   const previewMacros = useMemo(
@@ -283,6 +285,27 @@ export default function Settings() {
           {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
           Save Changes
         </Button>
+
+        {/* Help */}
+        <section className="space-y-2">
+          <h3 className="font-semibold text-sm text-muted-foreground">Help</h3>
+          <button
+            type="button"
+            onClick={() => setTourOpen(true)}
+            className="w-full flex items-center gap-3 rounded-2xl border border-border bg-secondary/40 px-4 py-3.5 text-left hover:bg-secondary/60 transition-colors"
+          >
+            <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+              <PlayCircle className="w-5 h-5 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-sm">Replay the app tour</p>
+              <p className="text-xs text-muted-foreground">A quick walkthrough of everything ALLUR can do.</p>
+            </div>
+            <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
+          </button>
+        </section>
+
+        <WelcomeTour open={tourOpen} onClose={() => setTourOpen(false)} />
       </div>
     </MobileLayout>
   );

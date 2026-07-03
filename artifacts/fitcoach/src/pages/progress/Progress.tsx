@@ -118,6 +118,7 @@ export default function Progress() {
   const [compareFrom, setCompareFrom] = useState<number | null>(null);
   const [compareTo, setCompareTo] = useState<number | null>(null);
   const [changesDialog, setChangesDialog] = useState<{
+    updated: boolean;
     summary: string | null;
     explanation: string;
     changes: string[];
@@ -430,15 +431,30 @@ export default function Progress() {
       if (data.planUpdated && data.updatedPlan && data.updatedPlan.length > 0) {
         setWorkoutPlan(data.updatedPlan);
         setChangesDialog({
+          updated: true,
           summary: data.planSummary ?? null,
           explanation: data.explanation,
           changes: data.changes,
         });
+      } else {
+        // The scan's advice can READ like a promise ("add shoulder volume"),
+        // so when the coach reviews the plan and changes nothing, say so
+        // explicitly — silence here looked like a broken feature.
+        setChangesDialog({
+          updated: false,
+          summary: null,
+          explanation:
+            data.explanation ||
+            "Your current plan already lines up with this scan, so nothing was changed.",
+          changes: [],
+        });
       }
     } catch {
       toast({
-        title: "Plan unchanged",
-        description: "Couldn't auto-tune your plan from this scan. Ask the Coach to adjust it.",
+        variant: "destructive",
+        title: "Plan not updated",
+        description:
+          "We couldn't auto-tune your plan from this scan. Re-run the analysis, or ask the AI Coach to adjust your plan.",
       });
     } finally {
       setPersonalizing(false);
@@ -1201,7 +1217,8 @@ export default function Progress() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-primary" /> Plan updated from your scan
+              <Sparkles className="w-5 h-5 text-primary" />
+              {changesDialog?.updated ? "Plan updated from your scan" : "Plan reviewed — no changes"}
             </DialogTitle>
           </DialogHeader>
           {changesDialog && (
