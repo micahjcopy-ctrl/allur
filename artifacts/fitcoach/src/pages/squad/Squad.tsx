@@ -121,7 +121,10 @@ export default function Squad() {
         const sub = await reg.pushManager.getSubscription();
         setPushState(sub ? "on" : "off");
       } catch {
-        setPushState("unavailable");
+        // A transient network failure is NOT "notifications unavailable" —
+        // leave the enable button visible; tapping it retries and surfaces
+        // any real error as a toast.
+        setPushState("off");
       }
     })();
   }, []);

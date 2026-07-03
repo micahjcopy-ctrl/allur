@@ -23,17 +23,28 @@ export default function Refer() {
   const { toast } = useToast();
   const [data, setData] = useState<ReferralStatus | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  const loadStatus = async () => {
+    setLoading(true);
+    setLoadFailed(false);
+    try {
+      const res = await fetch(`${apiBase()}/api/referral/status`, { credentials: "include" });
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      setData((await res.json()) as ReferralStatus);
+    } catch {
+      // Without the status we don't have the user's personal code — sharing a
+      // bare link would silently lose them their referral credit. Be honest.
+      setLoadFailed(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    void (async () => {
-      try {
-        const res = await fetch(`${apiBase()}/api/referral/status`, { credentials: "include" });
-        if (res.ok) setData((await res.json()) as ReferralStatus);
-      } finally {
-        setLoading(false);
-      }
-    })();
+    void loadStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const link = data ? `${APP_URL}/?ref=${data.code}` : APP_URL;
@@ -121,6 +132,20 @@ export default function Refer() {
         {loading ? (
           <div className="flex justify-center py-4">
             <Loader2 className="w-6 h-6 text-primary animate-spin" />
+          </div>
+        ) : loadFailed || !data ? (
+          <div className="rounded-2xl border border-border bg-secondary/40 p-5 text-center space-y-3">
+            <p className="text-sm font-semibold">Couldn't load your invite code</p>
+            <p className="text-xs text-muted-foreground">
+              Sharing without your personal code wouldn't count toward your free months, so let's fix this first.
+            </p>
+            <button
+              type="button"
+              onClick={() => void loadStatus()}
+              className="h-10 px-6 rounded-full bg-primary text-primary-foreground text-sm font-bold"
+            >
+              Try again
+            </button>
           </div>
         ) : (
           <div className="space-y-3">

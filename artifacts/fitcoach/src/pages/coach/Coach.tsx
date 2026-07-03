@@ -243,7 +243,13 @@ export default function Coach() {
         audioRef.current?.pause();
         const player = new Audio(`data:audio/${data.audioFormat ?? "mp3"};base64,${data.audio}`);
         audioRef.current = player;
-        player.play().catch(() => {});
+        player.play().catch(() => {
+          // Don't fail silently — the user expects to HEAR the reply.
+          toast({
+            title: "Voice reply couldn't play",
+            description: "The coach's answer is in the chat below. Check your volume or silent mode.",
+          });
+        });
       }
     } catch (err) {
       toast({
