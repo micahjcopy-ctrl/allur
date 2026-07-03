@@ -156,37 +156,9 @@ export default function GetApp() {
           </div>
         )}
 
-        {/* QR card */}
-        <div className="lp-card mt-8 flex flex-col items-center p-6 sm:p-8">
-          <div ref={qrRef} className="rounded-2xl bg-white p-4">
-            {installUrl ? (
-              <QRCodeCanvas
-                value={installUrl}
-                size={1024}
-                level="M"
-                bgColor="#ffffff"
-                fgColor="#0b1120"
-                style={{ width: 220, height: 220 }}
-              />
-            ) : (
-              <div style={{ width: 220, height: 220 }} />
-            )}
-          </div>
-          <p className="mt-4 text-center text-sm" style={{ color: "var(--lp-muted)" }}>
-            {platform === "desktop"
-              ? "Scan with your phone camera"
-              : "Share this code so others can install ALLUR"}
-          </p>
-          <button
-            onClick={downloadQr}
-            className="lp-cta-ghost mt-4 inline-flex h-11 items-center gap-2 px-6"
-          >
-            <Download className="h-4 w-4" />
-            Download QR code
-          </button>
-        </div>
-
-        {/* Install button (Android / desktop Chrome when available) */}
+        {/* Install button — the primary action, right up top (Android / desktop
+            Chrome fire the native install prompt; iOS has no programmatic
+            install, so the steps below are the path). */}
         {!installed && canInstall && (
           <button
             onClick={() => { void promptInstall(); }}
@@ -200,6 +172,38 @@ export default function GetApp() {
           <p className="mt-6 text-center text-sm font-medium" style={{ color: "var(--lp-cyan)" }}>
             ALLUR is installed on this device.
           </p>
+        )}
+
+        {/* QR card — desktop only. Someone already on their phone doesn't need
+            a QR code (tapping "Download QR code" just saved a PNG and read as
+            "this page doesn't install anything"); they need the steps below. */}
+        {platform === "desktop" && (
+          <div className="lp-card mt-8 flex flex-col items-center p-6 sm:p-8">
+            <div ref={qrRef} className="rounded-2xl bg-white p-4">
+              {installUrl ? (
+                <QRCodeCanvas
+                  value={installUrl}
+                  size={1024}
+                  level="M"
+                  bgColor="#ffffff"
+                  fgColor="#0b1120"
+                  style={{ width: 220, height: 220 }}
+                />
+              ) : (
+                <div style={{ width: 220, height: 220 }} />
+              )}
+            </div>
+            <p className="mt-4 text-center text-sm" style={{ color: "var(--lp-muted)" }}>
+              Scan with your phone camera
+            </p>
+            <button
+              onClick={downloadQr}
+              className="lp-cta-ghost mt-4 inline-flex h-11 items-center gap-2 px-6"
+            >
+              <Download className="h-4 w-4" />
+              Download QR code
+            </button>
+          </div>
         )}
 
         {/* Step-by-step instructions */}
@@ -249,6 +253,19 @@ export default function GetApp() {
             plan inside the app — the same secure sign-up and subscription as on the web.
           </p>
         </div>
+
+        {/* Mobile: light-touch way to pass ALLUR along (desktop has the QR). */}
+        {platform !== "desktop" && (
+          <div className="mt-6 text-center">
+            <button
+              onClick={copyLink}
+              className="lp-cta-ghost inline-flex h-10 items-center gap-2 px-5 text-sm"
+            >
+              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              {copied ? "Link copied" : "Copy link to share ALLUR"}
+            </button>
+          </div>
+        )}
 
         <div className="mt-8 text-center">
           <button
