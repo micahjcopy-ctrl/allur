@@ -9,10 +9,23 @@ import { WebhookHandlers } from "./lib/stripe/webhookHandlers";
 
 const app: Express = express();
 
-// Behind Replit's reverse proxy: trust X-Forwarded-For so req.ip reflects the
-// real client (needed for per-IP rate limiting, otherwise every request looks
-// like it comes from the single proxy IP).
+// Don't advertise the framework (minor fingerprinting reduction).
+app.disable("x-powered-by");
+
+// Behind Vercel's / Replit's reverse proxy: trust the forwarding hop so req.ip
+// reflects the real client (needed for per-IP rate limiting, otherwise every
+// request looks like it comes from the single proxy IP).
 app.set("trust proxy", true);
+
+// Defense-in-depth security headers on every API response. The static app
+// shell + assets also get these at the Vercel edge (see vercel.json); the
+// serverless API function sets them itself so API responses are covered too.
+app.use((_req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  next();
+});
 
 app.use(
   pinoHttp({
@@ -33,7 +46,44 @@ app.use(
     },
   }),
 );
-app.use(cors({ credentials: true, origin: true }));
+// CORS: reflect credentials ONLY for our own web origins instead of echoing
+// any origin. Requests with no Origin header (same-origin XHR, native mobile
+// app, server-to-server) are always allowed — CORS only constrains browser
+// cross-origin calls, so this can't break the same-origin web app.
+const STATIC_ALLOWED_ORIGINS = new Set(
+  [
+    process.env.APP_URL,
+    "http://localhost:5173",
+    "http://localhost:3000",
+  ].filter((o): o is string => !!o),
+);
+
+function isAllowedOrigin(origin: string): boolean {
+  if (STATIC_ALLOWED_ORIGINS.has(origin)) return true;
+  try {
+    const host = new URL(origin).hostname;
+    // This project's production + preview deployments on Vercel.
+    return host === "allur-mauve.vercel.app" ||
+      (host.startsWith("allur-") && host.endsWith(".vercel.app"));
+  } catch {
+    return false;
+  }
+}
+
+app.use(
+  cors({
+    credentials: true,
+    origin(origin, cb) {
+      if (!origin || isAllowedOrigin(origin)) {
+        cb(null, true);
+        return;
+      }
+      // Not an allowed cross-origin caller: respond without CORS headers so the
+      // browser blocks the response, but don't throw (keeps the request cheap).
+      cb(null, false);
+    },
+  }),
+);
 app.use(cookieParser());
 
 // Stripe webhook MUST be registered before express.json() — it needs the raw
