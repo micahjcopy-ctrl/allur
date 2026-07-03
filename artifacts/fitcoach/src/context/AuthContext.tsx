@@ -10,6 +10,14 @@ interface AuthContextValue {
   authUser: AuthUser | null;
   isLoading: boolean;
   refreshAuth: () => Promise<void>;
+  /**
+   * Synchronously seed the auth cache with a known user (e.g. the envelope
+   * returned by register/login) so `authUser` is non-null immediately. Without
+   * this, navigating right after signup can run before the auth query refetch
+   * lands, and the signed-out guard bounces the new user back to the marketing
+   * page instead of into onboarding.
+   */
+  setAuthUser: (envelope: { user: AuthUser | null }) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -30,9 +38,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  const setAuthUser = (envelope: { user: AuthUser | null }) => {
+    queryClient.setQueryData(getGetCurrentAuthUserQueryKey(), envelope);
+  };
+
   return (
     <AuthContext.Provider
-      value={{ authUser: data?.user ?? null, isLoading, refreshAuth }}
+      value={{ authUser: data?.user ?? null, isLoading, refreshAuth, setAuthUser }}
     >
       {children}
     </AuthContext.Provider>
