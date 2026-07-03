@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { OUT_OF_CREDITS_STATUS, outOfCreditsToast, needsSubscriptionToast } from "@/lib/credits";
 import { cn } from "@/lib/utils";
 import { awardReps, completeQuest } from "@/lib/reps";
+import { downscaleImage, compressForStorage } from "@/lib/image";
 import { Camera, TrendingUp, Trophy, UploadCloud, Flame, ScanLine, Sparkles, Loader2, CheckCircle2, AlertTriangle, X, ChevronDown, ChevronUp, Plus, ArrowUp, ArrowDown, ArrowRight, GitCompareArrows } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { motion } from "framer-motion";
@@ -76,31 +77,6 @@ function StatRow({ label, from, to, suffix = "", goodWhenUp = true }: { label: s
 }
 
 const apiBase = () => import.meta.env.BASE_URL.replace(/\/+$/, "");
-
-// Downscale a captured photo before sending it to the vision endpoint. Phone
-// photos are multi-MB; ~1024px on the long edge keeps the request small and
-// fast while leaving more than enough detail for a body-fat estimate.
-const downscaleImage = (src: string, maxDim = 1024, quality = 0.82): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
-      const w = Math.max(1, Math.round(img.width * scale));
-      const h = Math.max(1, Math.round(img.height * scale));
-      const canvas = document.createElement("canvas");
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) {
-        resolve(src);
-        return;
-      }
-      ctx.drawImage(img, 0, 0, w, h);
-      resolve(canvas.toDataURL("image/jpeg", quality));
-    };
-    img.onerror = () => reject(new Error("Could not load that image."));
-    img.src = src;
-  });
 
 // Resolve a week's photos into fixed Front/Side/Back slots. Photos with a
 // recognized `view` claim their slot; any without one (e.g. legacy single-photo
@@ -317,11 +293,11 @@ export default function Progress() {
     if (!file || !file.type.startsWith("image/")) return;
     const reader = new FileReader();
     reader.onload = async () => {
-      // Store a downscaled copy — a full-res phone photo as a data URL can
-      // exceed the platform's request-body limit on its own and silently break
-      // account syncing. 900px keeps plenty of detail for physique scans.
+      // Store a compressed copy sized to ALWAYS fit the account-sync budget —
+      // an oversized photo used to be silently dropped from the persisted
+      // state and vanish on the next app launch.
       const raw = reader.result as string;
-      const stored = await downscaleImage(raw, 900, 0.78).catch(() => raw);
+      const stored = await compressForStorage(raw).catch(() => raw);
       addAnglePhoto(week, view, stored);
       toast({ title: `Week ${week} · ${view} added`, description: "Add more angles or log your body fat %." });
     };

@@ -10,11 +10,22 @@ export type PwaPlatform = "ios" | "android" | "desktop";
  * the native install button (Android). Built off the runtime origin so it works
  * in both the dev preview and the published deploy.
  */
+/**
+ * Canonical production origin for install links. Vercel PREVIEW deployments
+ * (e.g. allur-git-branch-xxx.vercel.app) sit behind Vercel Authentication, so a
+ * QR scanned while viewing a preview sent phones to a Vercel login screen.
+ * Any *.vercel.app origin that isn't production is rewritten to production;
+ * localhost and custom domains pass through unchanged.
+ */
+const PROD_ORIGIN = "https://allur-mauve.vercel.app";
+
 export function buildInstallUrl(): string {
   if (typeof window === "undefined") return "";
   const base = import.meta.env.BASE_URL || "/";
   const path = base.endsWith("/") ? base : `${base}/`;
-  return `${window.location.origin}${path}get?utm_source=qr`;
+  const { origin, hostname } = window.location;
+  const isVercelPreview = hostname.endsWith(".vercel.app") && origin !== PROD_ORIGIN;
+  return `${isVercelPreview ? PROD_ORIGIN : origin}${path}get?utm_source=qr`;
 }
 
 export function detectPlatform(): PwaPlatform {

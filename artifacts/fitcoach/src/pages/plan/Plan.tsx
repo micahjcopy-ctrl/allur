@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { MobileLayout } from "@/components/layout/MobileLayout";
-import { useFitCoach, composeGuideline, composeEquipment, composeDislikes, composePreferences, buildPhysiqueContext, physiqueLabel, type Goal, type UserProfile, type Workout, type WorkoutExercise } from "@/context/FitCoachContext";
+import { useFitCoach, composeGuideline, composeEquipment, composeDislikes, composePreferences, buildPhysiqueContext, physiqueLabel, dayKeyOf, type Goal, type UserProfile, type Workout, type WorkoutExercise } from "@/context/FitCoachContext";
 import { buildExerciseDetail } from "@/data/exerciseOptimizer";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,7 @@ import { getExerciseGuide, exerciseImage, type ExerciseGuide } from "@/data/exer
 import { cn } from "@/lib/utils";
 import {
   Calendar, Play, Mic, Square, Loader2, RefreshCw, Dumbbell, Repeat, Gauge, HeartPulse, Beef, Target,
-  ChevronRight, CheckCircle2, Sun, Moon, ListChecks,
+  ChevronRight, ChevronDown, ChevronUp, CheckCircle2, Circle, Sun, Moon, ListChecks,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -248,7 +248,7 @@ function WorkoutCard({
 const apiBase = () => import.meta.env.BASE_URL.replace(/\/+$/, "");
 
 export default function Plan() {
-  const { workoutPlan, programMeta, hasCredit, refreshCredits, isSubscribed, profile, goal, setWorkoutPlan, physiqueAnalysis, startWorkoutSession } = useFitCoach();
+  const { workoutPlan, programMeta, hasCredit, refreshCredits, isSubscribed, profile, goal, setWorkoutPlan, physiqueAnalysis, startWorkoutSession, restDaysCompleted, toggleRestDayComplete } = useFitCoach();
   const { toast } = useToast();
   const [, navigate] = useLocation();
 
@@ -307,6 +307,11 @@ export default function Plan() {
 
   const todayIdx = new Date().getDay();
   const todayName = WEEKDAYS[todayIdx];
+  const todayKey = dayKeyOf();
+  const restDayDone = restDaysCompleted.includes(todayKey);
+  // The program overview is a one-time read — render it collapsed by default so
+  // it doesn't dominate the page on every visit.
+  const [overviewOpen, setOverviewOpen] = useState(false);
 
   // Order the week starting from today, wrapping around.
   const ordered = useMemo(() => {
@@ -472,15 +477,32 @@ export default function Plan() {
             </>
           ) : (
             <>
-              <Card className="border-border bg-card/50">
-                <CardContent className="p-5 flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-2xl bg-secondary/60 flex items-center justify-center shrink-0">
-                    <Moon className="w-5 h-5 text-primary" />
+              <Card className={cn("border-border", restDayDone ? "bg-card border-success/40" : "bg-card/50")}>
+                <CardContent className="p-5 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className={cn("w-11 h-11 rounded-2xl flex items-center justify-center shrink-0", restDayDone ? "bg-success/15" : "bg-secondary/60")}>
+                      {restDayDone ? <CheckCircle2 className="w-5 h-5 text-success" /> : <Moon className="w-5 h-5 text-primary" />}
+                    </div>
+                    <div>
+                      <p className="font-bold">{restDayDone ? "Rest day complete" : "Rest day"}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {restDayDone
+                          ? "Nice — recovery is where the growth happens. See you tomorrow."
+                          : "Recover, walk, and refuel. Ask your AI Coach to add a session if you want to train."}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-bold">Rest day</p>
-                    <p className="text-sm text-muted-foreground">Recover, walk, and refuel. Ask your AI Coach to add a session if you want to train.</p>
-                  </div>
+                  <Button
+                    onClick={() => toggleRestDayComplete(todayKey)}
+                    variant={restDayDone ? "secondary" : "default"}
+                    className="w-full text-xs uppercase tracking-wider font-bold gap-2"
+                  >
+                    {restDayDone ? (
+                      <><Circle className="w-3.5 h-3.5" /> Undo — mark as not done</>
+                    ) : (
+                      <><CheckCircle2 className="w-3.5 h-3.5" /> Mark rest day as done</>
+                    )}
+                  </Button>
                 </CardContent>
               </Card>
               {nextWorkout && (
@@ -498,24 +520,42 @@ export default function Plan() {
           )}
         </motion.section>
 
-        {/* PROGRAM SUMMARY */}
+        {/* PROGRAM SUMMARY — collapsed by default (one-time read) */}
         {programMeta && (
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
             <Card className="border-border bg-card overflow-hidden">
               <CardContent className="p-5 space-y-4">
-                <div className="flex items-start justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => setOverviewOpen((v) => !v)}
+                  className="w-full flex items-start justify-between gap-3 text-left"
+                  aria-expanded={overviewOpen}
+                >
                   <div>
-                    <p className="text-xs uppercase tracking-wider text-primary font-bold">{programMeta.goalLabel}</p>
+                    <p className="text-xs uppercase tracking-wider text-primary font-bold">{programMeta.goalLabel} • Program overview</p>
                     <h2 className="text-xl font-bold mt-0.5">{programMeta.splitName}</h2>
                     <p className="text-sm text-muted-foreground mt-1">
                       {programMeta.daysPerWeek} days/week • {programMeta.experience}
                     </p>
                   </div>
-                  <div className="bg-primary/15 text-primary rounded-2xl w-12 h-12 flex items-center justify-center shrink-0">
-                    <Dumbbell className="w-6 h-6" />
+                  <div className="flex items-center gap-2 shrink-0">
+                    <div className="bg-primary/15 text-primary rounded-2xl w-12 h-12 flex items-center justify-center">
+                      <Dumbbell className="w-6 h-6" />
+                    </div>
+                    {overviewOpen ? (
+                      <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                    )}
                   </div>
-                </div>
+                </button>
 
+                {!overviewOpen && (
+                  <p className="text-xs text-muted-foreground">Tap to see your full program details.</p>
+                )}
+
+                {overviewOpen && (
+                <>
                 <p className="text-sm text-muted-foreground leading-relaxed">{programMeta.philosophy}</p>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -578,6 +618,8 @@ export default function Plan() {
                     <Target className="w-4 h-4 text-primary mt-0.5 shrink-0" />
                     <p className="text-xs leading-snug text-foreground">{programMeta.emphasis}</p>
                   </div>
+                )}
+                </>
                 )}
               </CardContent>
             </Card>

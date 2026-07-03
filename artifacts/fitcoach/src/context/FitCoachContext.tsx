@@ -214,6 +214,23 @@ export interface ProgressPhoto {
 export type PhotoAngle = "Front" | "Side" | "Back";
 export const PHOTO_ANGLES: PhotoAngle[] = ["Front", "Side", "Back"];
 
+// AI-enhanced "goal" version of the user's own progress photo, shown in the
+// goal preview instead of a generic physique reference so the comparison is
+// personal. `sourcePhotoId` ties it to the progress photo it was built from.
+export interface EnhancedGoalPhoto {
+  url: string;
+  sourcePhotoId: string;
+  date: string;
+}
+
+// Local calendar day key (YYYY-MM-DD) used for rest-day completion tracking.
+export const dayKeyOf = (d: Date = new Date()): string => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
+
 export type ChatRole = "user" | "assistant";
 
 export interface ChatMessage {
@@ -613,8 +630,12 @@ interface FitCoachState {
   chatMessages: ChatMessage[];
   meals: MealEntry[];
   workoutSessions: WorkoutSession[];
+  // Local day keys (YYYY-MM-DD) of rest days the user has checked off as done.
+  restDaysCompleted: string[];
+  // AI-enhanced goal version of the user's own photo (null until generated).
+  enhancedGoalPhoto: EnhancedGoalPhoto | null;
   // Count of consecutive calendar days (ending today/yesterday) with a finished
-  // workout. Derived from workoutSessions.
+  // workout OR a completed rest day. Derived from workoutSessions + restDaysCompleted.
   workoutStreak: number;
   macroTarget: MacroBreakdown;
   physiqueAnalysis: PhysiqueAnalysis | null; // active (latest-week) analysis, for dashboard/coach/plan
@@ -663,6 +684,9 @@ interface FitCoachState {
     reps?: number | null,
   ) => void;
   finishWorkoutSession: (sessionId: string) => void;
+  // Check off (or un-check) an assigned rest day as completed for a local day.
+  toggleRestDayComplete: (dateKey: string) => void;
+  setEnhancedGoalPhoto: (photo: EnhancedGoalPhoto | null) => void;
   // Latest in-progress (unfinished) session, if any.
   activeSession: WorkoutSession | null;
   // Progressive-overload suggestion for an exercise based on session history.
@@ -720,6 +744,8 @@ interface PersistedFitCoachState {
   meals: MealEntry[];
   physiqueAnalyses: PhysiqueAnalysis[];
   workoutSessions: WorkoutSession[];
+  restDaysCompleted?: string[];
+  enhancedGoalPhoto?: EnhancedGoalPhoto | null;
   // One-time marker: legacy auto-seeded bodyweight entries have been stripped
   // from weightLogs for this account.
   autoSeedCleaned?: boolean;
@@ -754,6 +780,8 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [meals, setMeals] = useState<MealEntry[]>([]);
   const [workoutSessions, setWorkoutSessions] = useState<WorkoutSession[]>([]);
+  const [restDaysCompleted, setRestDaysCompleted] = useState<string[]>([]);
+  const [enhancedGoalPhoto, setEnhancedGoalPhoto] = useState<EnhancedGoalPhoto | null>(null);
   const [physiqueAnalyses, setPhysiqueAnalyses] = useState<PhysiqueAnalysis[]>([]);
   // The active analysis (highest week) backs the dashboard/coach/plan, which only
   // ever need the most recent scan.
@@ -950,6 +978,8 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
     setProgressPhotos(state.progressPhotos);
     setMeals(state.meals);
     setWorkoutSessions(Array.isArray(state.workoutSessions) ? state.workoutSessions : []);
+    setRestDaysCompleted(Array.isArray(state.restDaysCompleted) ? state.restDaysCompleted : []);
+    setEnhancedGoalPhoto(state.enhancedGoalPhoto && state.enhancedGoalPhoto.url ? state.enhancedGoalPhoto : null);
     // Back-compat: older saves stored a single `physiqueAnalysis`; newer saves
     // store `physiqueAnalyses` (one per week). Migrate the legacy shape by
     // attaching it to the week of the photos it analyzed.
@@ -981,6 +1011,8 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
     setChatMessages([]);
     setMeals([]);
     setWorkoutSessions([]);
+    setRestDaysCompleted([]);
+    setEnhancedGoalPhoto(null);
     setPhysiqueAnalyses([]);
   };
 
@@ -1043,6 +1075,8 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
       meals,
       physiqueAnalyses,
       workoutSessions,
+      restDaysCompleted,
+      enhancedGoalPhoto,
       autoSeedCleaned,
     }),
     [
@@ -1058,6 +1092,8 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
       meals,
       physiqueAnalyses,
       workoutSessions,
+      restDaysCompleted,
+      enhancedGoalPhoto,
       autoSeedCleaned,
     ],
   );
@@ -1073,6 +1109,10 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
     ...s,
     meals: s.meals.map((m) => ({ ...m, photoUrl: slimPhoto(m.photoUrl) })),
     progressPhotos: s.progressPhotos.map((p) => ({ ...p, url: slimPhoto(p.url) })),
+    enhancedGoalPhoto:
+      s.enhancedGoalPhoto && slimPhoto(s.enhancedGoalPhoto.url)
+        ? s.enhancedGoalPhoto
+        : null,
     physiqueAnalyses: s.physiqueAnalyses.map((a) => ({
       ...a,
       photoUrl: slimPhoto(a.photoUrl),
@@ -1338,16 +1378,25 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
     [workoutSessions],
   );
 
-  // Consecutive-day streak ending today or yesterday, counted from the distinct
-  // calendar days that have a finished workout.
-  const workoutStreak = useMemo<number>(() => {
-    const days = new Set(
-      workoutSessions
-        .filter((s) => s.finishedAt)
-        .map((s) => (s.finishedAt ?? "").slice(0, 10)),
+  // Check off (or un-check) a rest day as completed for a given local day key.
+  const toggleRestDayComplete = (dateKey: string) => {
+    setRestDaysCompleted((prev) =>
+      prev.includes(dateKey) ? prev.filter((d) => d !== dateKey) : [...prev, dateKey],
     );
+  };
+
+  // Consecutive-day streak ending today or yesterday, counted from the distinct
+  // calendar days that have a finished workout or a completed rest day (rest
+  // days the plan assigns count toward consistency once checked off).
+  const workoutStreak = useMemo<number>(() => {
+    const days = new Set([
+      ...workoutSessions
+        .filter((s) => s.finishedAt)
+        .map((s) => dayKeyOf(new Date(s.finishedAt as string))),
+      ...restDaysCompleted,
+    ]);
     if (days.size === 0) return 0;
-    const dayKey = (d: Date) => d.toISOString().slice(0, 10);
+    const dayKey = (d: Date) => dayKeyOf(d);
     const cursor = new Date();
     // Allow the streak to "hold" if today isn't logged yet but yesterday was.
     if (!days.has(dayKey(cursor))) {
@@ -1360,7 +1409,7 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
       cursor.setDate(cursor.getDate() - 1);
     }
     return streak;
-  }, [workoutSessions]);
+  }, [workoutSessions, restDaysCompleted]);
 
   const enterAdminMode = () => {
     // The admin demo seeds throwaway preview data — disable persistence for the
@@ -1533,6 +1582,10 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
         addMeal,
         removeMeal,
         workoutSessions,
+        restDaysCompleted,
+        toggleRestDayComplete,
+        enhancedGoalPhoto,
+        setEnhancedGoalPhoto,
         workoutStreak,
         startWorkoutSession,
         toggleExerciseComplete,

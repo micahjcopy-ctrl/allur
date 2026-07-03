@@ -1,5 +1,7 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { openai } from "@workspace/integrations-openai-ai-server";
+import { editImageBuffer } from "@workspace/integrations-openai-ai-server/image";
+import { Buffer } from "node:buffer";
 import {
   speechToText,
   textToSpeech,
@@ -1291,6 +1293,75 @@ router.post(
     } catch (err) {
       req.log.error({ err }, "analyze-weight request failed");
       res.status(500).json({ error: "Weight reading is unavailable right now." });
+    }
+  },
+);
+
+// --- AI-enhanced goal photo ------------------------------------------------
+// Turns the user's own progress photo into a realistic "goal" version of
+// THEMSELVES (image-to-image edit), so the goal preview compares the user
+// against their own future physique instead of a generic reference model.
+router.post(
+  "/coach/enhance-goal-photo",
+  visionRateLimit,
+  async (req: Request, res: Response): Promise<void> => {
+    const body = req.body as {
+      photo?: unknown;
+      profile?: { gender?: unknown; targetPhysique?: unknown; goal?: unknown };
+    };
+    const photo = typeof body?.photo === "string" ? body.photo : "";
+    if (!ALLOWED_PHOTO_RE.test(photo)) {
+      res.status(400).json({ error: "A JPEG, PNG, or WebP image is required." });
+      return;
+    }
+    const base64 = photo.slice(photo.indexOf(",") + 1);
+    const decodedBytes = Math.floor((base64.length * 3) / 4);
+    if (decodedBytes > MAX_PHOTO_BYTES) {
+      res.status(413).json({ error: "That image is too large. Please use a smaller photo." });
+      return;
+    }
+
+    const gender = typeof body?.profile?.gender === "string" ? body.profile.gender : "";
+    const targetPhysique =
+      typeof body?.profile?.targetPhysique === "string" ? body.profile.targetPhysique : "";
+    const goal = typeof body?.profile?.goal === "string" ? body.profile.goal : "";
+
+    const charge = await requireCredit(req, res, "photo");
+    if (!charge) return;
+
+    try {
+      const mimeMatch = /^data:(image\/(?:jpeg|png|webp));base64,/i.exec(photo);
+      const mimeType = mimeMatch?.[1]?.toLowerCase() ?? "image/jpeg";
+      const imageBuffer = Buffer.from(base64, "base64");
+
+      const prompt = [
+        "Edit this fitness progress photo to show the SAME person after a successful, realistic training transformation.",
+        "Keep their identity completely intact: same face, skin tone, hair, tattoos, pose, clothing, lighting, and background.",
+        "Only change the physique: visibly lower body fat and improved muscle definition and fullness, at a level genuinely achievable naturally in about 6-12 months of consistent training and nutrition.",
+        targetPhysique ? `Their target look is: ${targetPhysique}.` : "",
+        goal ? `Their training goal is: ${goal}.` : "",
+        gender ? `The person is ${gender.toLowerCase()}.` : "",
+        "The result must look like an authentic unedited photo of that same person — natural, believable, and NOT an exaggerated bodybuilder transformation.",
+      ]
+        .filter(Boolean)
+        .join(" ");
+
+      const edited = await editImageBuffer(imageBuffer, prompt, {
+        mimeType,
+        size: "1024x1536",
+        quality: "medium",
+      });
+      if (!edited.length) {
+        await charge.refund();
+        res.status(500).json({ error: "Couldn't generate your goal photo. Please try again." });
+        return;
+      }
+
+      res.json({ image: `data:image/png;base64,${edited.toString("base64")}` });
+    } catch (err) {
+      await charge.refund();
+      req.log.error({ err }, "enhance-goal-photo request failed");
+      res.status(500).json({ error: "Goal photo generation is unavailable right now." });
     }
   },
 );

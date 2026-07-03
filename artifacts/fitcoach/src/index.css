@@ -207,9 +207,26 @@
     @apply border-border;
   }
 
+  /* The app is always dark (html carries .dark). Painting html/body directly
+     kills the white bar that showed through the iOS status-bar safe area and
+     on overscroll in the installed PWA. */
+  html {
+    background-color: hsl(var(--background));
+  }
+
   body {
     @apply font-sans antialiased bg-background text-foreground;
   }
+}
+
+/* Safe-area utilities (used by MobileLayout / BottomNav). With
+   viewport-fit=cover the app draws edge-to-edge; these keep content clear of
+   the notch/status bar and home indicator. */
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 /**

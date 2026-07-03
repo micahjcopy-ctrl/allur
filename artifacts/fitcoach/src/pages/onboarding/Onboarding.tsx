@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Mic, Square, Loader2, ShieldAlert, Salad, ChevronRight, Activity, Zap, Shield, ArrowRight, Check, Dumbbell, X, UploadCloud, Flame, Wrench, Trophy, Bike, ThumbsUp, ThumbsDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { compressForStorage } from "@/lib/image";
 
 const apiBase = () => import.meta.env.BASE_URL.replace(/\/+$/, "");
 
@@ -193,7 +194,13 @@ export default function Onboarding() {
   const handlePhotoFile = (file: File | undefined, view: string) => {
     if (!file || !file.type.startsWith("image/")) return;
     const reader = new FileReader();
-    reader.onload = () => setPhotos((p) => ({ ...p, [view]: reader.result as string }));
+    reader.onload = async () => {
+      // Compress before storing: full-res phone photos exceeded the account
+      // sync size budget and were silently dropped on the next app launch.
+      const raw = reader.result as string;
+      const stored = await compressForStorage(raw).catch(() => raw);
+      setPhotos((p) => ({ ...p, [view]: stored }));
+    };
     reader.readAsDataURL(file);
   };
   const handlePhotoDrop = (e: React.DragEvent, view: string) => {
