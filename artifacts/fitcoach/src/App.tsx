@@ -5,7 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { FitCoachProvider, useFitCoach } from "@/context/FitCoachContext";
 import { AuthProvider, useAccount } from "@/context/AuthContext";
 import { useEffect } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, WifiOff } from "lucide-react";
 
 // Pages
 import NotFound from "@/pages/not-found";
@@ -106,7 +106,7 @@ function RouteGuard() {
 
 function AuthGate() {
   const { authUser, isLoading } = useAccount();
-  const { hydrated, showInstallPrompt, setShowInstallPrompt } = useFitCoach();
+  const { hydrated, hydrationFailed, hydrationRetrying, retryHydration, showInstallPrompt, setShowInstallPrompt } = useFitCoach();
   const [location, setLocation] = useLocation();
   // Installed PWA vs. browser tab — branches the signed-out entry experience.
   const standalone = isStandalone();
@@ -200,6 +200,34 @@ function AuthGate() {
     // Installed app gets the minimal welcome screen; the website gets the full
     // marketing landing page.
     return standalone ? <AppWelcome /> : <Landing />;
+  }
+
+  // The saved-state read failed before hydration: STOP here with a retry
+  // screen. Routing with blank defaults made a returning user look brand-new
+  // and rebooted them into onboarding — their data was never gone.
+  if (hydrationFailed) {
+    return (
+      <div className="w-full min-h-screen flex flex-col items-center justify-center gap-4 p-8 text-center">
+        <div className="w-14 h-14 rounded-2xl bg-secondary flex items-center justify-center">
+          <WifiOff className="w-7 h-7 text-muted-foreground" />
+        </div>
+        <div>
+          <h2 className="text-xl font-bold">Couldn't load your account</h2>
+          <p className="text-sm text-muted-foreground mt-2 max-w-xs">
+            Your data is safe — we just couldn't reach the server. Check your connection and try again.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={retryHydration}
+          disabled={hydrationRetrying}
+          className="mt-2 h-12 px-8 rounded-full bg-primary text-primary-foreground font-bold inline-flex items-center gap-2 disabled:opacity-60"
+        >
+          {hydrationRetrying ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+          {hydrationRetrying ? "Retrying…" : "Try again"}
+        </button>
+      </div>
+    );
   }
 
   // Wait for the user's saved state to load before routing, so returning users

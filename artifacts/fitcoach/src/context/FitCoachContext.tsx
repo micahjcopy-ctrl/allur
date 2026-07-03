@@ -644,6 +644,11 @@ interface FitCoachState {
   // True once the logged-in user's saved state has finished loading (or there
   // is nothing to load). Used to avoid flashing onboarding before hydration.
   hydrated: boolean;
+  // The saved-state read failed before this user ever hydrated. The app shows
+  // a retry screen instead of routing (defaults would fake a new account).
+  hydrationFailed: boolean;
+  hydrationRetrying: boolean;
+  retryHydration: () => void;
 
   setOnboardingComplete: (val: boolean) => void;
   // Session-only flag (never persisted): set true the moment a user finishes
@@ -1018,6 +1023,21 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
 
   // Hydrate from the server once per logged-in user; reset on logout.
   const { isSuccess, isFetched, data: remoteState } = fitnessStateQuery;
+
+  // True when the signed-in user's saved state could not be loaded (network
+  // blip / cold server) and we have NOT hydrated yet. The app must show a
+  // retry screen in this case — rendering blank defaults made a returning
+  // user look brand-new and dumped them back into onboarding.
+  const hydrationFailed =
+    !!userId &&
+    !adminMode &&
+    !adminTaintedRef.current &&
+    fitnessStateQuery.isError &&
+    hydratedUserIdRef.current !== userId;
+  const hydrationRetrying = hydrationFailed && fitnessStateQuery.isFetching;
+  const retryHydration = () => {
+    void fitnessStateQuery.refetch();
+  };
   useEffect(() => {
     if (!userId) {
       if (hydratedUserIdRef.current !== null) {
@@ -1598,6 +1618,9 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
         setPhysiqueAnalysisForWeek,
         adminMode,
         hydrated,
+        hydrationFailed,
+        hydrationRetrying,
+        retryHydration,
         enterAdminMode,
         exitAdminMode,
       }}
