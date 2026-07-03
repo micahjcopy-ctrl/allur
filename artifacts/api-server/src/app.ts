@@ -1,4 +1,9 @@
-import express, { type Express } from "express";
+import express, {
+  type Express,
+  type Request,
+  type Response,
+  type NextFunction,
+} from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import pinoHttp from "pino-http";
@@ -118,5 +123,16 @@ app.use(express.urlencoded({ extended: true, limit: "25mb" }));
 app.use(authMiddleware);
 
 app.use("/api", router);
+
+// Global error handler: gives every unhandled route error a consistent JSON
+// shape and a single structured log line (instead of Express's default HTML).
+// This is also the one hook to forward exceptions to an error monitor — e.g.
+// `Sentry.captureException(err)` once @sentry/node is wired into the bundle.
+// Must have all four args for Express to treat it as an error handler.
+app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
+  req.log?.error?.({ err }, "unhandled API error");
+  if (res.headersSent) return;
+  res.status(500).json({ error: "Something went wrong. Please try again." });
+});
 
 export default app;
