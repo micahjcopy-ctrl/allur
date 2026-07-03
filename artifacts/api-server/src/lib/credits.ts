@@ -127,9 +127,16 @@ function toBalance(row: typeof userCreditsTable.$inferSelect): CreditBalance {
 export async function getCreditState(userId: string): Promise<CreditState> {
   const plan = await getUserPlan(userId);
   const row = await applyMonthlyReset(await getOrInitRow(userId));
+  // Free users cannot spend any of these (the gated endpoints block them
+  // outright), so surface 0 rather than the stored Base allotment — showing
+  // counts they can't use is misleading and undercuts the upgrade prompt. Base
+  // sees its real remaining balance; Premium is unlimited (the UI presents that
+  // separately) but we still return the row values for completeness.
+  const credits =
+    plan === "free" ? { coaching: 0, photo: 0, bodyScan: 0 } : toBalance(row);
   return {
     plan,
-    credits: toBalance(row),
+    credits,
     periodStart: new Date(row.periodStart).toISOString(),
   };
 }
