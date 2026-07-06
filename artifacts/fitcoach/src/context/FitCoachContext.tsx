@@ -88,6 +88,9 @@ export interface UserProfile {
   enjoyNotes: string;
   dislikes: string[];
   dislikeNotes: string;
+  // IANA timezone (e.g. "America/New_York") — captured during onboarding so
+  // reminders can eventually be timed to the user's local day.
+  timezone: string;
 }
 
 /**
@@ -744,6 +747,7 @@ const EMPTY_PROFILE: UserProfile = {
   enjoyNotes: "",
   dislikes: [],
   dislikeNotes: "",
+  timezone: "",
 };
 
 // Shown while the server balance is still loading (or for a logged-out user).
@@ -1164,6 +1168,20 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
     })),
   });
 
+  // Backfill the user's timezone from the device for accounts created before
+  // the onboarding picker existed (never overwrites an explicit choice).
+  useEffect(() => {
+    if (!hydrated || !onboardingComplete) return;
+    if (profile.timezone) return;
+    let detected = "";
+    try {
+      detected = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+    } catch {
+      /* unsupported — leave empty */
+    }
+    if (detected) setProfile((p) => (p.timezone ? p : { ...p, timezone: detected }));
+  }, [hydrated, onboardingComplete, profile.timezone]);
+
   // Backfill the program-start anchor once the user has onboarded. New users get
   // "now"; existing users (saved before this field existed) are healed from their
   // earliest logged data so their timeline doesn't reset to Week 1. Runs only
@@ -1491,6 +1509,7 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
       enjoyNotes: "",
       dislikes: ["Long cardio"],
       dislikeNotes: "Hates slogging on the treadmill.",
+      timezone: "America/New_York",
     };
     setProfile(demoProfile);
     setGoal("Muscle Gain");

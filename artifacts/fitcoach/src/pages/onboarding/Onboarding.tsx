@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { useLocation } from "wouter";
 import { useFitCoach, composeGuideline, composeEquipment, composeDislikes, composePreferences, physiqueLabel, Goal, TargetPhysique, hasCalculableProfile, type Workout, type UserProfile } from "@/context/FitCoachContext";
 import { buildProgram } from "@/data/trainingKnowledge";
@@ -195,6 +195,42 @@ export default function Onboarding() {
   const { authUser, refreshAuth } = useAccount();
   const logoutMut = useLogoutAccount();
   const [switchingAccount, setSwitchingAccount] = useState(false);
+
+  // Timezone: auto-detect from the device and pre-fill silently; the reminders
+  // card lets them correct it. Powers locally-timed reminders server-side.
+  const detectedTz = useMemo(() => {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+    } catch {
+      return "";
+    }
+  }, []);
+  useEffect(() => {
+    if (!profile.timezone && detectedTz) {
+      setProfile((p) => (p.timezone ? p : { ...p, timezone: detectedTz }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detectedTz]);
+  const timezoneOptions = useMemo(() => {
+    let zones: string[] = [];
+    try {
+      zones = (Intl as unknown as { supportedValuesOf?: (k: string) => string[] }).supportedValuesOf?.("timeZone") ?? [];
+    } catch {
+      /* older browsers */
+    }
+    if (zones.length === 0) {
+      zones = [
+        "America/New_York", "America/Chicago", "America/Denver", "America/Phoenix",
+        "America/Los_Angeles", "America/Anchorage", "Pacific/Honolulu", "America/Toronto",
+        "Europe/London", "Europe/Paris", "Europe/Berlin", "Europe/Madrid", "Australia/Sydney",
+        "Asia/Tokyo", "Asia/Dubai", "Asia/Kolkata",
+      ];
+    }
+    // Make sure the detected/current value is always present in the list.
+    const current = profile.timezone || detectedTz;
+    if (current && !zones.includes(current)) zones = [current, ...zones];
+    return zones;
+  }, [profile.timezone, detectedTz]);
 
   // Push opt-in on the final step. Declining is fine — the bell on the home
   // screen offers the same switch anytime.
@@ -974,6 +1010,32 @@ export default function Onboarding() {
                       </p>
                     </div>
                     <ReminderPrefToggles compact />
+
+                    {/* Timezone — detected automatically; shown so they can
+                        correct it. Reminders use this to land at the right
+                        local time. */}
+                    <div className="space-y-1.5">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Your time zone</p>
+                      <Select
+                        value={profile.timezone || detectedTz}
+                        onValueChange={(val) => setProfile((p) => ({ ...p, timezone: val }))}
+                      >
+                        <SelectTrigger className="bg-secondary/50 border-0">
+                          <SelectValue placeholder="Select your time zone" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-64">
+                          {timezoneOptions.map((tz) => (
+                            <SelectItem key={tz} value={tz}>
+                              {tz.replace(/_/g, " ")}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-[11px] text-muted-foreground">
+                        So reminders land at the right time of <em>your</em> day.
+                      </p>
+                    </div>
+
                     {push.state === "on" ? (
                       <p className="text-xs text-muted-foreground flex items-center gap-1.5">
                         <CheckIcon className="w-3.5 h-3.5 text-success" /> Notifications are on.
