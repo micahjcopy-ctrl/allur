@@ -11,6 +11,7 @@ import {
   pushSubscriptionsTable,
   premiumGrantsTable,
   referralsTable,
+  userFitnessStateTable,
 } from "@workspace/db";
 import { and, desc, eq, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { getUserPlan } from "../lib/credits";
@@ -734,6 +735,167 @@ router.post("/squad/push/unsubscribe", async (req: Request, res: Response) => {
 });
 
 // ---------------------------------------------------------------------------
+// Reminder engine — reads each subscribed user's saved fitness state (the same
+// blob the app persists) to decide what, if anything, to nudge them about.
+// ---------------------------------------------------------------------------
+
+interface ReminderPrefs {
+  workouts: boolean;
+  meals: boolean;
+  progress: boolean;
+  squad: boolean;
+}
+
+// The slice of the persisted fitness-state blob the reminder crons care about.
+interface ReminderBlob {
+  onboardingComplete?: boolean;
+  notificationPrefs?: Partial<ReminderPrefs>;
+  workoutPlan?: { dayName?: string; title?: string; exercises?: unknown[] }[];
+  restDaysCompleted?: string[];
+  meals?: { date?: string }[];
+  progressPhotos?: { date?: string }[];
+  workoutSessions?: { finishedAt?: string | null }[];
+}
+
+const WEEKDAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+async function loadReminderBlob(userId: string): Promise<ReminderBlob | null> {
+  try {
+    const [row] = await db
+      .select({ state: userFitnessStateTable.state })
+      .from(userFitnessStateTable)
+      .where(eq(userFitnessStateTable.userId, userId));
+    return (row?.state as ReminderBlob | null) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// Missing prefs (older saves) default to opted-in, matching the client.
+function prefsOf(blob: ReminderBlob | null): ReminderPrefs {
+  return {
+    workouts: blob?.notificationPrefs?.workouts !== false,
+    meals: blob?.notificationPrefs?.meals !== false,
+    progress: blob?.notificationPrefs?.progress !== false,
+    squad: blob?.notificationPrefs?.squad !== false,
+  };
+}
+
+/**
+ * At-most-once-per-day guard, shared across serverless instances via the
+ * rate_limits table (same mechanism as the request rate limiter). Returns true
+ * exactly once per user per UTC day, so a manually re-triggered cron can never
+ * double-send.
+ */
+async function claimDailyReminder(userId: string): Promise<boolean> {
+  const dayMs = 24 * 60 * 60 * 1000;
+  const windowStart = Math.floor(Date.now() / dayMs) * dayMs;
+  const expiresAt = new Date(windowStart + dayMs * 2);
+  try {
+    const result = await db.execute(sql`
+      INSERT INTO rate_limits (bucket, window_start, count, expires_at)
+      VALUES (${`remindr:${userId}`}, ${windowStart}, 1, ${expiresAt})
+      ON CONFLICT (bucket, window_start)
+      DO UPDATE SET count = rate_limits.count + 1
+      RETURNING count
+    `);
+    const count = Number((result.rows?.[0] as { count?: unknown } | undefined)?.count ?? 1);
+    return count === 1;
+  } catch {
+    // Guard outage: prefer not sending over risking duplicates.
+    return false;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// GET /cron/daily-reminders — at most ONE push per user per day, chosen by
+// priority: Sunday progress check-in → today's workout → rest-day check-off →
+// meal logging. Every branch respects the user's reminder preferences; users
+// who never finished onboarding or have no push subscription are skipped.
+// Triggered by Vercel Cron (16:00 UTC daily). Guarded like weekly-recap.
+// ---------------------------------------------------------------------------
+router.get("/cron/daily-reminders", async (req: Request, res: Response) => {
+  const secret = process.env.CRON_SECRET;
+  const authHeader = req.headers.authorization ?? "";
+  const fromVercelCron = (req.headers["user-agent"] ?? "").includes("vercel-cron");
+  if (secret ? authHeader !== `Bearer ${secret}` : !fromVercelCron) {
+    res.status(401).json({ error: "Unauthorized." });
+    return;
+  }
+  if (!pushConfigured()) {
+    res.json({ sent: 0, reason: "push not configured" });
+    return;
+  }
+
+  const now = new Date();
+  const todayUtc = now.toISOString().slice(0, 10);
+  const weekday = WEEKDAY_NAMES[now.getUTCDay()];
+  const isSunday = now.getUTCDay() === 0;
+  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  const subs = await db
+    .select({ userId: pushSubscriptionsTable.userId })
+    .from(pushSubscriptionsTable)
+    .groupBy(pushSubscriptionsTable.userId);
+
+  let sent = 0;
+  for (const { userId } of subs) {
+    const blob = await loadReminderBlob(userId);
+    if (!blob?.onboardingComplete) continue;
+    const prefs = prefsOf(blob);
+
+    const todayWorkout = (blob.workoutPlan ?? []).find(
+      (w) => (w.dayName ?? "").trim().toLowerCase() === weekday.toLowerCase(),
+    );
+    const trainedToday = (blob.workoutSessions ?? []).some(
+      (s) => (s.finishedAt ?? "").slice(0, 10) === todayUtc,
+    );
+    const restCheckedToday = (blob.restDaysCompleted ?? []).includes(todayUtc);
+    const mealsToday = (blob.meals ?? []).some(
+      (m) => (m.date ?? "").slice(0, 10) === todayUtc,
+    );
+    const photoThisWeek = (blob.progressPhotos ?? []).some((p) => {
+      const d = p.date ? new Date(p.date) : null;
+      return d && !Number.isNaN(d.getTime()) && d >= weekAgo;
+    });
+
+    // Highest-priority applicable nudge — never more than one per day.
+    let payload: { title: string; body: string } | null = null;
+    if (isSunday && prefs.progress && !photoThisWeek) {
+      payload = {
+        title: "Weekly check-in",
+        body: "Add this week's progress photos and run your scan — the trend is what matters, not any single week.",
+      };
+    } else if (prefs.workouts && todayWorkout && !trainedToday) {
+      const count = Array.isArray(todayWorkout.exercises) ? todayWorkout.exercises.length : 0;
+      payload = {
+        title: `${todayWorkout.title || "Training"} is on today's plan`,
+        body:
+          count > 0
+            ? `${count} movements planned. One session keeps the Momentum going.`
+            : "One session keeps the Momentum going.",
+      };
+    } else if (prefs.workouts && !todayWorkout && !restCheckedToday && !trainedToday) {
+      payload = {
+        title: "Rest day",
+        body: "Recovery counts — check off your rest day to keep the streak alive.",
+      };
+    } else if (prefs.meals && !mealsToday) {
+      payload = {
+        title: "Nothing logged yet today",
+        body: "Snap your next meal — calories and macros counted in seconds.",
+      };
+    }
+
+    if (!payload) continue;
+    if (!(await claimDailyReminder(userId))) continue;
+    await sendPushToUser(userId, payload);
+    sent += 1;
+  }
+  res.json({ sent });
+});
+
+// ---------------------------------------------------------------------------
 // GET /cron/weekly-recap — Monday recap push to every subscribed user.
 // Triggered by Vercel Cron. Guarded by CRON_SECRET when configured.
 // ---------------------------------------------------------------------------
@@ -763,6 +925,8 @@ router.get("/cron/weekly-recap", async (req: Request, res: Response) => {
     .groupBy(pushSubscriptionsTable.userId);
   let sent = 0;
   for (const { userId } of subs) {
+    // Respect the user's "Squad & recap" reminder preference.
+    if (!prefsOf(await loadReminderBlob(userId)).squad) continue;
     const reps = (await repsByUser([userId], lastWeek.start, lastWeek.end)).get(userId) ?? 0;
     const momentum = await computeMomentum(userId, today);
     const body =
