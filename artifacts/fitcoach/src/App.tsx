@@ -32,6 +32,7 @@ import { isStandalone } from "@/hooks/usePwaInstall";
 import Privacy from "@/pages/legal/Privacy";
 import Terms from "@/pages/legal/Terms";
 import InstallAppPrompt from "@/components/InstallAppPrompt";
+import { LaunchSplash } from "@/components/LaunchSplash";
 import { captureRefFromUrl, claimStoredReferral } from "@/lib/reps";
 
 const queryClient = new QueryClient();
@@ -282,6 +283,9 @@ function App() {
           <FitCoachProvider>
             <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
               <div className="dark bg-background text-foreground w-full min-h-screen flex justify-center">
+                {/* Branded launch screen — installed app (standalone) cold
+                    starts only; overlays the auth/hydration work for ~5s. */}
+                <LaunchSplash />
                 <AuthGate />
               </div>
             </WouterRouter>
