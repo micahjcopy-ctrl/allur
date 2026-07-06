@@ -22,7 +22,9 @@ import { motion } from "framer-motion";
 function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result as string);
+    // RAW base64 only — the transcribe endpoint decodes the string directly,
+    // so a "data:audio/...;base64," prefix corrupts the decoded bytes.
+    reader.onloadend = () => resolve(((reader.result as string) ?? "").split(",")[1] ?? "");
     reader.onerror = reject;
     reader.readAsDataURL(blob);
   });

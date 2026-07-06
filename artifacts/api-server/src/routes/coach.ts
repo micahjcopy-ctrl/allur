@@ -517,7 +517,13 @@ router.post("/coach/transcribe", rateLimit, async (req: Request, res: Response):
   const body = parsed.data;
 
   try {
-    const audioBuffer = Buffer.from(body.audio, "base64");
+    // Tolerate clients that send a full data URL instead of raw base64 — the
+    // "data:audio/...;base64," prefix would otherwise decode into garbage
+    // bytes at the front of the audio and break format detection.
+    const rawAudio = body.audio.startsWith("data:")
+      ? body.audio.slice(body.audio.indexOf(",") + 1)
+      : body.audio;
+    const audioBuffer = Buffer.from(rawAudio, "base64");
     if (audioBuffer.length < 64) {
       res.status(400).json({ error: "Could not hear anything. Please try again." });
       return;

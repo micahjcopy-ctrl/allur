@@ -15,11 +15,13 @@ import { useVoiceRecorder } from "@workspace/integrations-openai-ai-react";
 
 const apiBase = () => import.meta.env.BASE_URL.replace(/\/+$/, "");
 
-// Read a recorded audio Blob as a base64 data string for the transcribe endpoint.
+// Read a recorded audio Blob as RAW base64 (data-URL prefix stripped — the
+// transcribe endpoint decodes the string directly, and a "data:audio/...;"
+// prefix corrupts the decoded bytes and breaks format detection).
 function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result as string);
+    reader.onloadend = () => resolve(((reader.result as string) ?? "").split(",")[1] ?? "");
     reader.onerror = reject;
     reader.readAsDataURL(blob);
   });
