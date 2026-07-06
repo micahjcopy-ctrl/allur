@@ -6,12 +6,24 @@ import { useToast } from "@/hooks/use-toast";
 import { OUT_OF_CREDITS_STATUS, outOfCreditsToast } from "@/lib/credits";
 import { LockedFeature } from "@/components/subscription/LockedFeature";
 import { Input } from "@/components/ui/input";
-import { Camera, UtensilsCrossed, Sparkles, Trash2, Flame, Loader2, Pencil, Type, X } from "lucide-react";
+import { Camera, UtensilsCrossed, Sparkles, Trash2, Flame, Loader2, Pencil, Type, X, Mic, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import MealReview, { type MealAnalysisReply } from "./MealReview";
+import { Textarea } from "@/components/ui/textarea";
+import { useVoiceRecorder } from "@workspace/integrations-openai-ai-react";
 
 const apiBase = () => import.meta.env.BASE_URL.replace(/\/+$/, "");
+
+// Read a recorded audio Blob as a base64 data string for the transcribe endpoint.
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
 
 // Downscale a captured photo before sending it to the vision endpoint. Phone
 // photos are multi-MB; ~1024px on the long edge keeps the request small and
@@ -66,6 +78,97 @@ export default function Macros() {
   const [pending, setPending] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const busyRef = useRef(false);
+  // "Describe a meal" (no photo): typed or dictated description → AI estimate.
+  const [describing, setDescribing] = useState(false);
+  const [description, setDescription] = useState("");
+  const [analyzingText, setAnalyzingText] = useState(false);
+  const recorder = useVoiceRecorder();
+  const [transcribing, setTranscribing] = useState(false);
+  const isRecording = recorder.state === "recording";
+
+  // Record a voice note, transcribe it via /coach/transcribe, and append the
+  // text to the description (same pattern as the Coach and Plan pages).
+  const toggleRecording = async () => {
+    if (transcribing) return;
+    if (!isRecording) {
+      try {
+        await recorder.startRecording();
+      } catch {
+        toast({ variant: "destructive", title: "Microphone unavailable", description: "Check your browser's mic permissions and try again." });
+      }
+      return;
+    }
+    const blob = await recorder.stopRecording();
+    if (!blob.size) return;
+    setTranscribing(true);
+    try {
+      const audio = await blobToBase64(blob);
+      const res = await fetch(`${apiBase()}/api/coach/transcribe`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ audio, audioFormat: "webm" }),
+      });
+      if (!res.ok) throw new Error(`Transcription failed (${res.status})`);
+      const data = (await res.json()) as { text: string };
+      const text = data.text?.trim();
+      if (text) {
+        setDescription((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text));
+      }
+    } catch {
+      toast({ variant: "destructive", title: "Couldn't transcribe", description: "We couldn't turn that into text. Please try again or type it instead." });
+    } finally {
+      setTranscribing(false);
+    }
+  };
+
+  // Send the description to the AI for a grounded macro estimate, then open
+  // the same review sheet the photo flow uses.
+  const analyzeDescription = async () => {
+    const desc = description.trim();
+    if (!desc || analyzingText) return;
+    if (!hasCredit("photo")) {
+      toast(outOfCreditsToast("meal logs"));
+      return;
+    }
+    setAnalyzingText(true);
+    try {
+      const res = await fetch(`${apiBase()}/api/coach/analyze-meal-text`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ description: desc }),
+      });
+      if (res.status === OUT_OF_CREDITS_STATUS) {
+        refreshCredits();
+        toast(outOfCreditsToast("meal logs"));
+        return;
+      }
+      if (!res.ok) {
+        let message = "Couldn't analyze that description. Try rephrasing what you ate.";
+        try {
+          const body = (await res.json()) as { error?: string };
+          if (body?.error) message = body.error;
+        } catch {
+          /* keep default message */
+        }
+        throw new Error(message);
+      }
+      const meal = (await res.json()) as MealAnalysisReply;
+      refreshCredits();
+      setDescribing(false);
+      setDescription("");
+      setReview({ photoUrl: "", analysis: meal });
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Analysis failed",
+        description: err instanceof Error ? err.message : "Something went wrong. Please try again.",
+      });
+    } finally {
+      setAnalyzingText(false);
+    }
+  };
 
   // Empty analysis used to open the review sheet in text-only mode (log a food
   // by name, no photo).
@@ -297,6 +400,76 @@ export default function Macros() {
               </button>
             </div>
           </div>
+        ) : analyzingText ? (
+          <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+              <Loader2 className="w-6 h-6 text-primary animate-spin" />
+            </div>
+            <div className="min-w-0">
+              <p className="font-semibold flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-primary" /> Working it out…
+              </p>
+              <p className="text-sm text-muted-foreground">Estimating calories &amp; macros from your description.</p>
+            </div>
+          </div>
+        ) : describing ? (
+          /* No photo — describe the meal (typed or dictated) and let AI estimate. */
+          <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 space-y-3">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="font-semibold text-sm">Tell me what you ate</p>
+                <p className="text-xs text-muted-foreground">Speak it or type it — amounts help ("two eggs, a cup of rice").</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setDescribing(false); setDescription(""); }}
+                aria-label="Cancel"
+                className="p-1 text-muted-foreground hover:text-foreground shrink-0"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder='e.g. "Grilled chicken breast, a cup of white rice, and a side salad with ranch"'
+              className="resize-none h-24 bg-background/60 border-border text-sm"
+            />
+            <button
+              type="button"
+              onClick={() => void toggleRecording()}
+              disabled={transcribing}
+              className={cn(
+                "w-full h-11 rounded-xl font-semibold inline-flex items-center justify-center gap-2 transition-colors",
+                isRecording
+                  ? "bg-red-500 hover:bg-red-500/90 text-white animate-pulse"
+                  : "bg-secondary hover:bg-secondary/80 text-foreground",
+              )}
+            >
+              {transcribing ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Transcribing…</>
+              ) : isRecording ? (
+                <><Square className="w-4 h-4" /> Stop recording</>
+              ) : (
+                <><Mic className="w-4 h-4" /> Describe it by voice</>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => void analyzeDescription()}
+              disabled={!description.trim() || isRecording || transcribing}
+              className="w-full h-11 rounded-xl bg-primary text-primary-foreground font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              <Sparkles className="w-4 h-4" /> Estimate my macros
+            </button>
+            <button
+              type="button"
+              onClick={() => { setDescribing(false); setDescription(""); setReview({ photoUrl: "", analysis: EMPTY_ANALYSIS }); }}
+              className="w-full text-xs text-muted-foreground hover:text-foreground text-center"
+            >
+              Skip the AI — enter foods manually
+            </button>
+          </div>
         ) : (
           <div className="space-y-2.5">
             <button
@@ -321,10 +494,11 @@ export default function Macros() {
             </button>
             <button
               type="button"
-              onClick={() => setReview({ photoUrl: "", analysis: EMPTY_ANALYSIS })}
+              onClick={() => setDescribing(true)}
               className="w-full rounded-xl border border-border bg-secondary/30 hover:bg-secondary py-3 flex items-center justify-center gap-2 text-sm font-medium text-muted-foreground transition-colors"
             >
-              <Type className="w-4 h-4" /> Add food by name instead
+              <Mic className="w-4 h-4" /> No photo? Describe your meal
+              <Type className="w-4 h-4 opacity-60" />
             </button>
           </div>
         )}
@@ -358,8 +532,12 @@ export default function Macros() {
                     <Card className="border-border bg-card/50 overflow-hidden">
                       <CardContent className="p-3">
                         <div className="flex gap-3">
-                          <div className="w-20 h-20 rounded-xl overflow-hidden shrink-0 bg-secondary">
-                            <img src={meal.photoUrl} alt={meal.name} className="object-cover w-full h-full" />
+                          <div className="w-20 h-20 rounded-xl overflow-hidden shrink-0 bg-secondary flex items-center justify-center">
+                            {meal.photoUrl ? (
+                              <img src={meal.photoUrl} alt={meal.name} className="object-cover w-full h-full" />
+                            ) : (
+                              <UtensilsCrossed className="w-7 h-7 text-muted-foreground" />
+                            )}
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-2">

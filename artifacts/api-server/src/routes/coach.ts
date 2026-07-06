@@ -1146,6 +1146,232 @@ router.post(
   },
 );
 
+// Text variant of the meal analyzer: the user DESCRIBES what they ate (typed or
+// dictated) and the same identify-then-ground pipeline estimates the macros.
+const MEAL_TEXT_SYSTEM_PROMPT = [
+  "You are ALLUR's food recognition assistant inside a fitness tracking app.",
+  "The user will DESCRIBE a meal they ate in plain language (often dictated by voice, so expect filler words and loose phrasing). Your job is to IDENTIFY each food mentioned and ESTIMATE its portion — NOT to determine final nutrition numbers (the app looks macros up in a database).",
+  "",
+  "## Rules",
+  "1. Identify each distinct food item mentioned. Interpret casual language ('a bowl of', 'a handful', 'some', 'a plate of').",
+  "2. Estimate portion size in grams for each item. Use the user's stated amounts when given ('two eggs' ≈ 100g, 'a cup of rice' ≈ 160g cooked). When no amount is given, assume a TYPICAL single serving — never assume unusually large or small.",
+  "3. Give an identification confidence (0-1) AND a separate portion confidence (0-1) for each item. Portion confidence should be lower than for photos unless the user stated exact amounts.",
+  "4. Use the cooking method if stated ('fried eggs', 'grilled chicken'); otherwise 'unknown'. Set skinOn/breaded only if stated or strongly implied.",
+  "5. If the description is ambiguous about a food that meaningfully affects macros, add a clarification question with simple options.",
+  "6. Detect likely hidden calorie sources implied by the description (cooked in butter/oil, dressings, sauces, sugary drinks) and add a hidden-calorie risk to confirm.",
+  "7. Provide a rough fallback macro estimate per item in case the food isn't in the database. Keep it internally consistent (protein×4 + carbs×4 + fat×9 ≈ calories).",
+  "8. Set biggestUncertainty to the ONE thing that most limits this estimate's accuracy (usually portion sizes, since nothing is visible).",
+  "9. Be conservative and transparent. Never claim exact precision. Never shame the user's food choices.",
+  "10. If the description is NOT about food or eating, set isFood=false and return empty arrays.",
+  "",
+  "You MUST respond by calling the report_meal_analysis tool.",
+].join("\n");
+
+router.post(
+  "/coach/analyze-meal-text",
+  rateLimit,
+  async (req: Request, res: Response): Promise<void> => {
+    const description =
+      typeof (req.body as { description?: unknown })?.description === "string"
+        ? ((req.body as { description: string }).description ?? "").trim()
+        : "";
+    if (!description || description.length < 3) {
+      res.status(400).json({ error: "Describe what you ate — e.g. 'two eggs and toast with butter'." });
+      return;
+    }
+    if (description.length > 2000) {
+      res.status(400).json({ error: "That description is too long — keep it under 2000 characters." });
+      return;
+    }
+
+    const charge = await requireCredit(req, res, "photo");
+    if (!charge) return;
+
+    try {
+      const completion = await openai.chat.completions.create({
+        model: CHAT_MODEL,
+        max_completion_tokens: 4096,
+        messages: [
+          { role: "system", content: MEAL_TEXT_SYSTEM_PROMPT },
+          {
+            role: "user",
+            content: `Here is what I ate — analyze it and report via report_meal_analysis: ${description}`,
+          },
+        ],
+        tools: [mealAnalysisTool],
+        tool_choice: { type: "function", function: { name: "report_meal_analysis" } },
+      });
+
+      const toolCall = completion.choices[0]?.message?.tool_calls?.find(
+        (c) => c.type === "function" && c.function.name === "report_meal_analysis",
+      );
+      if (!toolCall || toolCall.type !== "function") {
+        await charge.refund();
+        req.log.warn("analyze-meal-text: model did not call the report tool");
+        res.status(500).json({ error: "Couldn't analyze that description. Please try rephrasing it." });
+        return;
+      }
+
+      interface RawFood {
+        detectedName?: string;
+        category?: string;
+        alternatives?: unknown;
+        confidence?: number;
+        grams?: number;
+        portionConfidence?: number;
+        cookingMethod?: string;
+        skinOn?: boolean;
+        breaded?: boolean;
+        estCalories?: number;
+        estProtein?: number;
+        estCarbs?: number;
+        estFat?: number;
+      }
+      let args: {
+        isFood?: boolean;
+        name?: string;
+        foods?: RawFood[];
+        hiddenCalorieRisks?: { risk?: string; question?: string }[];
+        clarificationQuestions?: { targetName?: string; reason?: string; question?: string; options?: unknown }[];
+        biggestUncertainty?: string;
+        note?: string;
+      };
+      try {
+        args = JSON.parse(toolCall.function.arguments || "{}");
+      } catch {
+        await charge.refund();
+        req.log.warn("analyze-meal-text: tool arguments were not valid JSON");
+        res.status(500).json({ error: "Couldn't read the analysis result. Please try again." });
+        return;
+      }
+
+      if (args.isFood === false) {
+        await charge.refund();
+        res.status(400).json({ error: "That doesn't sound like a meal. Describe what you ate or drank." });
+        return;
+      }
+
+      const ALLOWED_CATEGORIES = new Set([
+        "protein", "carb", "fat", "vegetable", "fruit", "dairy", "sauce", "drink", "dessert", "other",
+      ]);
+      const ALLOWED_METHODS = new Set([
+        "raw", "grilled", "baked", "roasted", "steamed", "boiled", "sauteed", "fried", "deep_fried", "unknown",
+      ]);
+      const num01 = (n: unknown) => Math.min(1, Math.max(0, Number(n) || 0));
+      const clampGrams = (n: unknown) => Math.min(2000, Math.max(1, Math.round(Number(n) || 0) || 100));
+      const r = (n: unknown) => Math.max(0, Math.round(Number(n) || 0));
+
+      const rawFoods = Array.isArray(args.foods) ? args.foods : [];
+      const foods = rawFoods
+        .filter((f): f is RawFood => !!f && typeof f.detectedName === "string" && f.detectedName.trim() !== "")
+        .map((f) => {
+          const detectedName = f.detectedName!.trim();
+          const grams = clampGrams(f.grams);
+          const cookingMethod: CookingMethod = ALLOWED_METHODS.has(String(f.cookingMethod))
+            ? (String(f.cookingMethod) as CookingMethod)
+            : "unknown";
+          const skinOn = f.skinOn === true;
+          const breaded = f.breaded === true;
+          const match = matchFood(detectedName);
+          let macros: FoodMacros;
+          let source: "internal" | "estimated";
+          let dbMatch: string | null;
+          let foodId: string | null;
+          if (match) {
+            macros = groundedMacros(match, grams, { method: cookingMethod, skinOn, breaded });
+            source = "internal";
+            dbMatch = match.canonicalName;
+            foodId = match.id;
+          } else {
+            macros = {
+              calories: r(f.estCalories),
+              protein: r(f.estProtein),
+              carbs: r(f.estCarbs),
+              fat: r(f.estFat),
+            };
+            source = "estimated";
+            dbMatch = null;
+            foodId = null;
+          }
+          const category = ALLOWED_CATEGORIES.has(String(f.category)) ? String(f.category) : "other";
+          return {
+            detectedName,
+            dbMatch,
+            foodId,
+            category,
+            alternatives: Array.isArray(f.alternatives)
+              ? f.alternatives.filter((a): a is string => typeof a === "string").slice(0, 5)
+              : [],
+            confidence: num01(f.confidence),
+            portionConfidence: num01(f.portionConfidence),
+            grams,
+            source,
+            cookingMethod,
+            skinOn,
+            breaded,
+            ...macros,
+          };
+        });
+
+      const totals = sumMacros(foods.map((f) => ({ calories: f.calories, protein: f.protein, carbs: f.carbs, fat: f.fat })));
+      const minConfidence = foods.length ? Math.min(...foods.map((f) => f.confidence)) : 0.5;
+
+      const clarifications = (Array.isArray(args.clarificationQuestions) ? args.clarificationQuestions : [])
+        .filter((q) => q && typeof q.question === "string" && q.question.trim() !== "")
+        .slice(0, 3)
+        .map((q) => ({
+          targetName: typeof q.targetName === "string" && q.targetName.trim() ? q.targetName.trim() : null,
+          reason: typeof q.reason === "string" && q.reason.trim() ? q.reason.trim() : null,
+          question: q.question!.trim(),
+          options: Array.isArray(q.options)
+            ? q.options.filter((o): o is string => typeof o === "string").slice(0, 8)
+            : [],
+        }));
+
+      const hiddenRisks = (Array.isArray(args.hiddenCalorieRisks) ? args.hiddenCalorieRisks : [])
+        .filter((h) => h && typeof h.risk === "string" && h.risk.trim() !== "")
+        .slice(0, 3)
+        .map((h) => ({
+          risk: h.risk!.trim(),
+          question: typeof h.question === "string" && h.question.trim()
+            ? h.question.trim()
+            : "Was oil, butter, dressing, or sauce added?",
+        }));
+
+      const validated = AnalyzeMealResponse.safeParse({
+        name: (args.name ?? "Meal").trim() || "Meal",
+        items: foods.map((f) => f.dbMatch ?? f.detectedName),
+        foods,
+        clarifications,
+        hiddenRisks,
+        calories: totals.calories,
+        protein: totals.protein,
+        carbs: totals.carbs,
+        fat: totals.fat,
+        confidence: confidenceLevel(minConfidence),
+        biggestUncertainty:
+          typeof args.biggestUncertainty === "string" && args.biggestUncertainty.trim()
+            ? args.biggestUncertainty.trim()
+            : "Portion sizes are estimated from your description, not measured.",
+        note: args.note ?? null,
+      });
+
+      if (!validated.success) {
+        await charge.refund();
+        req.log.warn({ err: validated.error }, "analyze-meal-text: tool output failed validation");
+        res.status(500).json({ error: "Couldn't read the analysis result. Please try again." });
+        return;
+      }
+
+      res.json(validated.data);
+    } catch (err) {
+      await charge.refund();
+      req.log.error({ err }, "analyze-meal-text request failed");
+      res.status(500).json({ error: "Meal analysis is unavailable right now." });
+    }
+  },
+);
+
 // Structured-output tool for reading the lifted weight off a piece of equipment.
 const weightAnalysisTool = {
   type: "function" as const,
