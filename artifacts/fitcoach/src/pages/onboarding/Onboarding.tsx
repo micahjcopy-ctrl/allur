@@ -5,6 +5,8 @@ import { buildProgram } from "@/data/trainingKnowledge";
 import { EQUIPMENT_OPTIONS, SPORTS_OPTIONS, CLASS_OPTIONS, ENJOY_OPTIONS, AVOID_OPTIONS } from "@/data/exerciseOptimizer";
 import { physiqueOptionsFor } from "@/data/physiques";
 import { useVoiceRecorder } from "@workspace/integrations-openai-ai-react";
+import { useAccount } from "@/context/AuthContext";
+import { useLogoutAccount } from "@workspace/api-client-react";
 import { MobileLayout } from "@/components/layout/MobileLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -187,6 +189,23 @@ export default function Onboarding() {
 
   const canCalculate = hasCalculableProfile(profile);
   const [generating, setGenerating] = useState(false);
+  const { authUser, refreshAuth } = useAccount();
+  const logoutMut = useLogoutAccount();
+  const [switchingAccount, setSwitchingAccount] = useState(false);
+
+  // Sign out and let AuthGate route to the welcome / login screen.
+  const switchAccount = async () => {
+    if (switchingAccount) return;
+    setSwitchingAccount(true);
+    try {
+      await logoutMut.mutateAsync();
+      await refreshAuth();
+    } catch {
+      toast({ variant: "destructive", title: "Couldn't sign out", description: "Please try again." });
+    } finally {
+      setSwitchingAccount(false);
+    }
+  };
   const [photos, setPhotos] = useState<Record<string, string>>({});
   const [dragView, setDragView] = useState<string | null>(null);
   const photoInputs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -394,6 +413,26 @@ export default function Onboarding() {
                 → Payment
               </button>
             </div>
+          </div>
+        )}
+
+        {/* Account escape hatch: onboarding is where you land when the signed-in
+            account has never onboarded — which is confusing if you're actually
+            in the WRONG account (old test login, family member's phone). Always
+            show who you are and a one-tap way out to the login screen. */}
+        {authUser && (
+          <div className="flex items-center justify-between gap-2 mb-4 text-xs text-muted-foreground">
+            <span className="truncate">
+              Signed in as <span className="font-medium text-foreground">{authUser.email ?? authUser.username}</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => void switchAccount()}
+              disabled={switchingAccount}
+              className="shrink-0 font-semibold text-primary hover:underline disabled:opacity-60"
+            >
+              {switchingAccount ? "Signing out…" : "Not you? Log in"}
+            </button>
           </div>
         )}
 
