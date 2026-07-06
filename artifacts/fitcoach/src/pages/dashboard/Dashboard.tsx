@@ -9,6 +9,7 @@ import { Camera, Mic, Target, Flame, Zap, UtensilsCrossed, Gift, ChevronRight, M
 import { Link, useLocation } from "wouter";
 import { WelcomeTour, hasSeenTour } from "@/components/WelcomeTour";
 import { GettingStarted } from "@/components/GettingStarted";
+import { NotificationsBell } from "@/components/NotificationsBell";
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -72,8 +73,11 @@ export default function Dashboard() {
             <h1 className="text-2xl font-bold">Hey, {profile.name || "Athlete"}</h1>
             <p className="text-muted-foreground">Ready to crush it today?</p>
           </div>
-          <div className="w-12 h-12 bg-secondary rounded-full flex items-center justify-center overflow-hidden border border-border">
-            <span className="font-bold text-lg">{profile.name?.[0] || "A"}</span>
+          <div className="flex items-center gap-2">
+            <NotificationsBell />
+            <div className="w-12 h-12 bg-secondary rounded-full flex items-center justify-center overflow-hidden border border-border">
+              <span className="font-bold text-lg">{profile.name?.[0] || "A"}</span>
+            </div>
           </div>
         </header>
 

@@ -223,6 +223,22 @@ export interface EnhancedGoalPhoto {
   date: string;
 }
 
+// What the user wants to be reminded about. Stored with their account; the
+// bell sheet and onboarding both edit the same object.
+export interface NotificationPrefs {
+  workouts: boolean; // workout-day nudges
+  meals: boolean; // meal / macro logging reminders
+  progress: boolean; // weekly progress-photo + scan reminders
+  squad: boolean; // squad activity + weekly recap
+}
+
+export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
+  workouts: true,
+  meals: true,
+  progress: true,
+  squad: true,
+};
+
 // Local calendar day key (YYYY-MM-DD) used for rest-day completion tracking.
 export const dayKeyOf = (d: Date = new Date()): string => {
   const y = d.getFullYear();
@@ -634,6 +650,8 @@ interface FitCoachState {
   restDaysCompleted: string[];
   // AI-enhanced goal version of the user's own photo (null until generated).
   enhancedGoalPhoto: EnhancedGoalPhoto | null;
+  notificationPrefs: NotificationPrefs;
+  setNotificationPrefs: (prefs: NotificationPrefs) => void;
   // Count of consecutive calendar days (ending today/yesterday) with a finished
   // workout OR a completed rest day. Derived from workoutSessions + restDaysCompleted.
   workoutStreak: number;
@@ -751,6 +769,7 @@ interface PersistedFitCoachState {
   workoutSessions: WorkoutSession[];
   restDaysCompleted?: string[];
   enhancedGoalPhoto?: EnhancedGoalPhoto | null;
+  notificationPrefs?: NotificationPrefs;
   // One-time marker: legacy auto-seeded bodyweight entries have been stripped
   // from weightLogs for this account.
   autoSeedCleaned?: boolean;
@@ -787,6 +806,7 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
   const [workoutSessions, setWorkoutSessions] = useState<WorkoutSession[]>([]);
   const [restDaysCompleted, setRestDaysCompleted] = useState<string[]>([]);
   const [enhancedGoalPhoto, setEnhancedGoalPhoto] = useState<EnhancedGoalPhoto | null>(null);
+  const [notificationPrefs, setNotificationPrefs] = useState<NotificationPrefs>({ ...DEFAULT_NOTIFICATION_PREFS });
   const [physiqueAnalyses, setPhysiqueAnalyses] = useState<PhysiqueAnalysis[]>([]);
   // The active analysis (highest week) backs the dashboard/coach/plan, which only
   // ever need the most recent scan.
@@ -985,6 +1005,7 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
     setWorkoutSessions(Array.isArray(state.workoutSessions) ? state.workoutSessions : []);
     setRestDaysCompleted(Array.isArray(state.restDaysCompleted) ? state.restDaysCompleted : []);
     setEnhancedGoalPhoto(state.enhancedGoalPhoto && state.enhancedGoalPhoto.url ? state.enhancedGoalPhoto : null);
+    setNotificationPrefs({ ...DEFAULT_NOTIFICATION_PREFS, ...(state.notificationPrefs ?? {}) });
     // Back-compat: older saves stored a single `physiqueAnalysis`; newer saves
     // store `physiqueAnalyses` (one per week). Migrate the legacy shape by
     // attaching it to the week of the photos it analyzed.
@@ -1018,6 +1039,7 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
     setWorkoutSessions([]);
     setRestDaysCompleted([]);
     setEnhancedGoalPhoto(null);
+    setNotificationPrefs({ ...DEFAULT_NOTIFICATION_PREFS });
     setPhysiqueAnalyses([]);
   };
 
@@ -1097,6 +1119,7 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
       workoutSessions,
       restDaysCompleted,
       enhancedGoalPhoto,
+      notificationPrefs,
       autoSeedCleaned,
     }),
     [
@@ -1114,6 +1137,7 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
       workoutSessions,
       restDaysCompleted,
       enhancedGoalPhoto,
+      notificationPrefs,
       autoSeedCleaned,
     ],
   );
@@ -1606,6 +1630,8 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
         toggleRestDayComplete,
         enhancedGoalPhoto,
         setEnhancedGoalPhoto,
+        notificationPrefs,
+        setNotificationPrefs,
         workoutStreak,
         startWorkoutSession,
         toggleExerciseComplete,

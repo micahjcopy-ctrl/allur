@@ -7,6 +7,9 @@ import { physiqueOptionsFor } from "@/data/physiques";
 import { useVoiceRecorder } from "@workspace/integrations-openai-ai-react";
 import { useAccount } from "@/context/AuthContext";
 import { useLogoutAccount } from "@workspace/api-client-react";
+import { usePush } from "@/hooks/usePush";
+import { ReminderPrefToggles } from "@/components/NotificationsBell";
+import { BellRing, Check as CheckIcon } from "lucide-react";
 import { MobileLayout } from "@/components/layout/MobileLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -192,6 +195,22 @@ export default function Onboarding() {
   const { authUser, refreshAuth } = useAccount();
   const logoutMut = useLogoutAccount();
   const [switchingAccount, setSwitchingAccount] = useState(false);
+
+  // Push opt-in on the final step. Declining is fine — the bell on the home
+  // screen offers the same switch anytime.
+  const push = usePush();
+  const enableNotifications = async () => {
+    try {
+      const result = await push.enable();
+      if (result === "on") {
+        toast({ title: "Notifications on", description: "Only the reminders you've picked — nothing spammy." });
+      } else if (result === "blocked") {
+        toast({ title: "No problem", description: "You can turn them on later from the bell on your home screen." });
+      }
+    } catch {
+      toast({ title: "Couldn't enable them right now", description: "You can turn notifications on anytime from the bell on your home screen." });
+    }
+  };
 
   // Sign out and let AuthGate route to the welcome / login screen.
   const switchAccount = async () => {
@@ -941,6 +960,43 @@ export default function Onboarding() {
                         <p className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">Fat</p>
                       </div>
                     </div>
+                  </div>
+
+                  {/* Notifications opt-in — optional; the home-screen bell offers
+                      the same controls later, so declining costs nothing. */}
+                  <div className="w-full bg-card border border-border rounded-3xl p-5 mb-8 text-left space-y-4">
+                    <div>
+                      <p className="font-bold flex items-center gap-2">
+                        <BellRing className="w-4 h-4 text-primary" /> Want reminders?
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        People who get nudges stick to their plan far more often. Pick what's useful — change it anytime from the bell on your home screen.
+                      </p>
+                    </div>
+                    <ReminderPrefToggles compact />
+                    {push.state === "on" ? (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                        <CheckIcon className="w-3.5 h-3.5 text-success" /> Notifications are on.
+                      </p>
+                    ) : push.state === "unsupported" ? (
+                      <p className="text-xs text-muted-foreground">
+                        Your picks are saved — notifications switch on once you install ALLUR to your home screen (bell icon, top of the app).
+                      </p>
+                    ) : push.state === "off" ? (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => void enableNotifications()}
+                        disabled={push.busy}
+                        className="w-full rounded-xl h-11 font-semibold"
+                      >
+                        <BellRing className="w-4 h-4 mr-2" /> Turn on notifications
+                      </Button>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        Your picks are saved — you can switch notifications on anytime from the bell on your home screen.
+                      </p>
+                    )}
                   </div>
 
                   <Button onClick={generatePlan} className="w-full rounded-full h-14 text-lg font-bold shadow-[0_8px_24px_rgba(0,0,0,0.4)]">
