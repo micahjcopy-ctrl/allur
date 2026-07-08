@@ -68,8 +68,8 @@ export default function About() {
       <LegalSection heading="Contact">
         <p>
           Questions or feedback? Email{" "}
-          <a href="mailto:support@getallur.com" style={{ textDecoration: "underline" }}>
-            support@getallur.com
+          <a href="mailto:raiden@getallur.com" style={{ textDecoration: "underline" }}>
+            raiden@getallur.com
           </a>
           .
         </p>

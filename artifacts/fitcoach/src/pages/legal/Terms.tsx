@@ -1,7 +1,7 @@
 import LegalLayout, { LegalSection } from "./LegalLayout";
 import { useSeo } from "@/hooks/useSeo";
 
-const CONTACT_EMAIL = "support@allur.app";
+const CONTACT_EMAIL = "raiden@getallur.com";
 const CONTACT_ADDRESS = "873 Communipaw Ave, Jersey City, NJ";
 
 export default function Terms() {
