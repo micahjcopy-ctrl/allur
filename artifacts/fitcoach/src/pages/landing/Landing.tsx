@@ -323,6 +323,12 @@ const Navbar = () => {
               {l.label}
             </button>
           ))}
+          <button
+            onClick={() => handleNav("/about")}
+            className="hover:text-[var(--lp-text)] transition-colors"
+          >
+            About
+          </button>
         </div>
 
         <div className="hidden md:flex items-center gap-5">
@@ -370,6 +376,12 @@ const Navbar = () => {
                   {l.label}
                 </button>
               ))}
+              <button
+                onClick={() => handleNav("/about")}
+                className="text-left text-[var(--lp-muted)] hover:text-[var(--lp-text)]"
+              >
+                About
+              </button>
             </div>
             <div className="h-px lp-divider w-full" />
             <div className="flex flex-col gap-4">
@@ -1547,7 +1559,7 @@ export default function Landing() {
               <button onClick={() => setLocation("/terms")} className="hover:text-[var(--lp-text)] transition-colors">Terms of Service</button>
               <button onClick={() => setLocation("/about")} className="hover:text-[var(--lp-text)] transition-colors">About</button>
               <button onClick={() => setLocation("/disclaimer")} className="hover:text-[var(--lp-text)] transition-colors">Disclaimer</button>
-              <a href="mailto:support@getallur.com" className="hover:text-[var(--lp-text)] transition-colors">Contact</a>
+              <a href="mailto:raiden@getallur.com" className="hover:text-[var(--lp-text)] transition-colors">Contact</a>
             </div>
           </div>
         </div>
