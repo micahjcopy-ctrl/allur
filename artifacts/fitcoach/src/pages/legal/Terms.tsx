@@ -1,9 +1,16 @@
 import LegalLayout, { LegalSection } from "./LegalLayout";
+import { useSeo } from "@/hooks/useSeo";
 
 const CONTACT_EMAIL = "support@allur.app";
 const CONTACT_ADDRESS = "873 Communipaw Ave, Jersey City, NJ";
 
 export default function Terms() {
+  useSeo({
+    title: "Terms of Service — ALLUR",
+    description:
+      "The terms that govern your use of the ALLUR app and website.",
+    path: "/terms",
+  });
   return (
     <LegalLayout title="Terms of Service" updated="June 24, 2026">
       <p>

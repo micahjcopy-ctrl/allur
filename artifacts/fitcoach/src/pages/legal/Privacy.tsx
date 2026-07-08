@@ -1,9 +1,16 @@
 import LegalLayout, { LegalSection } from "./LegalLayout";
+import { useSeo } from "@/hooks/useSeo";
 
 const CONTACT_EMAIL = "privacy@allur.app";
 const CONTACT_ADDRESS = "873 Communipaw Ave, Jersey City, NJ";
 
 export default function Privacy() {
+  useSeo({
+    title: "Privacy Policy — ALLUR",
+    description:
+      "How ALLUR collects, uses, and protects your information when you use the ALLUR app and website.",
+    path: "/privacy",
+  });
   return (
     <LegalLayout title="Privacy Policy" updated="June 24, 2026">
       <p>
