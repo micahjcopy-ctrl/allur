@@ -1,2 +1,16 @@
 User-agent: *
 Allow: /
+Disallow: /auth
+Disallow: /reset-password
+Disallow: /onboarding
+Disallow: /dashboard
+Disallow: /plan
+Disallow: /progress
+Disallow: /macros
+Disallow: /coach
+Disallow: /account
+Disallow: /settings
+Disallow: /session/
+Disallow: /admin
+
+Sitemap: https://www.getallur.com/sitemap.xml
