@@ -5,7 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { FitCoachProvider, useFitCoach } from "@/context/FitCoachContext";
 import { AuthProvider, useAccount } from "@/context/AuthContext";
 import { useEffect } from "react";
-import { Loader2, WifiOff } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 // Pages
 import NotFound from "@/pages/not-found";
@@ -16,8 +16,6 @@ import Dashboard from "@/pages/dashboard/Dashboard";
 import Plan from "@/pages/plan/Plan";
 import Progress from "@/pages/progress/Progress";
 import Macros from "@/pages/macros/Macros";
-import Squad from "@/pages/squad/Squad";
-import Refer from "@/pages/refer/Refer";
 import Coach from "@/pages/coach/Coach";
 import Account from "@/pages/account/Account";
 import Settings from "@/pages/settings/Settings";
@@ -31,9 +29,9 @@ import AppWelcome from "@/pages/welcome/AppWelcome";
 import { isStandalone } from "@/hooks/usePwaInstall";
 import Privacy from "@/pages/legal/Privacy";
 import Terms from "@/pages/legal/Terms";
+import About from "@/pages/legal/About";
+import Disclaimer from "@/pages/legal/Disclaimer";
 import InstallAppPrompt from "@/components/InstallAppPrompt";
-import { LaunchSplash } from "@/components/LaunchSplash";
-import { captureRefFromUrl, claimStoredReferral } from "@/lib/reps";
 
 const queryClient = new QueryClient();
 
@@ -94,8 +92,6 @@ function RouteGuard() {
       <Route path="/plan" component={Plan} />
       <Route path="/progress" component={Progress} />
       <Route path="/macros" component={Macros} />
-      <Route path="/squad" component={Squad} />
-      <Route path="/refer" component={Refer} />
       <Route path="/coach" component={Coach} />
       <Route path="/account" component={Account} />
       <Route path="/settings" component={Settings} />
@@ -107,26 +103,17 @@ function RouteGuard() {
 
 function AuthGate() {
   const { authUser, isLoading } = useAccount();
-  const { hydrated, hydrationFailed, hydrationRetrying, retryHydration, showInstallPrompt, setShowInstallPrompt } = useFitCoach();
+  const { hydrated, showInstallPrompt, setShowInstallPrompt } = useFitCoach();
   const [location, setLocation] = useLocation();
   // Installed PWA vs. browser tab — branches the signed-out entry experience.
   const standalone = isStandalone();
-
-  // Capture a ?ref= code as early as possible (works on the landing page too).
-  useEffect(() => {
-    captureRefFromUrl();
-  }, []);
-
-  // Once signed in, redeem any stored referral code (idempotent server-side).
-  useEffect(() => {
-    if (!isLoading && authUser) void claimStoredReferral();
-  }, [isLoading, authUser]);
 
   useEffect(() => {
     if (location === "/admin") return;
     if (location === "/reset-password") return;
     if (location === "/get") return;
     if (location === "/privacy" || location === "/terms") return;
+    if (location === "/about" || location === "/disclaimer") return;
     if (import.meta.env.DEV && location === "/paywall") return;
     if (isLoading) return;
     if (!authUser) {
@@ -181,6 +168,12 @@ function AuthGate() {
   if (location === "/terms") {
     return <Terms />;
   }
+  if (location === "/about") {
+    return <About />;
+  }
+  if (location === "/disclaimer") {
+    return <Disclaimer />;
+  }
 
   // DEV-only: let the upfront payment screen be previewed directly, even when
   // signed out. Never reachable in the published build.
@@ -201,34 +194,6 @@ function AuthGate() {
     // Installed app gets the minimal welcome screen; the website gets the full
     // marketing landing page.
     return standalone ? <AppWelcome /> : <Landing />;
-  }
-
-  // The saved-state read failed before hydration: STOP here with a retry
-  // screen. Routing with blank defaults made a returning user look brand-new
-  // and rebooted them into onboarding — their data was never gone.
-  if (hydrationFailed) {
-    return (
-      <div className="w-full min-h-screen flex flex-col items-center justify-center gap-4 p-8 text-center">
-        <div className="w-14 h-14 rounded-2xl bg-secondary flex items-center justify-center">
-          <WifiOff className="w-7 h-7 text-muted-foreground" />
-        </div>
-        <div>
-          <h2 className="text-xl font-bold">Couldn't load your account</h2>
-          <p className="text-sm text-muted-foreground mt-2 max-w-xs">
-            Your data is safe — we just couldn't reach the server. Check your connection and try again.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={retryHydration}
-          disabled={hydrationRetrying}
-          className="mt-2 h-12 px-8 rounded-full bg-primary text-primary-foreground font-bold inline-flex items-center gap-2 disabled:opacity-60"
-        >
-          {hydrationRetrying ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-          {hydrationRetrying ? "Retrying…" : "Try again"}
-        </button>
-      </div>
-    );
   }
 
   // Wait for the user's saved state to load before routing, so returning users
@@ -283,9 +248,6 @@ function App() {
           <FitCoachProvider>
             <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
               <div className="dark bg-background text-foreground w-full min-h-screen flex justify-center">
-                {/* Branded launch screen — installed app (standalone) cold
-                    starts only; overlays the auth/hydration work for ~5s. */}
-                <LaunchSplash />
                 <AuthGate />
               </div>
             </WouterRouter>
