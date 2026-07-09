@@ -7,9 +7,14 @@ import {
   ChevronRight,
   FlaskConical,
   ShieldCheck,
+  Brain,
+  Dumbbell,
+  ScanLine,
+  LineChart,
 } from "lucide-react";
 import PageShell from "@/components/PageShell";
 import { useSeo } from "@/hooks/useSeo";
+import { RadialHub, Reveal } from "@/components/marketing/Graphics";
 
 const DIFFERENTIATORS = [
   {
@@ -252,6 +257,37 @@ export default function About() {
             </button>{" "}
             and consult a physician before starting any new program.
           </p>
+        </div>
+      </section>
+
+      <section
+        className="py-20 md:py-24 border-t border-[var(--lp-border)]/60"
+        style={{ backgroundColor: "var(--lp-bg-feature)" }}
+      >
+        <div className="max-w-6xl mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center">
+          <div>
+            <span className="lp-kicker mb-4 block">Built as one system</span>
+            <h2 className="lp-display text-3xl md:text-4xl font-semibold mb-6">
+              Everything connected to <span style={{ color: "var(--lp-cyan)" }}>one adaptive plan.</span>
+            </h2>
+            <p className="text-lg text-[var(--lp-body)] leading-relaxed">
+              We didn't bolt features together. Your coach, workouts, nutrition, and physique
+              tracking all feed the same plan, so ALLUR always knows your next step and reshapes
+              it the moment life changes.
+            </p>
+          </div>
+          <Reveal delay={0.1}>
+            <RadialHub
+              center="Your plan"
+              nodes={[
+                { label: "AI Coach", icon: Brain },
+                { label: "Workouts", icon: Dumbbell },
+                { label: "Macros", icon: Camera },
+                { label: "Physique", icon: ScanLine },
+                { label: "Progress", icon: LineChart },
+              ]}
+            />
+          </Reveal>
         </div>
       </section>
     </PageShell>
