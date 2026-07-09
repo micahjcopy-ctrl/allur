@@ -532,3 +532,122 @@ export function Timeline({
     </div>
   );
 }
+
+// --- Adaptive progress line chart -----------------------------------------
+// The core-idea visual. A rigid plan stalls / drops the moment life hits;
+// ALLUR dips but adapts and keeps climbing. Two series + disruption markers.
+// Explains the value with a picture instead of an app screenshot.
+export function AdaptiveChart({
+  series,
+  markers = [],
+  height = 230,
+  legend = true,
+}: {
+  series: { label: string; kind: "allur" | "rigid"; points: number[] }[];
+  markers?: { at: number; label: string }[];
+  height?: number;
+  legend?: boolean;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { once: true, amount: 0.4 });
+  const reduced = useReducedMotion();
+  const W = 440;
+  const H = 200;
+  const pad = { l: 10, r: 14, t: 18, b: 18 };
+  const n = Math.max(...series.map((s) => s.points.length));
+  const xAt = (i: number) => pad.l + (i / (n - 1)) * (W - pad.l - pad.r);
+  const yAt = (v: number) => pad.t + (1 - v / 100) * (H - pad.t - pad.b);
+  const pathFor = (pts: number[]) =>
+    pts.map((v, i) => `${i === 0 ? "M" : "L"} ${xAt(i).toFixed(1)} ${yAt(v).toFixed(1)}`).join(" ");
+
+  return (
+    <div ref={ref} className="lp-card p-6">
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height }}>
+        <defs>
+          <linearGradient id="adaptGrad" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor={CYAN} />
+            <stop offset="100%" stopColor={TEAL} />
+          </linearGradient>
+        </defs>
+        {/* disruption markers */}
+        {markers.map((m) => (
+          <line
+            key={m.label}
+            x1={xAt(m.at)}
+            y1={pad.t - 4}
+            x2={xAt(m.at)}
+            y2={H - pad.b}
+            stroke="var(--lp-border)"
+            strokeWidth="1"
+            strokeDasharray="3 4"
+          />
+        ))}
+        {markers.map((m) => (
+          <text
+            key={`t-${m.label}`}
+            x={xAt(m.at)}
+            y={pad.t - 8}
+            textAnchor="middle"
+            fontSize="9"
+            fill={MUTED}
+          >
+            {m.label}
+          </text>
+        ))}
+        {/* series */}
+        {series.map((s, si) => (
+          <motion.path
+            key={s.label}
+            d={pathFor(s.points)}
+            fill="none"
+            stroke={s.kind === "allur" ? "url(#adaptGrad)" : MUTED}
+            strokeWidth={s.kind === "allur" ? 3 : 2}
+            strokeOpacity={s.kind === "allur" ? 1 : 0.55}
+            strokeDasharray={s.kind === "rigid" ? "5 5" : undefined}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            initial={{ pathLength: 0, opacity: 0 }}
+            animate={inView || reduced ? { pathLength: 1, opacity: 1 } : {}}
+            transition={{ duration: 1.4, delay: 0.2 + si * 0.35, ease: "easeInOut" }}
+          />
+        ))}
+        {/* endpoint dot on the ALLUR series */}
+        {series
+          .filter((s) => s.kind === "allur")
+          .map((s) => (
+            <motion.circle
+              key={`dot-${s.label}`}
+              cx={xAt(s.points.length - 1)}
+              cy={yAt(s.points[s.points.length - 1])}
+              r="4"
+              fill={CYAN}
+              initial={{ opacity: 0 }}
+              animate={inView || reduced ? { opacity: 1 } : {}}
+              transition={{ delay: 1.5 }}
+            />
+          ))}
+      </svg>
+      {legend && (
+        <div className="flex items-center justify-center gap-6 mt-3 text-sm">
+          {series.map((s) => (
+            <div key={s.label} className="flex items-center gap-2">
+              <span
+                className="inline-block w-5 h-0.5 rounded-full"
+                style={{
+                  background: s.kind === "allur" ? `linear-gradient(90deg, ${CYAN}, ${TEAL})` : MUTED,
+                  opacity: s.kind === "allur" ? 1 : 0.55,
+                }}
+              />
+              <span
+                style={{ color: s.kind === "allur" ? "var(--lp-text)" : "var(--lp-muted)" }}
+                className="font-medium"
+              >
+                {s.label}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
