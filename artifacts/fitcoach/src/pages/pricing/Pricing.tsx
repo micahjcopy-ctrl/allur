@@ -2,6 +2,7 @@ import { useLocation } from "wouter";
 import { CheckCircle2, Minus, ChevronRight } from "lucide-react";
 import PageShell from "@/components/PageShell";
 import { useSeo } from "@/hooks/useSeo";
+import { StatRow } from "@/components/marketing/Graphics";
 
 const TIERS = [
   {
@@ -113,6 +114,20 @@ export default function Pricing() {
             <span className="lp-underline">less friction</span> — and a system
             that keeps you moving when life gets messy.
           </p>
+        </div>
+      </section>
+
+      {/* STAT ROW */}
+      <section className="pb-10 pt-2">
+        <div className="max-w-4xl mx-auto px-6">
+          <StatRow
+            stats={[
+              { value: 0, prefix: "$", label: "Free plan, forever" },
+              { value: 12.99, prefix: "$", decimals: 2, label: "Base per month" },
+              { value: 14, label: "Day free trial on Base" },
+              { value: 29.99, prefix: "$", decimals: 2, label: "Premium per month" },
+            ]}
+          />
         </div>
       </section>
 
