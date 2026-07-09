@@ -797,10 +797,8 @@ export default function Landing() {
               <span>The adaptive body transformation app</span>
             </div>
 
-            <h1 className="lp-display text-5xl sm:text-6xl lg:text-[3.4rem] xl:text-6xl 2xl:text-7xl font-bold mb-7">
-              Stop guessing your way
-              <br />
-              to a <span style={{ color: "var(--lp-cyan)" }}>better body.</span>
+            <h1 className="lp-display text-5xl sm:text-6xl lg:text-[3.4rem] xl:text-6xl 2xl:text-7xl font-bold mb-7 [text-wrap:balance]">
+              Stop guessing your way to a <span style={{ color: "var(--lp-cyan)" }}>better body.</span>
             </h1>
 
             <p className="text-lg md:text-xl text-[var(--lp-body)] mb-10 leading-relaxed max-w-2xl">
