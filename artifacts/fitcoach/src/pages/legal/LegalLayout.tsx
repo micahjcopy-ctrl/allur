@@ -1,6 +1,5 @@
-import { useLocation } from "wouter";
-import { ArrowLeft } from "lucide-react";
 import type { ReactNode } from "react";
+import PageShell from "@/components/PageShell";
 
 export default function LegalLayout({
   title,
@@ -11,46 +10,52 @@ export default function LegalLayout({
   updated: string;
   children: ReactNode;
 }) {
-  const [, setLocation] = useLocation();
   return (
-    <div className="allur-lp min-h-screen w-full" style={{ backgroundColor: "var(--lp-bg)" }}>
-      <div className="mx-auto w-full max-w-2xl px-5 pb-20 pt-6">
-        <button
-          onClick={() => setLocation("/home")}
-          className="inline-flex items-center gap-2 text-sm transition-colors"
-          style={{ color: "var(--lp-muted)" }}
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back
-        </button>
-
-        <div className="mt-8">
-          <h1 className="lp-display text-3xl sm:text-4xl" style={{ color: "var(--lp-text)" }}>
+    <PageShell>
+      <div className="relative overflow-hidden border-b border-[var(--lp-border)]/60">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] lp-halo opacity-40" />
+        <div className="mx-auto w-full max-w-3xl px-6 pt-14 md:pt-20 pb-12 relative z-10">
+          <span className="lp-kicker mb-4 block">Legal</span>
+          <h1
+            className="lp-display text-4xl md:text-5xl font-bold"
+            style={{ color: "var(--lp-text)" }}
+          >
             {title}
           </h1>
-          <p className="mt-2 text-sm" style={{ color: "var(--lp-muted)" }}>
+          <p className="mt-3 text-sm" style={{ color: "var(--lp-muted)" }}>
             Last updated {updated}
           </p>
         </div>
+      </div>
 
+      <div className="mx-auto w-full max-w-3xl px-6 py-14 md:py-16">
         <div
-          className="legal-body mt-8 space-y-6 text-[15px] leading-relaxed"
+          className="legal-body space-y-7 text-[15px] leading-relaxed"
           style={{ color: "var(--lp-body)" }}
         >
           {children}
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 }
 
-export function LegalSection({ heading, children }: { heading: string; children: ReactNode }) {
+export function LegalSection({
+  heading,
+  children,
+}: {
+  heading: string;
+  children: ReactNode;
+}) {
   return (
-    <section className="space-y-2">
-      <h2 className="text-lg font-semibold" style={{ color: "var(--lp-text)" }}>
+    <section className="space-y-3">
+      <h2
+        className="lp-display text-xl font-semibold"
+        style={{ color: "var(--lp-text)" }}
+      >
         {heading}
       </h2>
-      <div className="space-y-2">{children}</div>
+      <div className="space-y-3">{children}</div>
     </section>
   );
 }
