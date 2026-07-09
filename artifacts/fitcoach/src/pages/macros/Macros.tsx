@@ -70,7 +70,15 @@ function MacroBar({ label, value, target, color }: { label: string; value: numbe
 }
 
 export default function Macros() {
-  const { meals, macroTarget, removeMeal, hasCredit, refreshCredits, isSubscribed } = useFitCoach();
+  const {
+    meals,
+    macroTargetAdjusted: macroTarget,
+    todayActiveCalories,
+    removeMeal,
+    hasCredit,
+    refreshCredits,
+    isSubscribed,
+  } = useFitCoach();
   const { toast } = useToast();
   const fileInput = useRef<HTMLInputElement | null>(null);
   const [dragActive, setDragActive] = useState(false);
@@ -311,6 +319,11 @@ export default function Macros() {
                   {consumed.calories}
                   <span className="text-base font-medium text-muted-foreground"> / {macroTarget.calories} kcal</span>
                 </p>
+                {todayActiveCalories > 0 && (
+                  <p className="text-[11px] font-medium text-primary mt-0.5">
+                    +{todayActiveCalories} kcal earned from cardio
+                  </p>
+                )}
               </div>
               <div className="text-right">
                 <p className="text-xs text-muted-foreground">{calRemaining >= 0 ? "Remaining" : "Over"}</p>
