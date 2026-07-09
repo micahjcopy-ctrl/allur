@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import { useSeo } from "@/hooks/useSeo";
 import SiteNav from "@/components/SiteNav";
 import SiteFooter from "@/components/SiteFooter";
+import { PhoneMock } from "@/components/marketing/Graphics";
+import { CoachChatMock, MacroScanMock } from "@/components/marketing/Mocks";
 import { useLocation } from "wouter";
 import { motion, MotionConfig, useScroll, useTransform, useMotionValueEvent, useReducedMotion, useInView, AnimatePresence } from "framer-motion";
 import {
@@ -425,13 +427,8 @@ const ImageCard = ({ image, eyebrow, title, highlight, desc, icon: Icon, delay =
     transition={{ duration: 0.7, delay, ease: [0.16, 1, 0.3, 1] }}
     className="lp-card lp-card-hover group relative aspect-[4/5] sm:aspect-[4/3] lg:aspect-[3/4] overflow-hidden !rounded-3xl"
   >
-    <img
-      src={image}
-      alt=""
-      loading="lazy"
-      decoding="async"
-      className="absolute inset-0 w-full h-full object-cover transition-transform duration-[1200ms] ease-out group-hover:scale-105"
-    />
+    <div className="absolute inset-0 bg-grid opacity-40" />
+    <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-[420px] h-[420px] lp-halo opacity-70" />
     <div className="absolute inset-0 card-scrim" />
     <div className="absolute inset-0 p-7 md:p-9 flex flex-col justify-end">
       <div
@@ -777,11 +774,8 @@ export default function Landing() {
       {/* HERO — #050816 with a faint cyan halo echoing the logo ring */}
       <section ref={heroRef} className="relative pt-32 pb-24 md:pt-40 md:pb-32 overflow-hidden flex items-center min-h-[100vh]">
         <motion.div style={{ y: heroImageY }} className="absolute inset-0 z-0 scale-110">
-          <img
-            src={`${BASE_URL}lp-hero.webp`}
-            alt="Athlete training"
-            className="w-full h-full object-cover object-center opacity-55"
-          />
+          <div className="w-full h-full bg-grid opacity-30" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1100px] h-[1100px] lp-halo opacity-80" />
           <div className="absolute inset-0" style={{ background: "linear-gradient(to top, var(--lp-bg) 8%, rgba(5,8,22,0.72) 45%, rgba(5,8,22,0.35) 100%)" }} />
           <div className="absolute inset-0" style={{ background: "linear-gradient(to right, var(--lp-bg) 0%, rgba(5,8,22,0.4) 45%, transparent 100%)" }} />
           <div className="absolute inset-0 lp-halo opacity-80" />
@@ -1220,7 +1214,7 @@ export default function Landing() {
             transition={{ duration: 0.6 }}
             className="relative"
           >
-            <img src={`${BASE_URL}ai-coach.webp`} alt="AI Coach" loading="lazy" decoding="async" className="w-full lp-card !rounded-3xl" />
+            <PhoneMock><CoachChatMock /></PhoneMock>
           </motion.div>
 
           <motion.div
@@ -1378,7 +1372,7 @@ export default function Landing() {
             </button>
           </div>
           <div className="flex-1">
-            <img src={`${BASE_URL}nutrition-scan.webp`} alt="Nutrition Scanner" loading="lazy" decoding="async" className="w-full lp-card !rounded-3xl" />
+            <PhoneMock><MacroScanMock /></PhoneMock>
           </div>
         </div>
       </section>
@@ -1492,7 +1486,7 @@ export default function Landing() {
       {/* FINAL CTA — cleanest, highest-contrast section, halo ring behind CTA */}
       <section className="py-32 md:py-40 relative overflow-hidden" style={{ backgroundColor: "var(--lp-bg-cta)" }}>
         <div className="absolute inset-0 z-0">
-          <img src={`${BASE_URL}lp-hero.webp`} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover opacity-20" />
+          <div className="w-full h-full bg-grid opacity-20" />
           <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, var(--lp-bg-cta), rgba(4,7,15,0.85), var(--lp-bg-cta))" }} />
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] lp-halo opacity-80" />
         </div>
