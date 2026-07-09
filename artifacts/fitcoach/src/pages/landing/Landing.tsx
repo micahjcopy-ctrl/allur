@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useSeo } from "@/hooks/useSeo";
 import SiteNav from "@/components/SiteNav";
 import SiteFooter from "@/components/SiteFooter";
-import { AdaptiveChart, BarChart, FlowDiagram } from "@/components/marketing/Graphics";
+import { BarChart, FlowDiagram, SystemHub } from "@/components/marketing/Graphics";
 import { useLocation } from "wouter";
 import { motion, MotionConfig, useScroll, useTransform, useMotionValueEvent, useReducedMotion, useInView, AnimatePresence } from "framer-motion";
 import {
@@ -22,7 +22,8 @@ import {
   ScanLine,
   Flame,
   Smartphone,
-  Download
+  Download,
+  Users
 } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { usePwaInstall, buildInstallUrl } from "@/hooks/usePwaInstall";
@@ -781,7 +782,7 @@ export default function Landing() {
         </motion.div>
 
         <motion.div style={{ y: heroTextY, opacity: heroOpacity }} className="max-w-7xl mx-auto px-6 relative z-10 w-full">
-         <div className="grid lg:grid-cols-2 gap-10 lg:gap-10 items-center">
+         <div className="grid lg:grid-cols-[1fr_1.05fr] gap-10 lg:gap-14 items-center">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -796,7 +797,7 @@ export default function Landing() {
               <span>The adaptive body transformation app</span>
             </div>
 
-            <h1 className="lp-display text-5xl sm:text-6xl lg:text-7xl xl:text-8xl font-bold mb-7">
+            <h1 className="lp-display text-5xl sm:text-6xl lg:text-[3.4rem] xl:text-6xl 2xl:text-7xl font-bold mb-7">
               Stop guessing your way
               <br />
               to a <span style={{ color: "var(--lp-cyan)" }}>better body.</span>
@@ -834,11 +835,14 @@ export default function Landing() {
             transition={{ delay: 0.4, duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
             className="hidden lg:block"
           >
-            <AdaptiveChart
-              markers={[{ at: 3, label: "shoulder tweak" }, { at: 4, label: "busy week" }, { at: 5, label: "travel" }]}
-              series={[
-                { label: "Most plans", kind: "rigid", points: [28, 44, 58, 52, 46, 42, 40] },
-                { label: "With ALLUR", kind: "allur", points: [28, 42, 54, 50, 60, 71, 84] },
+            <SystemHub
+              centerSub="one system"
+              nodes={[
+                { label: "AI Coach", sub: "24/7, answers & acts", icon: Brain },
+                { label: "Adaptive training", sub: "flexes when life hits", icon: Zap },
+                { label: "Macro calculator", sub: "snap a meal, macros logged", icon: Camera },
+                { label: "Train with friends", sub: "squads, duels & respect", icon: Users },
+                { label: "Custom training plan", sub: "built from your body", icon: Dumbbell },
               ]}
             />
           </motion.div>
@@ -927,6 +931,40 @@ export default function Landing() {
                 <DashboardScreen />
               </PhoneFrame>
             </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* PROOF / STAT BAND — #08111F with teal top-accents */}
+      <section className="py-24 md:py-28 relative overflow-hidden" style={{ backgroundColor: "var(--lp-bg-proof)" }}>
+        <div className="absolute inset-0 lp-halo opacity-50" />
+        <div className="max-w-6xl mx-auto px-6 relative z-10">
+          <div className="text-center mb-14">
+            <h2 className="lp-display text-3xl md:text-5xl font-semibold">
+              One system. <span style={{ color: "var(--lp-cyan)" }}>Everything covered.</span>
+            </h2>
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 md:gap-6">
+            {[
+              { stat: "1", unit: "Adaptive system", label: "Training, nutrition, and coaching in one place" },
+              { stat: "24/7", unit: "AI coach", label: "Answers and plan changes whenever life shifts" },
+              { stat: "Photo", unit: "Macro logging", label: "Snap a meal — calories and macros in seconds" },
+              { stat: "Real", unit: "Sports science", label: "Evidence-based volume and progression built in" }
+            ].map((s, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: i * 0.08 }}
+                className="lp-card lp-card-hover relative p-7 text-center"
+                style={{ borderTop: "2px solid rgba(45,212,191,0.5)" }}
+              >
+                <div className="lp-display text-4xl md:text-5xl font-bold mb-1" style={{ color: "var(--lp-cyan)" }}>{s.stat}</div>
+                <div className="lp-display text-sm md:text-base font-semibold text-[var(--lp-text)] mb-3">{s.unit}</div>
+                <p className="text-xs md:text-sm text-[var(--lp-muted)] leading-relaxed">{s.label}</p>
+              </motion.div>
+            ))}
           </div>
         </div>
       </section>
@@ -1207,7 +1245,7 @@ export default function Landing() {
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
-            className="relative"
+            className="relative flex flex-col justify-center"
           >
             <FlowDiagram
               steps={[
@@ -1289,44 +1327,6 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* FEATURE PAIR 2 — #0B1120 */}
-      <section className="py-24 md:py-32 border-y border-[var(--lp-border)]/60 relative overflow-hidden" style={{ backgroundColor: "var(--lp-bg-feature)" }}>
-        <div className="max-w-7xl mx-auto px-6 relative z-10">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="max-w-3xl mb-14"
-          >
-            <span className="lp-kicker mb-4 block">Train smarter</span>
-            <h2 className="lp-display text-4xl md:text-5xl font-semibold">
-              Every rep with <span className="lp-underline">purpose.</span>
-            </h2>
-          </motion.div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
-            <ImageCard
-              image={`${BASE_URL}lp-form.webp`}
-              icon={ScanLine}
-              eyebrow="Coach in your pocket"
-              title="Know exactly"
-              highlight="what to do"
-              desc="Ask the AI coach anything — substitutions, intensity, technique cues, or a shorter session. It answers in your context and updates your plan instantly."
-            />
-            <ImageCard
-              image={`${BASE_URL}lp-flexible.webp`}
-              icon={Activity}
-              eyebrow="Built for real life"
-              title="Adapts"
-              highlight="when you do"
-              desc="Injuries, travel, busy weeks — ALLUR reshapes your training and nutrition around reality so you keep moving forward instead of starting over."
-              delay={0.1}
-            />
-          </div>
-        </div>
-      </section>
-
       {/* OBJECTIONS — #050816 */}
       <section className="py-24 md:py-32" style={{ backgroundColor: "var(--lp-bg)" }}>
         <div className="max-w-4xl mx-auto px-6">
@@ -1382,40 +1382,6 @@ export default function Landing() {
               ]}
               caption="Snap a meal — your macros, read from the photo and logged in seconds."
             />
-          </div>
-        </div>
-      </section>
-
-      {/* PROOF / STAT BAND — #08111F with teal top-accents */}
-      <section className="py-24 md:py-28 relative overflow-hidden" style={{ backgroundColor: "var(--lp-bg-proof)" }}>
-        <div className="absolute inset-0 lp-halo opacity-50" />
-        <div className="max-w-6xl mx-auto px-6 relative z-10">
-          <div className="text-center mb-14">
-            <h2 className="lp-display text-3xl md:text-5xl font-semibold">
-              One system. <span style={{ color: "var(--lp-cyan)" }}>Everything covered.</span>
-            </h2>
-          </div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 md:gap-6">
-            {[
-              { stat: "1", unit: "Adaptive system", label: "Training, nutrition, and coaching in one place" },
-              { stat: "24/7", unit: "AI coach", label: "Answers and plan changes whenever life shifts" },
-              { stat: "Photo", unit: "Macro logging", label: "Snap a meal — calories and macros in seconds" },
-              { stat: "Real", unit: "Sports science", label: "Evidence-based volume and progression built in" }
-            ].map((s, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 24 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: i * 0.08 }}
-                className="lp-card lp-card-hover relative p-7 text-center"
-                style={{ borderTop: "2px solid rgba(45,212,191,0.5)" }}
-              >
-                <div className="lp-display text-4xl md:text-5xl font-bold mb-1" style={{ color: "var(--lp-cyan)" }}>{s.stat}</div>
-                <div className="lp-display text-sm md:text-base font-semibold text-[var(--lp-text)] mb-3">{s.unit}</div>
-                <p className="text-xs md:text-sm text-[var(--lp-muted)] leading-relaxed">{s.label}</p>
-              </motion.div>
-            ))}
           </div>
         </div>
       </section>
