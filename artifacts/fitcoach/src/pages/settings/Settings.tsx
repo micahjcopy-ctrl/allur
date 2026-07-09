@@ -18,6 +18,8 @@ import {
   type UserProfile,
 } from "@/context/FitCoachContext";
 import { physiqueOptionsFor } from "@/data/physiques";
+import { Switch } from "@/components/ui/switch";
+import { TOGGLEABLE_FEATURES, isEnabled } from "@/lib/features";
 import { useToast } from "@/hooks/use-toast";
 import { WelcomeTour } from "@/components/WelcomeTour";
 import { ChevronLeft, Loader2, PlayCircle, ChevronRight } from "lucide-react";
@@ -52,7 +54,7 @@ function UnitToggle({
 }
 
 export default function Settings() {
-  const { profile, setProfile, goal, setGoal } = useFitCoach();
+  const { profile, setProfile, goal, setGoal, featureToggles, setFeatureToggle } = useFitCoach();
   const { toast } = useToast();
   const [, navigate] = useLocation();
 
@@ -276,6 +278,37 @@ export default function Settings() {
               <div key={m.label}>
                 <div className="text-lg font-bold">{m.value}</div>
                 <div className="text-[11px] text-muted-foreground">{m.label}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Customize your app — modular feature toggles */}
+        <section className="space-y-2">
+          <h3 className="font-semibold text-sm text-muted-foreground">Customize your app</h3>
+          <p className="text-xs text-muted-foreground">
+            Hide the modules you don't use. Nothing is deleted — your data is
+            waiting if you turn one back on.
+          </p>
+          <div className="rounded-xl border border-border divide-y divide-border">
+            {TOGGLEABLE_FEATURES.map((f) => (
+              <div key={f.key} className="flex items-center justify-between p-4 gap-3">
+                <div className="min-w-0">
+                  <p className="font-medium text-sm">{f.label}</p>
+                  <p className="text-xs text-muted-foreground">{f.description}</p>
+                </div>
+                <Switch
+                  checked={isEnabled(featureToggles, f.key)}
+                  onCheckedChange={(on) => {
+                    setFeatureToggle(f.key, on);
+                    toast({
+                      title: on ? `${f.label} turned on` : `${f.label} hidden`,
+                      description: on
+                        ? "Back in your navigation."
+                        : "Turn it back on here anytime.",
+                    });
+                  }}
+                />
               </div>
             ))}
           </div>
