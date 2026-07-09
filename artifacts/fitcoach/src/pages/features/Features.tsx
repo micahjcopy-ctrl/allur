@@ -9,27 +9,26 @@ import {
   RefreshCw,
   Brain,
   LineChart,
+  MessageSquare,
 } from "lucide-react";
 import PageShell from "@/components/PageShell";
 import { useSeo } from "@/hooks/useSeo";
 import {
-  PhoneMock,
   RadialHub,
   ComparisonTable,
   StatRow,
   FloatingChips,
   Reveal,
+  FlowDiagram,
+  BarChart,
+  ScoreGauge,
+  AdaptiveChart,
 } from "@/components/marketing/Graphics";
-import {
-  CoachChatMock,
-  MacroScanMock,
-  PhysiqueScanMock,
-  PlanMock,
-} from "@/components/marketing/Mocks";
 
 // /features — hub page for the feature spokes (hub-and-spoke SEO architecture).
-// Each section keeps a stable id so future spoke pages (/features/ai-coach etc.)
-// can take over the deep links without breaking anything.
+// Each feature is explained with an IDEA diagram (flow / chart / gauge / trend),
+// not an app screenshot. Each section keeps a stable id so future spoke pages
+// (/features/ai-coach etc.) can take over the deep links without breaking.
 
 const FEATURES = [
   {
@@ -45,7 +44,6 @@ const FEATURES = [
       "Answers grounded in a research-backed training knowledge base",
       "Available every day, not just at your weekly check-in",
     ],
-    Mock: CoachChatMock,
   },
   {
     id: "workout-plans",
@@ -60,7 +58,6 @@ const FEATURES = [
       "Progressive overload managed for you, session by session",
       "Recalibrates after missed workouts instead of guilt-tripping you",
     ],
-    Mock: PlanMock,
   },
   {
     id: "macro-tracker",
@@ -75,7 +72,6 @@ const FEATURES = [
       "Targets set from your goal and updated with your plan",
       "Keeps nutrition awareness from becoming a second job",
     ],
-    Mock: MacroScanMock,
   },
   {
     id: "physique-analysis",
@@ -90,10 +86,58 @@ const FEATURES = [
       "Private to your account — analysis happens for your eyes only",
       "Informational estimates, not medical advice",
     ],
-    Mock: PhysiqueScanMock,
     disclaimer: true,
   },
 ];
+
+function FeatureVisual({ id }: { id: string }) {
+  if (id === "ai-coach") {
+    return (
+      <FlowDiagram
+        steps={[
+          { label: "You ask", sub: "text or voice", icon: MessageSquare },
+          { label: "Reads your context", sub: "history, injuries", icon: Brain },
+          { label: "Rewrites the plan", sub: "workouts + macros", icon: RefreshCw },
+          { label: "Live", sub: "the moment you agree", icon: Zap },
+        ]}
+      />
+    );
+  }
+  if (id === "workout-plans") {
+    return (
+      <BarChart
+        data={[
+          { label: "Wk 1", value: 60 },
+          { label: "Wk 2", value: 72 },
+          { label: "Wk 3", value: 84 },
+          { label: "Wk 4", value: 64 },
+          { label: "Wk 5", value: 92, highlight: true },
+        ]}
+        caption="Training volume ramps, then deloads — progressive overload, managed for you."
+      />
+    );
+  }
+  if (id === "macro-tracker") {
+    return (
+      <ScoreGauge
+        value={92}
+        label="On target today"
+        caption="Snap a meal and your calories and macros are logged in seconds — no weighing or searching."
+      />
+    );
+  }
+  // physique-analysis
+  return (
+    <AdaptiveChart
+      height={210}
+      markers={[{ at: 2, label: "check-in" }, { at: 4, label: "check-in" }]}
+      series={[
+        { label: "What the mirror shows you", kind: "rigid", points: [40, 43, 39, 42, 40, 41] },
+        { label: "What ALLUR measures", kind: "allur", points: [40, 47, 53, 60, 67, 74] },
+      ]}
+    />
+  );
+}
 
 export default function Features() {
   const [, setLocation] = useLocation();
@@ -145,7 +189,7 @@ export default function Features() {
         </div>
       </section>
 
-      {/* FEATURE SECTIONS — alternating text / phone-mock */}
+      {/* FEATURE SECTIONS — alternating text / idea-diagram */}
       {FEATURES.map((f, i) => {
         const flip = i % 2 === 1;
         return (
@@ -190,11 +234,9 @@ export default function Features() {
                   </p>
                 )}
               </div>
-              {/* phone mock */}
+              {/* idea diagram */}
               <Reveal delay={0.1} className={flip ? "lg:order-1" : ""}>
-                <PhoneMock>
-                  <f.Mock />
-                </PhoneMock>
+                <FeatureVisual id={f.id} />
               </Reveal>
             </div>
           </section>
