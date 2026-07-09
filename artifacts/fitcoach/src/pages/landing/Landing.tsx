@@ -1554,6 +1554,7 @@ export default function Landing() {
           <div className="pt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-[var(--lp-muted)]" style={{ borderTop: "1px solid var(--lp-border)" }}>
             <p>© {new Date().getFullYear()} ALLUR. All rights reserved.</p>
             <div className="flex gap-6">
+              <button onClick={() => setLocation("/pricing")} className="hover:text-[var(--lp-text)] transition-colors">Pricing</button>
               <button onClick={() => setLocation("/get")} className="hover:text-[var(--lp-text)] transition-colors">Get the app</button>
               <button onClick={() => setLocation("/privacy")} className="hover:text-[var(--lp-text)] transition-colors">Privacy Policy</button>
               <button onClick={() => setLocation("/terms")} className="hover:text-[var(--lp-text)] transition-colors">Terms of Service</button>
