@@ -241,8 +241,8 @@ export function RadialHub({
               marginLeft: -44,
               marginTop: -44,
             }}
-            initial={{ scale: 0, opacity: 0 }}
-            animate={inView || reduced ? { scale: 1, opacity: 1 } : {}}
+            initial={{ opacity: 0 }}
+            animate={inView || reduced ? { opacity: 1 } : {}}
             transition={{ duration: 0.45, delay: 0.4 + i * 0.12, ease: [0.16, 1, 0.3, 1] }}
           >
             <div className="lp-card lp-card-hover w-[88px] h-[88px] rounded-2xl flex flex-col items-center justify-center gap-1 px-2">
