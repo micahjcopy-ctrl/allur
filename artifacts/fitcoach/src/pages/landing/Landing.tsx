@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useSeo } from "@/hooks/useSeo";
+import SiteNav from "@/components/SiteNav";
+import SiteFooter from "@/components/SiteFooter";
 import { useLocation } from "wouter";
 import { motion, MotionConfig, useScroll, useTransform, useMotionValueEvent, useReducedMotion, useInView, AnimatePresence } from "framer-motion";
 import {
@@ -770,7 +772,7 @@ export default function Landing() {
 
   return (
     <div className="allur-lp w-full min-h-screen overflow-x-clip">
-      <Navbar />
+      <SiteNav />
 
       {/* HERO — #050816 with a faint cyan halo echoing the logo ring */}
       <section ref={heroRef} className="relative pt-32 pb-24 md:pt-40 md:pb-32 overflow-hidden flex items-center min-h-[100vh]">
@@ -1519,52 +1521,7 @@ export default function Landing() {
       </section>
 
       {/* FOOTER — #03060D */}
-      <footer id="faq" className="border-t border-[var(--lp-border)] pt-20 pb-10" style={{ backgroundColor: "var(--lp-bg-footer)" }}>
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-16 mb-20">
-            <div>
-              <img src={`${BASE_URL}allur-logo.png`} alt="ALLUR" className="h-6 mb-6" />
-              <p className="text-[var(--lp-muted)] max-w-sm leading-relaxed">
-                The premium AI body-transformation coach, built to adapt to real life.
-              </p>
-            </div>
-            <div>
-              <h4 className="lp-display text-lg font-semibold mb-6 text-[var(--lp-text)]">Frequently asked questions</h4>
-              <Accordion type="single" collapsible className="w-full">
-                <AccordionItem value="f1" style={{ borderColor: "var(--lp-border)" }}>
-                  <AccordionTrigger className="text-left font-medium text-[var(--lp-text)]">Is ALLUR just another fitness tracker?</AccordionTrigger>
-                  <AccordionContent className="text-[var(--lp-muted)]">No. Most trackers log what already happened. ALLUR helps guide what to do next and adapts when your body or circumstances change.</AccordionContent>
-                </AccordionItem>
-                <AccordionItem value="f2" style={{ borderColor: "var(--lp-border)" }}>
-                  <AccordionTrigger className="text-left font-medium text-[var(--lp-text)]">Do I need to be experienced?</AccordionTrigger>
-                  <AccordionContent className="text-[var(--lp-muted)]">No. ALLUR works whether you're a beginner, getting back into shape, or already training and want a smarter system.</AccordionContent>
-                </AccordionItem>
-                <AccordionItem value="f3" style={{ borderColor: "var(--lp-border)" }}>
-                  <AccordionTrigger className="text-left font-medium text-[var(--lp-text)]">What if I have injuries?</AccordionTrigger>
-                  <AccordionContent className="text-[var(--lp-muted)]">ALLUR accounts for injuries and limitations during onboarding and can help adjust the plan if things change later.</AccordionContent>
-                </AccordionItem>
-                <AccordionItem value="f4" style={{ borderColor: "var(--lp-border)" }}>
-                  <AccordionTrigger className="text-left font-medium text-[var(--lp-text)]">Is this for weight loss or muscle building?</AccordionTrigger>
-                  <AccordionContent className="text-[var(--lp-muted)]">Both. ALLUR supports physique transformation broadly — fat loss, muscle gain, recomposition, and aesthetic goals depending on your inputs.</AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            </div>
-          </div>
-
-          <div className="pt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-[var(--lp-muted)]" style={{ borderTop: "1px solid var(--lp-border)" }}>
-            <p>© {new Date().getFullYear()} ALLUR. All rights reserved.</p>
-            <div className="flex gap-6">
-              <button onClick={() => setLocation("/pricing")} className="hover:text-[var(--lp-text)] transition-colors">Pricing</button>
-              <button onClick={() => setLocation("/get")} className="hover:text-[var(--lp-text)] transition-colors">Get the app</button>
-              <button onClick={() => setLocation("/privacy")} className="hover:text-[var(--lp-text)] transition-colors">Privacy Policy</button>
-              <button onClick={() => setLocation("/terms")} className="hover:text-[var(--lp-text)] transition-colors">Terms of Service</button>
-              <button onClick={() => setLocation("/about")} className="hover:text-[var(--lp-text)] transition-colors">About</button>
-              <button onClick={() => setLocation("/disclaimer")} className="hover:text-[var(--lp-text)] transition-colors">Disclaimer</button>
-              <a href="mailto:raiden@getallur.com" className="hover:text-[var(--lp-text)] transition-colors">Contact</a>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }
