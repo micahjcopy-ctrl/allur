@@ -12,6 +12,19 @@ import {
   useGetAdminStatus,
   getGetAdminStatusQueryKey,
 } from "@workspace/api-client-react";
+import {
+  resolveFeatureToggles,
+  type FeatureKey,
+  type FeatureToggles,
+} from "@/lib/features";
+import {
+  activityCaloriesOn,
+  applyActivityCalories,
+  buildCardioLoadSummary,
+  slimCardioForPersist,
+  type CardioActivity,
+  type CardioLoadSummary,
+} from "@/lib/cardio";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
 
@@ -659,6 +672,15 @@ interface FitCoachState {
   // workout OR a completed rest day. Derived from workoutSessions + restDaysCompleted.
   workoutStreak: number;
   macroTarget: MacroBreakdown;
+  // Cardio-adjusted daily targets (earned activity calories folded in).
+  macroTargetAdjusted: MacroBreakdown;
+  todayActiveCalories: number;
+  featureToggles: FeatureToggles;
+  setFeatureToggle: (key: FeatureKey, on: boolean) => void;
+  cardioActivities: CardioActivity[];
+  addCardioActivity: (a: CardioActivity) => void;
+  removeCardioActivity: (id: string) => void;
+  cardioLoad: CardioLoadSummary;
   physiqueAnalysis: PhysiqueAnalysis | null; // active (latest-week) analysis, for dashboard/coach/plan
   physiqueAnalyses: PhysiqueAnalysis[]; // one analysis per analyzed week
   adminMode: boolean;
@@ -777,6 +799,9 @@ interface PersistedFitCoachState {
   // One-time marker: legacy auto-seeded bodyweight entries have been stripped
   // from weightLogs for this account.
   autoSeedCleaned?: boolean;
+  // Modular feature toggles (saved choices only; defaults come from goal).
+  featureToggles?: FeatureToggles;
+  cardioActivities?: CardioActivity[];
 }
 
 // Best-effort: figure out which week a legacy (week-less) analysis belongs to by
@@ -804,6 +829,8 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
   const [prs, setPrs] = useState<PR[]>([]);
   const [weightLogs, setWeightLogs] = useState<WeightLog[]>([]);
   const [autoSeedCleaned, setAutoSeedCleaned] = useState(false);
+  const [rawFeatureToggles, setRawFeatureToggles] = useState<FeatureToggles>({});
+  const [cardioActivities, setCardioActivities] = useState<CardioActivity[]>([]);
   const [progressPhotos, setProgressPhotos] = useState<ProgressPhoto[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [meals, setMeals] = useState<MealEntry[]>([]);
@@ -825,6 +852,27 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
 
   const macroTarget = computeMacroTarget(profile, goal);
+
+  // --- Cardio + feature toggles --------------------------------------------
+  const featureToggles = useMemo(
+    () => resolveFeatureToggles(rawFeatureToggles, goal),
+    [rawFeatureToggles, goal],
+  );
+  const setFeatureToggle = (key: FeatureKey, on: boolean) =>
+    setRawFeatureToggles((prev) => ({ ...prev, [key]: on }));
+  const addCardioActivity = (a: CardioActivity) =>
+    setCardioActivities((prev) => [...prev, a]);
+  const removeCardioActivity = (id: string) =>
+    setCardioActivities((prev) => prev.filter((x) => x.id !== id));
+  const todayActiveCalories = useMemo(
+    () => activityCaloriesOn(cardioActivities, new Date()),
+    [cardioActivities],
+  );
+  const macroTargetAdjusted = applyActivityCalories(macroTarget, todayActiveCalories);
+  const cardioLoad = useMemo(
+    () => buildCardioLoadSummary(cardioActivities, new Date()),
+    [cardioActivities],
+  );
 
   // --- Per-user persistence -------------------------------------------------
   const { authUser } = useAccount();
@@ -974,6 +1022,8 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
   const hydrateFrom = (state: PersistedFitCoachState) => {
     setOnboardingComplete(state.onboardingComplete);
     setProgramStartDate(state.programStartDate ?? null);
+    setRawFeatureToggles(state.featureToggles ?? {});
+    setCardioActivities(state.cardioActivities ?? []);
     // Merge over EMPTY_PROFILE so older saves (made before the training-setup
     // fields existed) still have the new array/string fields defined — the
     // optimizer and onboarding chips call .includes/.map on them. Also map any
@@ -1125,6 +1175,8 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
       enhancedGoalPhoto,
       notificationPrefs,
       autoSeedCleaned,
+      featureToggles: rawFeatureToggles,
+      cardioActivities,
     }),
     [
       onboardingComplete,
@@ -1143,6 +1195,8 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
       enhancedGoalPhoto,
       notificationPrefs,
       autoSeedCleaned,
+      rawFeatureToggles,
+      cardioActivities,
     ],
   );
 
@@ -1155,6 +1209,9 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
     url && url.startsWith("data:") && url.length > MAX_PERSISTED_PHOTO_CHARS ? "" : url;
   const slimForPersist = (s: PersistedFitCoachState): PersistedFitCoachState => ({
     ...s,
+    cardioActivities: s.cardioActivities
+      ? slimCardioForPersist(s.cardioActivities)
+      : undefined,
     meals: s.meals.map((m) => ({ ...m, photoUrl: slimPhoto(m.photoUrl) })),
     progressPhotos: s.progressPhotos.map((p) => ({ ...p, url: slimPhoto(p.url) })),
     enhancedGoalPhoto:
@@ -1642,6 +1699,14 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
         addChatMessage,
         meals,
         macroTarget,
+        macroTargetAdjusted,
+        todayActiveCalories,
+        featureToggles,
+        setFeatureToggle,
+        cardioActivities,
+        addCardioActivity,
+        removeCardioActivity,
+        cardioLoad,
         addMeal,
         removeMeal,
         workoutSessions,
