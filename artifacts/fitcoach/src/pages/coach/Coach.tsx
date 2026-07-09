@@ -4,6 +4,7 @@ import { useFitCoach, composeGuideline, composeEquipment, composeDislikes, compo
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { describeCardioLoad } from "@/lib/cardio";
 import { OUT_OF_CREDITS_STATUS, outOfCreditsToast } from "@/lib/credits";
 import { LockedFeature } from "@/components/subscription/LockedFeature";
 import { Send, Cpu, Sparkles, CheckCircle2, Mic, Square, Loader2 } from "lucide-react";
@@ -76,6 +77,7 @@ export default function Coach() {
     programMeta,
     setProgramMeta,
     physiqueAnalysis,
+    cardioLoad,
   } = useFitCoach();
   const { toast } = useToast();
   const recorder = useVoiceRecorder();
@@ -104,7 +106,11 @@ export default function Coach() {
       name: profile.name,
       experience: profile.experience,
       targetPhysique: physiqueLabel(profile.targetPhysique),
-      activityLevel: profile.activityLevel,
+      // Cardio load rides along with activity level so the coach model sees
+      // recent sessions without a server contract change (Phase 1).
+      activityLevel: [profile.activityLevel, describeCardioLoad(cardioLoad)]
+        .filter(Boolean)
+        .join(". "),
       injuries: composeGuideline(profile.injuries, profile.injuryNotes),
       dietary: composeGuideline(profile.dietary, profile.dietaryNotes),
       equipment: composeEquipment(profile),
