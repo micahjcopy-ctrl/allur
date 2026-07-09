@@ -651,3 +651,146 @@ export function AdaptiveChart({
     </div>
   );
 }
+
+// --- SystemHub — all-in-one system map (hero-scale) -------------------------
+// A bigger, richer version of RadialHub for the landing hero. ALLUR sits at
+// the centre; every real feature orbits it, wired in with animated beams and
+// data pulses travelling from the core to each node. Reads instantly as
+// "one system that runs everything."
+export function SystemHub({
+  centerTitle = "ALLUR",
+  centerSub = "one system",
+  nodes,
+}: {
+  centerTitle?: string;
+  centerSub?: string;
+  nodes: { label: string; sub?: string; icon: ElementType }[];
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { once: true, amount: 0.3 });
+  const reduced = useReducedMotion();
+  const R = 41; // orbit radius in viewBox units
+  const pos = nodes.map((_, i) => {
+    const a = (-90 + i * (360 / nodes.length)) * (Math.PI / 180);
+    return { x: 50 + R * Math.cos(a), y: 50 + R * Math.sin(a) };
+  });
+
+  return (
+    <div ref={ref} className="relative aspect-square w-full max-w-[600px] mx-auto select-none">
+      {/* slow-rotating dashed orbit */}
+      <motion.div
+        className="absolute inset-[7%] rounded-full border border-dashed pointer-events-none"
+        style={{ borderColor: "rgba(110,231,242,0.16)" }}
+        animate={reduced ? undefined : { rotate: 360 }}
+        transition={{ duration: 80, repeat: Infinity, ease: "linear" }}
+      />
+      {/* beams + rings + pulses */}
+      <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full pointer-events-none">
+        <defs>
+          <linearGradient id="hubBeam" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor={CYAN} />
+            <stop offset="100%" stopColor={TEAL} />
+          </linearGradient>
+        </defs>
+        <circle cx="50" cy="50" r="20" fill="none" stroke="rgba(110,231,242,0.10)" strokeWidth="0.3" />
+        <circle cx="50" cy="50" r="30" fill="none" stroke="rgba(110,231,242,0.07)" strokeWidth="0.3" strokeDasharray="1.5 2.5" />
+        {pos.map((p, i) => (
+          <motion.line
+            key={`b-${i}`}
+            x1={50}
+            y1={50}
+            x2={p.x}
+            y2={p.y}
+            stroke="url(#hubBeam)"
+            strokeWidth="0.45"
+            strokeOpacity="0.5"
+            strokeLinecap="round"
+            initial={{ pathLength: 0, opacity: 0 }}
+            animate={inView || reduced ? { pathLength: 1, opacity: 1 } : {}}
+            transition={{ duration: 0.9, delay: 0.25 + i * 0.12, ease: "easeOut" }}
+          />
+        ))}
+        {/* data pulses travelling core → node */}
+        {!reduced &&
+          pos.map((p, i) => (
+            <motion.circle
+              key={`p-${i}`}
+              r="1"
+              fill={CYAN}
+              initial={{ opacity: 0 }}
+              animate={
+                inView
+                  ? { cx: [50, p.x], cy: [50, p.y], opacity: [0, 0.9, 0] }
+                  : {}
+              }
+              transition={{
+                duration: 2.1,
+                delay: 1.2 + i * 0.7,
+                repeat: Infinity,
+                repeatDelay: nodes.length * 0.7 - 2.1 + 1.4,
+                ease: "easeInOut",
+              }}
+            />
+          ))}
+      </svg>
+
+      {/* centre core */}
+      <div
+        className="absolute"
+        style={{ left: "50%", top: "50%", transform: "translate(-50%, -50%)" }}
+      >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={inView || reduced ? { opacity: 1, scale: 1 } : {}}
+          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+          className="relative w-32 h-32 md:w-36 md:h-36 rounded-full flex flex-col items-center justify-center text-center"
+          style={{
+            background: "radial-gradient(circle at 50% 35%, rgba(110,231,242,0.14), rgba(11,17,32,0.9) 70%)",
+            border: "1px solid rgba(110,231,242,0.45)",
+            boxShadow: "0 0 60px -10px rgba(110,231,242,0.45), inset 0 0 30px -12px rgba(110,231,242,0.35)",
+          }}
+        >
+          <span className="lp-display text-xl md:text-2xl font-bold tracking-[0.18em] text-[var(--lp-text)]">
+            {centerTitle}
+          </span>
+          <span className="text-[10px] md:text-[11px] uppercase tracking-[0.22em] mt-1" style={{ color: CYAN }}>
+            {centerSub}
+          </span>
+        </motion.div>
+      </div>
+
+      {/* feature nodes */}
+      {nodes.map((n, i) => {
+        const Icon = n.icon;
+        return (
+          <div
+            key={n.label}
+            className="absolute"
+            style={{ left: `${pos[i].x}%`, top: `${pos[i].y}%`, transform: "translate(-50%, -50%)" }}
+          >
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={inView || reduced ? { opacity: 1 } : {}}
+              transition={{ duration: 0.5, delay: 0.45 + i * 0.12 }}
+              className="lp-card flex items-center gap-2.5 md:gap-3 rounded-2xl px-3.5 py-2.5 md:px-4 md:py-3 whitespace-nowrap"
+              style={{ borderColor: "rgba(110,231,242,0.28)", backgroundColor: "rgba(11,17,32,0.92)" }}
+            >
+              <span
+                className="w-8 h-8 md:w-9 md:h-9 rounded-lg flex items-center justify-center shrink-0"
+                style={{ backgroundColor: "rgba(110,231,242,0.12)" }}
+              >
+                <Icon className="w-4 h-4 md:w-[18px] md:h-[18px]" style={{ color: CYAN }} />
+              </span>
+              <span className="flex flex-col leading-tight text-left">
+                <span className="lp-display text-sm md:text-[15px] font-semibold text-[var(--lp-text)]">{n.label}</span>
+                {n.sub && (
+                  <span className="text-[10px] md:text-[11px] text-[var(--lp-muted)]">{n.sub}</span>
+                )}
+              </span>
+            </motion.div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
