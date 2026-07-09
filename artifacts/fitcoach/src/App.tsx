@@ -32,6 +32,7 @@ import Terms from "@/pages/legal/Terms";
 import About from "@/pages/legal/About";
 import Disclaimer from "@/pages/legal/Disclaimer";
 import Pricing from "@/pages/pricing/Pricing";
+import Features from "@/pages/features/Features";
 import InstallAppPrompt from "@/components/InstallAppPrompt";
 
 const queryClient = new QueryClient();
@@ -116,6 +117,7 @@ function AuthGate() {
     if (location === "/privacy" || location === "/terms") return;
     if (location === "/about" || location === "/disclaimer") return;
     if (location === "/pricing") return;
+    if (location === "/features") return;
     if (import.meta.env.DEV && location === "/paywall") return;
     if (isLoading) return;
     if (!authUser) {
@@ -178,6 +180,9 @@ function AuthGate() {
   }
   if (location === "/pricing") {
     return <Pricing />;
+  }
+  if (location === "/features") {
+    return <Features />;
   }
 
   // DEV-only: let the upfront payment screen be previewed directly, even when
