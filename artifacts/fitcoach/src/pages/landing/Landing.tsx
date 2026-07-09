@@ -2,8 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useSeo } from "@/hooks/useSeo";
 import SiteNav from "@/components/SiteNav";
 import SiteFooter from "@/components/SiteFooter";
-import { PhoneMock } from "@/components/marketing/Graphics";
-import { CoachChatMock, MacroScanMock } from "@/components/marketing/Mocks";
+import { AdaptiveChart, BarChart, FlowDiagram } from "@/components/marketing/Graphics";
 import { useLocation } from "wouter";
 import { motion, MotionConfig, useScroll, useTransform, useMotionValueEvent, useReducedMotion, useInView, AnimatePresence } from "framer-motion";
 import {
@@ -782,11 +781,12 @@ export default function Landing() {
         </motion.div>
 
         <motion.div style={{ y: heroTextY, opacity: heroOpacity }} className="max-w-7xl mx-auto px-6 relative z-10 w-full">
+         <div className="grid lg:grid-cols-2 gap-10 lg:gap-10 items-center">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-            className="max-w-4xl"
+            className="max-w-xl"
           >
             <div
               className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-7 backdrop-blur-sm border lp-kicker"
@@ -827,27 +827,22 @@ export default function Landing() {
               <span className="text-[var(--lp-text)]">14-day free trial</span> · Cancel anytime
             </p>
           </motion.div>
-        </motion.div>
 
-        {/* floating live app console — sets the command-center tone */}
-        <motion.div
-          initial={{ opacity: 0, x: 40 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.6, duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
-          style={prefersReduced ? undefined : { y: heroPhoneY }}
-          className="absolute right-12 top-1/2 -translate-y-1/2 z-[6] hidden 2xl:block"
-        >
-          <div className="relative">
-            <div
-              className="absolute inset-0 -z-10 blur-3xl rounded-full"
-              style={{ background: "radial-gradient(circle, rgba(110,231,242,0.18), transparent 70%)" }}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.4, duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+            className="hidden lg:block"
+          >
+            <AdaptiveChart
+              markers={[{ at: 3, label: "shoulder tweak" }, { at: 4, label: "busy week" }, { at: 5, label: "travel" }]}
+              series={[
+                { label: "Most plans", kind: "rigid", points: [28, 44, 58, 52, 46, 42, 40] },
+                { label: "With ALLUR", kind: "allur", points: [28, 42, 54, 50, 60, 71, 84] },
+              ]}
             />
-            <PhoneFrame>
-              <DashboardScreen />
-            </PhoneFrame>
-            <FloatingCallout icon={Activity} label="Adapting now" value="Live" position="tl" />
-            <FloatingCallout icon={Flame} label="Streak" value="12 days" position="br" />
-          </div>
+          </motion.div>
+         </div>
         </motion.div>
 
         <motion.div
@@ -1214,7 +1209,14 @@ export default function Landing() {
             transition={{ duration: 0.6 }}
             className="relative"
           >
-            <PhoneMock><CoachChatMock /></PhoneMock>
+            <FlowDiagram
+              steps={[
+                { label: "Life hits", sub: "injury, 30 min, travel", icon: Zap },
+                { label: "Coach adjusts", sub: "reads your context", icon: Brain },
+                { label: "Plan adapts", sub: "workouts + macros", icon: Activity },
+                { label: "Progress holds", sub: "you keep going", icon: LineChart },
+              ]}
+            />
           </motion.div>
 
           <motion.div
@@ -1372,7 +1374,14 @@ export default function Landing() {
             </button>
           </div>
           <div className="flex-1">
-            <PhoneMock><MacroScanMock /></PhoneMock>
+            <BarChart
+              data={[
+                { label: "Protein", value: 80, highlight: true },
+                { label: "Carbs", value: 62 },
+                { label: "Fat", value: 45 },
+              ]}
+              caption="Snap a meal — your macros, read from the photo and logged in seconds."
+            />
           </div>
         </div>
       </section>
