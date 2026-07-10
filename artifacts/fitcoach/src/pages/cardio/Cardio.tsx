@@ -19,6 +19,7 @@ import {
   slimTrack,
   type ActivityType,
   type CardioActivity,
+  type RouteSuggestion,
   type TrackPoint,
   type UnitSystem,
 } from "@/lib/cardio";
@@ -137,6 +138,9 @@ export default function Cardio() {
   const [manualOpen, setManualOpen] = useState(false);
   const [manualMin, setManualMin] = useState("30");
   const [manualDist, setManualDist] = useState("2.0");
+  const [suggestions, setSuggestions] = useState<RouteSuggestion[] | null>(null);
+  const [suggestBusy, setSuggestBusy] = useState(false);
+  const [suggestHidden, setSuggestHidden] = useState(false);
 
   const watchIdRef = useRef<number | null>(null);
   const startedAtRef = useRef<number>(0);
@@ -302,6 +306,53 @@ export default function Cardio() {
     toast({ title: `${ACTIVITY_LABELS[type]} logged — ${calories} kcal`, description: "Added to today's macro targets." });
   };
 
+  // Scenic loop ideas from the server-side route provider (Phase 2 — ORS).
+  // A 501 means no provider key is configured yet: hide the button quietly.
+  const apiBase = () => import.meta.env.BASE_URL.replace(/\/+$/, "");
+  const suggestRoutes = () => {
+    if (suggestBusy) return;
+    if (!("geolocation" in navigator)) {
+      toast({ variant: "destructive", title: "This device doesn't expose GPS to the app." });
+      return;
+    }
+    setSuggestBusy(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const target = { run: 5000, walk: 3000, hike: 8000, cycle: 20000 }[type];
+          const res = await fetch(`${apiBase()}/api/cardio/route-suggestions`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+              lat: pos.coords.latitude,
+              lon: pos.coords.longitude,
+              type,
+              targetDistanceM: target,
+            }),
+          });
+          if (res.status === 501) {
+            setSuggestHidden(true);
+            toast({ title: "Route suggestions coming soon", description: "This feature isn't switched on for your account yet." });
+            return;
+          }
+          if (!res.ok) throw new Error(String(res.status));
+          const data = (await res.json()) as { suggestions: RouteSuggestion[] };
+          setSuggestions(data.suggestions);
+        } catch {
+          toast({ variant: "destructive", title: "Couldn't fetch routes", description: "Try again in a moment." });
+        } finally {
+          setSuggestBusy(false);
+        }
+      },
+      () => {
+        setSuggestBusy(false);
+        toast({ variant: "destructive", title: "Location needed", description: "Allow location access to get route ideas." });
+      },
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 },
+    );
+  };
+
   const todayKcal = activityCaloriesOn(cardioActivities, new Date());
   const history = useMemo(
     () => [...cardioActivities].sort((a, b) => (a.finishedAt < b.finishedAt ? 1 : -1)),
@@ -459,6 +510,33 @@ export default function Cardio() {
         >
           No GPS? Log a session manually
         </button>
+
+        {!suggestHidden && (
+          <Button variant="secondary" className="w-full h-11" onClick={suggestRoutes} disabled={suggestBusy}>
+            <MapPin className="w-4 h-4 mr-2" />
+            {suggestBusy ? "Finding scenic loops…" : "Suggest a scenic route"}
+          </Button>
+        )}
+
+        {suggestions && suggestions.length > 0 && (
+          <div className="space-y-3">
+            {suggestions.map((r) => (
+              <Card key={r.name} className="border-border">
+                <CardContent className="p-4 flex items-center gap-4">
+                  <div className="w-16 h-16 shrink-0 rounded-lg bg-secondary/50">
+                    <RouteTrace points={r.polyline.map((p, i) => ({ t: i, lat: p.lat, lon: p.lon }))} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-sm">{r.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {fmtDistance(r.distanceM, units)} · {fmtElevation(r.elevGainM, units)} climb
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
 
         {manualOpen && (
           <Card className="border-border">
