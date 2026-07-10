@@ -5,8 +5,9 @@ import { useFitCoach, dayKeyOf } from "@/context/FitCoachContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Camera, Mic, Target, Flame, Zap, UtensilsCrossed, Gift, ChevronRight, Moon, CheckCircle2 } from "lucide-react";
+import { Activity, Camera, Mic, Target, Flame, Zap, UtensilsCrossed, Gift, ChevronRight, Moon, CheckCircle2 } from "lucide-react";
 import { Link, useLocation } from "wouter";
+import { isEnabled } from "@/lib/features";
 import { WelcomeTour, hasSeenTour } from "@/components/WelcomeTour";
 import { GettingStarted } from "@/components/GettingStarted";
 import { NotificationsBell } from "@/components/NotificationsBell";
@@ -21,7 +22,7 @@ const dayOffset = (dayName: string, todayIdx: number): number => {
 };
 
 export default function Dashboard() {
-  const { profile, goal, workoutPlan, credits, isPremium, meals, macroTarget, physiqueAnalyses, restDaysCompleted, toggleRestDayComplete } = useFitCoach();
+  const { profile, goal, workoutPlan, credits, isPremium, meals, macroTargetAdjusted: macroTarget, todayActiveCalories, featureToggles, cardioLoad, physiqueAnalyses, restDaysCompleted, toggleRestDayComplete } = useFitCoach();
   const [, setLocation] = useLocation();
   const [tourOpen, setTourOpen] = useState(false);
 
@@ -126,6 +127,7 @@ export default function Dashboard() {
         </div>
 
         {/* CALORIES LEFT — the other "what do I do next" number, front and center. */}
+        {isEnabled(featureToggles, "macros") && (
         <Card className="border-border bg-card/50 overflow-hidden">
           <CardContent className="p-5 space-y-4">
             <div className="flex items-center justify-between">
@@ -142,6 +144,11 @@ export default function Dashboard() {
                 <span className="text-sm font-medium text-muted-foreground"> kcal left today</span>
               </p>
             </div>
+            {todayActiveCalories > 0 && (
+              <p className="text-[11px] font-medium text-primary">
+                +{todayActiveCalories} kcal earned from cardio
+              </p>
+            )}
 
             <div className="h-2 rounded-full bg-secondary overflow-hidden">
               <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${calPct}%` }} />
@@ -160,8 +167,41 @@ export default function Dashboard() {
             </Link>
           </CardContent>
         </Card>
+        )}
+
+        {/* CARDIO — quick status + entry point; hidden when the module is off. */}
+        {isEnabled(featureToggles, "cardio") && (
+          <Link href="/cardio" className="block">
+            <Card className="border-border bg-card/50 hover:border-primary/50 transition-colors cursor-pointer">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-primary/20 rounded-full">
+                    <Activity className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-sm">Cardio</p>
+                    <p className="text-xs text-muted-foreground">
+                      {cardioLoad.sessions > 0
+                        ? `${cardioLoad.sessions} session${cardioLoad.sessions === 1 ? "" : "s"} · ${cardioLoad.totalKm} km this week`
+                        : "Track a run, ride, walk or hike"}
+                    </p>
+                  </div>
+                </div>
+                {todayActiveCalories > 0 ? (
+                  <div className="text-right">
+                    <p className="text-lg font-bold text-primary">+{todayActiveCalories}</p>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">kcal today</p>
+                  </div>
+                ) : (
+                  <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                )}
+              </CardContent>
+            </Card>
+          </Link>
+        )}
 
         <div className="grid grid-cols-2 gap-4">
+          {isEnabled(featureToggles, "progress") && (
           <Link href="/progress">
             <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full border-border bg-card/50">
               <CardContent className="p-4 flex flex-col items-center justify-center text-center gap-3 h-full">
@@ -172,6 +212,7 @@ export default function Dashboard() {
               </CardContent>
             </Card>
           </Link>
+          )}
           <Link href="/coach">
             <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full border-border bg-card/50">
               <CardContent className="p-4 flex flex-col items-center justify-center text-center gap-3 h-full">
