@@ -6,6 +6,7 @@ import coachRouter from "./coach";
 import meRouter from "./me";
 import stripeRouter from "./stripe";
 import socialRouter from "./social";
+import cardioRouter from "./cardio";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(coachRouter);
 router.use(meRouter);
 router.use(stripeRouter);
 router.use(socialRouter);
+router.use(cardioRouter);
 
 export default router;
