@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { MobileLayout } from "@/components/layout/MobileLayout";
 import { GoalPreview } from "@/components/GoalPreview";
+import { AllurScoreCard, PrShareButton } from "@/components/AllurScore";
 import { useFitCoach, buildPhysiqueAnalysisFromReply, buildPhysiqueContext, composeGuideline, physiqueLabel, MuscleStatus, AnalysisConfidence, PhysiqueAnalysisReply, PHOTO_ANGLES, type PhotoAngle, type ProgressPhoto, type Workout } from "@/context/FitCoachContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -528,6 +529,9 @@ export default function Progress() {
         </header>
 
         <GoalPreview />
+
+        {/* Allur Score — gamified physique score + share loop */}
+        <AllurScoreCard />
 
         {/* Transformation Timeline */}
         <section className="space-y-4">
@@ -1201,9 +1205,12 @@ export default function Progress() {
                       <p className="font-semibold">{pr.exercise}</p>
                       <p className="text-xs text-muted-foreground">{new Date(pr.date).toLocaleDateString()}</p>
                     </div>
-                    <div className="text-right">
-                      <p className="font-bold text-success">{pr.weight}</p>
-                      <p className="text-xs text-muted-foreground">{pr.reps} reps</p>
+                    <div className="flex items-center gap-1">
+                      <div className="text-right">
+                        <p className="font-bold text-success">{pr.weight}</p>
+                        <p className="text-xs text-muted-foreground">{pr.reps} reps</p>
+                      </div>
+                      <PrShareButton pr={pr} />
                     </div>
                   </div>
                 ))}
