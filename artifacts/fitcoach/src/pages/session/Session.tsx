@@ -8,6 +8,7 @@ import { useFitCoach, type SessionExercise } from "@/context/FitCoachContext";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { awardReps, completeQuest } from "@/lib/reps";
+import { suggestWeight, type WeightSuggestion } from "@/lib/predict";
 import {
   ChevronLeft,
   Check,
@@ -16,6 +17,7 @@ import {
   Dumbbell,
   CheckCircle2,
   Flag,
+  TrendingUp,
 } from "lucide-react";
 import type { WeightAnalysisReply } from "@workspace/api-client-react";
 
@@ -50,12 +52,14 @@ function ExerciseRow({
   onWeight,
   onSnap,
   snapping,
+  suggestion,
 }: {
   exercise: SessionExercise;
   onToggle: () => void;
   onWeight: (weight: number | null, unit: "kg" | "lb") => void;
   onSnap: () => void;
   snapping: boolean;
+  suggestion: WeightSuggestion | null;
 }) {
   const weightStr = exercise.weight == null ? "" : String(exercise.weight);
   return (
@@ -92,6 +96,19 @@ function ExerciseRow({
           </div>
         </div>
 
+        {exercise.weight == null && suggestion ? (
+          <div className="pl-10 space-y-1">
+            <button
+              type="button"
+              onClick={() => onWeight(suggestion.weight, suggestion.unit)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary"
+            >
+              <TrendingUp className="w-3.5 h-3.5" />
+              Suggested {suggestion.weight} {suggestion.unit}
+            </button>
+            <p className="text-[11px] text-muted-foreground">{suggestion.rationale}</p>
+          </div>
+        ) : null}
         <div className="flex items-center gap-2 pl-10">
           <div className="flex items-center gap-1.5">
             <Input
@@ -159,6 +176,17 @@ export default function Session() {
     () => workoutSessions.find((s) => s.id === sessionId) ?? null,
     [workoutSessions, sessionId],
   );
+
+  // Predictive next-set weights, learned from finished history (excluding this
+  // session). "ALLUR knows what you should lift next."
+  const suggestions = useMemo(() => {
+    const history = workoutSessions.filter((s) => s.id !== sessionId);
+    const map: Record<string, WeightSuggestion | null> = {};
+    for (const ex of session?.exercises ?? []) {
+      map[ex.name] = suggestWeight(history, ex.name, ex.targetReps, ex.unit);
+    }
+    return map;
+  }, [workoutSessions, sessionId, session]);
 
   const fileInput = useRef<HTMLInputElement | null>(null);
   const [snapTarget, setSnapTarget] = useState<string | null>(null);
@@ -325,6 +353,7 @@ export default function Session() {
               onWeight={(weight, unit) => logExerciseWeight(session.id, ex.name, weight, unit)}
               onSnap={() => requestSnap(ex.name)}
               snapping={snapTarget === ex.name}
+              suggestion={suggestions[ex.name] ?? null}
             />
           ))}
         </div>
