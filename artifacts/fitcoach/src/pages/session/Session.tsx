@@ -4,11 +4,13 @@ import { MobileLayout } from "@/components/layout/MobileLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { useFitCoach, type SessionExercise } from "@/context/FitCoachContext";
+import { useFitCoach, type PR, type SessionExercise } from "@/context/FitCoachContext";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { awardReps, completeQuest } from "@/lib/reps";
 import { suggestWeight, type WeightSuggestion } from "@/lib/predict";
+import { detectPRs, prHitToRecord } from "@/lib/prs";
+import { PrShareButton } from "@/components/AllurScore";
 import {
   ChevronLeft,
   Check,
@@ -18,6 +20,7 @@ import {
   CheckCircle2,
   Flag,
   TrendingUp,
+  Trophy,
 } from "lucide-react";
 import type { WeightAnalysisReply } from "@workspace/api-client-react";
 
@@ -170,6 +173,7 @@ export default function Session() {
     toggleExerciseComplete,
     logExerciseWeight,
     finishWorkoutSession,
+    addPR,
   } = useFitCoach();
 
   const session = useMemo(
@@ -191,6 +195,7 @@ export default function Session() {
   const fileInput = useRef<HTMLInputElement | null>(null);
   const [snapTarget, setSnapTarget] = useState<string | null>(null);
   const snapBusy = useRef(false);
+  const [prRecords, setPrRecords] = useState<PR[]>([]);
 
   if (!session) {
     return (
@@ -286,18 +291,64 @@ export default function Session() {
   };
 
   const handleFinish = () => {
+    const history = workoutSessions.filter((s) => s.id !== session.id);
+    const hits = detectPRs(session, history);
     finishWorkoutSession(session.id);
     void awardReps("workout");
     void completeQuest("first_workout");
-    toast({
-      title: "Workout complete",
-      description: `${completedCount} of ${total} exercises logged. Nice work.`,
-    });
-    navigate("/plan");
+    const nowISO = new Date().toISOString();
+    if (hits.length > 0) {
+      const recs = hits.map((h, i) => ({ ...prHitToRecord(h, nowISO), id: `pr-${i}` }));
+      recs.forEach((r) =>
+        addPR({ exercise: r.exercise, weight: r.weight, reps: r.reps, date: r.date }),
+      );
+      setPrRecords(recs);
+    } else {
+      toast({
+        title: "Workout complete",
+        description: `${completedCount} of ${total} exercises logged. Nice work.`,
+      });
+      navigate("/plan");
+    }
   };
 
   return (
     <MobileLayout showNav={false}>
+      {prRecords.length > 0 ? (
+        <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex flex-col items-center justify-center p-6 gap-6">
+          <div className="text-center space-y-2">
+            <Trophy className="w-14 h-14 text-primary mx-auto" />
+            <h2 className="text-3xl font-bold">New PR{prRecords.length > 1 ? "s" : ""}!</h2>
+            <p className="text-muted-foreground">
+              You beat your best on {prRecords.length} lift{prRecords.length > 1 ? "s" : ""}.
+            </p>
+          </div>
+          <div className="w-full max-w-sm space-y-3">
+            {prRecords.map((r) => (
+              <Card key={r.id} className="border-primary/40 bg-primary/5">
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold">{r.exercise}</p>
+                    <p className="text-sm text-primary font-bold">
+                      {r.weight} × {r.reps}
+                    </p>
+                  </div>
+                  <PrShareButton pr={r} />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <Button
+            className="w-full max-w-sm h-12"
+            onClick={() => {
+              setPrRecords([]);
+              navigate("/plan");
+            }}
+          >
+            Done
+          </Button>
+        </div>
+      ) : null}
       <input
         ref={fileInput}
         type="file"
