@@ -199,8 +199,8 @@ function ExerciseThumb({ slug }: { slug: string | null }) {
 }
 
 function WorkoutCard({
-  day, isToday, profile, goal, onExercise, onStart,
-}: { day: Workout; isToday?: boolean; profile: UserProfile; goal: Goal; onExercise: (ex: WorkoutExercise) => void; onStart: (day: Workout) => void }) {
+  day, isToday, completed, profile, goal, onExercise, onStart,
+}: { day: Workout; isToday?: boolean; profile: UserProfile; goal: Goal; onExercise: (ex: WorkoutExercise) => void; onStart: (day: Workout) => void; completed?: boolean }) {
   return (
     <Card className={cn(
       "border-border overflow-hidden",
@@ -234,15 +234,21 @@ function WorkoutCard({
           );
         })}
       </div>
-      <div className="p-3 bg-secondary/50 border-t border-border flex justify-center">
-        <Button
-          onClick={() => onStart(day)}
-          variant={isToday ? "default" : "ghost"}
-          className="w-full text-xs uppercase tracking-wider font-bold gap-2"
-        >
-          <Play className="w-3.5 h-3.5 fill-current" /> Start Workout
-        </Button>
-      </div>
+      {completed ? (
+        <div className="p-3 bg-primary/10 border-t border-primary/30 flex items-center justify-center gap-2 text-primary font-bold text-xs uppercase tracking-wider">
+          <CheckCircle2 className="w-4 h-4" /> Workout complete — great job
+        </div>
+      ) : (
+        <div className="p-3 bg-secondary/50 border-t border-border flex justify-center">
+          <Button
+            onClick={() => onStart(day)}
+            variant={isToday ? "default" : "ghost"}
+            className="w-full text-xs uppercase tracking-wider font-bold gap-2"
+          >
+            <Play className="w-3.5 h-3.5 fill-current" /> Start Workout
+          </Button>
+        </div>
+      )}
     </Card>
   );
 }
@@ -250,9 +256,21 @@ function WorkoutCard({
 const apiBase = () => import.meta.env.BASE_URL.replace(/\/+$/, "");
 
 export default function Plan() {
-  const { workoutPlan, programMeta, hasCredit, refreshCredits, isSubscribed, profile, goal, setWorkoutPlan, physiqueAnalysis, startWorkoutSession, restDaysCompleted, toggleRestDayComplete } = useFitCoach();
+  const { workoutPlan, programMeta, hasCredit, refreshCredits, isSubscribed, profile, goal, setWorkoutPlan, physiqueAnalysis, workoutSessions, startWorkoutSession, restDaysCompleted, toggleRestDayComplete } = useFitCoach();
   const { toast } = useToast();
   const [, navigate] = useLocation();
+
+  // A plan day counts as done today when a matching session finished today.
+  const isDayDoneToday = (day: Workout) => {
+    const today = new Date().toDateString();
+    return workoutSessions.some(
+      (ws) =>
+        ws.finishedAt &&
+        ws.dayName === day.dayName &&
+        ws.title === day.title &&
+        new Date(ws.finishedAt).toDateString() === today,
+    );
+  };
 
   const handleStartWorkout = (day: Workout) => {
     if (!isSubscribed) {
@@ -475,7 +493,7 @@ export default function Plan() {
           {todayWorkout ? (
             <>
               <h3 className="text-lg font-bold">{todayWorkout.title}</h3>
-              <WorkoutCard day={todayWorkout} isToday profile={profile} goal={goal} onExercise={openExercise} onStart={handleStartWorkout} />
+              <WorkoutCard day={todayWorkout} isToday completed={isDayDoneToday(todayWorkout)} profile={profile} goal={goal} onExercise={openExercise} onStart={handleStartWorkout} />
             </>
           ) : (
             <>
