@@ -3,7 +3,14 @@
 // the catalog and the per-day caps — this just reports that the action happened.
 // Failures are silent by design: gamification must never block the real action.
 
-export type RepEventType = "workout" | "meal" | "protein" | "checkin" | "coach_reply";
+export type RepEventType =
+  | "workout"
+  | "meal"
+  | "protein"
+  | "checkin"
+  | "coach_reply"
+  | "cardio"
+  | "scan";
 
 const apiBase = () => import.meta.env.BASE_URL.replace(/\/+$/, "");
 
