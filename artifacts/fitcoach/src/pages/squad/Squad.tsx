@@ -90,6 +90,11 @@ function MomentumRing({ weeks, state, weekReps, target }: { weeks: number; state
   );
 }
 
+// Fires once per session when we detect the user already has a squad friend —
+// covers friends who joined via the user's own invite code (the accept path only
+// marked the quest for the person entering a code).
+let firstFriendMarked = false;
+
 export default function Squad() {
   const { toast } = useToast();
   const { profile } = useFitCoach();
@@ -167,7 +172,14 @@ export default function Squad() {
   const load = async () => {
     try {
       const res = await fetch(`${apiBase()}/api/squad/overview?day=${localDay()}`, { credentials: "include" });
-      if (res.ok) setData((await res.json()) as Overview);
+      if (res.ok) {
+        const ov = (await res.json()) as Overview;
+        setData(ov);
+        if (!firstFriendMarked && ov.friends.length > 0) {
+          firstFriendMarked = true;
+          void completeQuest("first_friend");
+        }
+      }
     } catch {
       /* keep last data */
     } finally {
