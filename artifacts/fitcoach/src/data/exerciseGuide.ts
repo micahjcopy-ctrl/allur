@@ -23,7 +23,7 @@ export interface ExerciseGuide {
 const imageBase = () => `${import.meta.env.BASE_URL}exercises/`;
 
 // Returns the public path to an exercise demo image for a given slug.
-export const exerciseImage = (slug: string): string => `${imageBase()}${slug}.png`;
+export const exerciseImage = (slug: string): string => `${imageBase()}${slug}.jpg`;
 
 // Canonical guides, keyed by canonical exercise name.
 const GUIDE: Record<string, ExerciseGuide> = {
