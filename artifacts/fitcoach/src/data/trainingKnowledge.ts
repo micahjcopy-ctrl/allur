@@ -48,9 +48,10 @@ export interface GeneratedProgram {
 export const UNIVERSAL_PRINCIPLES = [
   "Specificity — train the exact quality you want to improve.",
   "Progressive overload — gradually add weight, reps, sets, range, or quality.",
-  "Volume drives adaptation, but only what you can recover from.",
-  "Match intensity to the goal: heavy for strength, moderate near-failure for muscle.",
-  "Proximity to failure matters more for muscle than for strength.",
+  "Volume drives adaptation, but only what you can recover from — about 10–20 hard sets per muscle per week is the growth window for most.",
+  "Frequency — train each muscle about 2x per week; it beats the same weekly volume crammed into one session.",
+  "Match intensity to the goal: heavy (85%+ 1RM) for strength, moderate loads near failure for muscle.",
+  "Proximity to failure matters more for muscle than for strength — most hard sets end 0–3 reps in reserve.",
   "Most people need both lifting and cardio (~150 min/wk + 2+ strength days).",
 ];
 
@@ -86,14 +87,16 @@ export const VOLUME_GUIDELINES: {
   },
   // The "sweet spot" most lifters get excellent results from without piling on fatigue.
   perMuscleWeeklySets: [
-    { muscle: "Chest", sets: "10–15" },
-    { muscle: "Back", sets: "10–15" },
-    { muscle: "Quads", sets: "10–15" },
-    { muscle: "Hamstrings", sets: "8–12" },
-    { muscle: "Shoulders", sets: "10–15" },
-    { muscle: "Biceps", sets: "8–12" },
-    { muscle: "Triceps", sets: "8–12" },
-    { muscle: "Calves", sets: "8–15" },
+    { muscle: "Chest", sets: "10–20" },
+    { muscle: "Back", sets: "14–22" },
+    { muscle: "Quads", sets: "12–18" },
+    { muscle: "Hamstrings", sets: "10–16" },
+    { muscle: "Glutes", sets: "8–16" },
+    { muscle: "Shoulders (esp. side delts)", sets: "12–20" },
+    { muscle: "Biceps", sets: "12–20" },
+    { muscle: "Triceps", sets: "10–16" },
+    { muscle: "Calves", sets: "12–16" },
+    { muscle: "Abs", sets: "8–16" },
   ],
   intensityRule: "Quality over quantity: every set should be a HARD set, taken to within 0–3 reps in reserve. Six hard sets beat ten easy ones.",
   diminishingReturns: "Volume has diminishing returns — 0→5 sets is a huge gain, 5→10 adds more, 10→20 yields smaller gains for much more fatigue. Add the least volume that still drives progress.",
