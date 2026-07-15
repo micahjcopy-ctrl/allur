@@ -14,6 +14,65 @@ import { NotificationsBell } from "@/components/NotificationsBell";
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
+type CardioOption = { label: string; detail: string };
+// Goal-aware cardio suggestion for the dashboard. Evidence-based: fat loss leans
+// on steps + Zone 2, muscle/strength keep cardio light to protect recovery, and
+// athletic goals get sharp intervals done fresh.
+function cardioRecForGoal(
+  goal: string | null,
+  todayIdx: number,
+  sessionsThisWeek: number,
+  liftingToday: boolean,
+): { headline: string; primary: CardioOption; options: CardioOption[] } {
+  const pools: Record<string, { primary: CardioOption; options: CardioOption[] }> = {
+    "Weight Loss": {
+      primary: { label: "Zone 2 — 35 min easy", detail: "Conversational pace. Burns fat without eating into recovery." },
+      options: [
+        { label: "Incline walk — 40 min", detail: "Brisk, ~12% incline. Low impact, high burn." },
+        { label: "Intervals — 15 min", detail: "6×(30s hard / 90s easy). Use 1–2×/week max." },
+        { label: "10k step day", detail: "Steps quietly do most of the fat-loss work." },
+      ],
+    },
+    "Muscle Gain": {
+      primary: { label: "Zone 2 — 20 min easy", detail: "Enough for heart health; won't blunt your gains." },
+      options: [
+        { label: "Easy bike — 25 min", detail: "Low-impact, spares the legs before training." },
+        { label: "Brisk walk — 30 min", detail: "Active recovery that keeps you lean." },
+      ],
+    },
+    "Strength": {
+      primary: { label: "Easy conditioning — 20 min", detail: "Builds work capacity and speeds recovery between heavy days." },
+      options: [
+        { label: "Incline walk — 25 min", detail: "Zero interference with strength." },
+        { label: "Bike Zone 2 — 20 min", detail: "Flush the legs at no fatigue cost." },
+      ],
+    },
+    "Athleticism": {
+      primary: { label: "Intervals — 6×(20s/90s)", detail: "Sharp, repeatable power. Do it fresh, not after heavy legs." },
+      options: [
+        { label: "Tempo run — 20 min", detail: "Comfortably hard. Builds your engine." },
+        { label: "Zone 2 base — 30 min", detail: "Aerobic base makes everything else repeatable." },
+      ],
+    },
+  };
+  const key = goal && pools[goal] ? goal : "Muscle Gain";
+  const base = pools[key];
+  if (sessionsThisWeek >= 4 && key !== "Weight Loss") {
+    return {
+      headline: "You've logged plenty this week — keep it light.",
+      primary: { label: "Recovery walk — 20 min", detail: "Easy movement so your training can adapt." },
+      options: base.options.slice(0, 2),
+    };
+  }
+  const rotation = [base.primary, ...base.options];
+  const primary = rotation[todayIdx % rotation.length];
+  const options = rotation.filter((o) => o !== primary).slice(0, 3);
+  const headline = liftingToday
+    ? "Pair with today's lift — do it after or later in the day."
+    : "No lift scheduled today — a great standalone cardio day.";
+  return { headline, primary, options };
+}
+
 // Offset (0-6) of a plan day relative to today, wrapping around the week.
 const dayOffset = (dayName: string, todayIdx: number): number => {
   const idx = WEEKDAYS.findIndex((d) => d.toLowerCase() === dayName.trim().toLowerCase());
@@ -53,6 +112,10 @@ export default function Dashboard() {
     [workoutPlan, todayIdx],
   );
   const todayWorkout = ordered.find((o) => o.offset === 0)?.w ?? null;
+  const cardioRec = useMemo(
+    () => cardioRecForGoal(goal, todayIdx, cardioLoad?.sessions ?? 0, !!todayWorkout),
+    [goal, todayIdx, cardioLoad, todayWorkout],
+  );
   const nextUp = ordered.find((o) => o.offset > 0)?.w ?? null;
   const todayKey = dayKeyOf();
   const restDayDone = restDaysCompleted.includes(todayKey);
@@ -167,6 +230,39 @@ export default function Dashboard() {
             </Link>
           </CardContent>
         </Card>
+        )}
+
+        {isEnabled(featureToggles, "cardio") && (
+          <Card className="border-primary/30 bg-primary/5">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <Activity className="w-4 h-4 text-primary" />
+                <p className="font-semibold text-sm">Recommended cardio today</p>
+              </div>
+              <p className="text-xs text-muted-foreground mb-3">{cardioRec.headline}</p>
+              <Link href="/cardio" className="block">
+                <div className="rounded-xl bg-card border border-primary/40 p-3 mb-3 hover:border-primary transition-colors">
+                  <p className="font-bold text-sm text-primary">{cardioRec.primary.label}</p>
+                  <p className="text-xs text-muted-foreground">{cardioRec.primary.detail}</p>
+                </div>
+              </Link>
+              {cardioRec.options.length > 0 && (
+                <>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Or try</p>
+                  <div className="flex flex-col gap-2">
+                    {cardioRec.options.map((o) => (
+                      <Link key={o.label} href="/cardio" className="block">
+                        <div className="rounded-lg bg-card/50 border border-border p-2.5 hover:border-primary/50 transition-colors">
+                          <p className="text-xs font-semibold">{o.label}</p>
+                          <p className="text-[11px] text-muted-foreground">{o.detail}</p>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
         )}
 
         {/* CARDIO — quick status + entry point; hidden when the module is off. */}
