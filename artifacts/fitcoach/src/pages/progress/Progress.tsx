@@ -361,6 +361,7 @@ export default function Progress() {
       const analysis = buildPhysiqueAnalysisFromReply(profile, photosForWeek.map((p) => p.url), reply);
       refreshCredits();
       void completeQuest("first_scan");
+      void awardReps("scan");
       setPhysiqueAnalysisForWeek(week, analysis);
       // A freshly-run scan is authoritative for its week: push the new midpoint
       // onto the week's BF% so the card reflects this analysis, not a stale value.
