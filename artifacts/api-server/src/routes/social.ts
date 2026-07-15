@@ -38,6 +38,8 @@ const REP_CATALOG: Record<string, { points: number; dailyCap: number }> = {
   protein: { points: 15, dailyCap: 1 },
   checkin: { points: 25, dailyCap: 1 },
   coach_reply: { points: 5, dailyCap: 2 },
+  cardio: { points: 40, dailyCap: 2 },
+  scan: { points: 30, dailyCap: 1 },
 };
 
 const WEEKLY_TARGET = 600; // solo weekly challenge target
