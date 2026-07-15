@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useFitCoach } from "@/context/FitCoachContext";
 import { useToast } from "@/hooks/use-toast";
+import { awardReps } from "@/lib/reps";
 import { cn } from "@/lib/utils";
 import {
   ACTIVITY_LABELS,
@@ -267,6 +268,7 @@ export default function Cardio() {
       return;
     }
     addCardioActivity(activity);
+    void awardReps("cardio");
     toast({
       title: `${ACTIVITY_LABELS[type]} saved — ${calories} kcal`,
       description: "Added to today's macro targets and your coach's recovery picture.",
@@ -302,6 +304,7 @@ export default function Cardio() {
       calories,
       points: [],
     });
+    void awardReps("cardio");
     setManualOpen(false);
     toast({ title: `${ACTIVITY_LABELS[type]} logged — ${calories} kcal`, description: "Added to today's macro targets." });
   };
