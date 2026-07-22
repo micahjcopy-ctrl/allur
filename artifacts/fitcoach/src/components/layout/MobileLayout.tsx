@@ -13,7 +13,7 @@ export function MobileLayout({ children, showNav = true }: MobileLayoutProps) {
   const { adminMode, exitAdminMode } = useFitCoach();
 
   return (
-    <div className="min-h-[100dvh] pt-safe bg-background text-foreground flex flex-col mx-auto max-w-md w-full shadow-2xl overflow-hidden relative">
+    <div className="allur-app min-h-[100dvh] pt-safe bg-background text-foreground flex flex-col mx-auto max-w-md w-full shadow-2xl overflow-hidden relative">
       {adminMode && (
         <div className="flex items-center justify-between gap-2 bg-primary/15 border-b border-primary/30 px-4 py-2 text-xs flex-shrink-0">
           <span className="flex items-center gap-1.5 font-semibold text-primary">
