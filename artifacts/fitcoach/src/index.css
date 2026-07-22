@@ -522,3 +522,17 @@
     inset: -1px;
   }
 }
+
+
+/* ---------------------------------------------------------------------------
+   App-only identity. Scoped to the app shell (.allur-app on MobileLayout) so
+   the signature violet accent + tabular figures apply ONLY inside the app and
+   never touch the public marketing site, which keeps the base theme.
+   --------------------------------------------------------------------------- */
+.allur-app {
+  --primary: 252 100% 68%;
+  --ring: 252 100% 68%;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
