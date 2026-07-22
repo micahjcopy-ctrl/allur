@@ -35,7 +35,7 @@ export function MobileLayout({ children, showNav = true }: MobileLayoutProps) {
         <Link
           href="/coach"
           aria-label="Coach"
-          className="absolute bottom-20 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-[#7c5cff] text-white shadow-lg shadow-[#7c5cff]/40 transition-transform active:scale-90"
+          className="absolute bottom-20 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/40 transition-transform active:scale-90"
         >
           <MessageCircle className="h-6 w-6" />
         </Link>

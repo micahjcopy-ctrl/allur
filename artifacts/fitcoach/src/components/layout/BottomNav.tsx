@@ -51,7 +51,7 @@ export function BottomNav() {
                 isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <Icon className={cn("w-5 h-5", isActive && "drop-shadow-[0_0_6px_rgba(124,92,255,0.5)]")} strokeWidth={isActive ? 2.5 : 2} />
+              <Icon className={cn("w-5 h-5", isActive && "drop-shadow-[0_0_6px_rgba(91,224,230,0.35)]")} strokeWidth={isActive ? 2.5 : 2} />
               <span className="text-[10px] font-medium">{item.name}</span>
             </Link>
           );
