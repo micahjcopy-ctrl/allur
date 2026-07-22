@@ -16,7 +16,7 @@ import {
   BASE_MONTHLY_CREDITS,
   type PlanTag,
 } from "@/lib/subscription";
-import { Check, Star, Zap, User, LogOut, Loader2, Scale } from "lucide-react";
+import { Check, Star, Zap, User, Users, LogOut, Loader2, Scale } from "lucide-react";
 
 const apiBase = () => import.meta.env.BASE_URL.replace(/\/+$/, "");
 
@@ -314,6 +314,17 @@ export default function Account() {
               </Card>
             </>
           )}
+        </section>
+
+        <section className="space-y-2">
+          <h3 className="font-bold text-lg px-1 mt-6 mb-2">Squad</h3>
+          <Button
+            variant="ghost"
+            onClick={() => navigate("/squad")}
+            className="w-full justify-start h-14 rounded-xl border border-transparent hover:border-border hover:bg-secondary/50"
+          >
+            <Users className="w-5 h-5 mr-3 text-muted-foreground" /> Your Squad
+          </Button>
         </section>
 
         <section className="space-y-2 pb-8">
