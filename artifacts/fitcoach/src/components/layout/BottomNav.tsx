@@ -1,13 +1,11 @@
 import React from "react";
 import { Link, useLocation } from "wouter";
 import {
-  Activity,
   Dumbbell,
   Home,
-  Mic,
   TrendingUp,
   User,
-  Users,
+  UtensilsCrossed,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFitCoach } from "@/context/FitCoachContext";
@@ -22,13 +20,11 @@ interface NavItem {
 }
 
 const ALL_ITEMS: NavItem[] = [
-  { name: "Dashboard", href: "/dashboard", icon: Home },
-  { name: "Plan", href: "/plan", icon: Dumbbell },
+  { name: "Home", href: "/dashboard", icon: Home },
+  { name: "Train", href: "/plan", icon: Dumbbell },
+  { name: "Nutrition", href: "/macros", icon: UtensilsCrossed, feature: "macros" },
   { name: "Progress", href: "/progress", icon: TrendingUp, feature: "progress" },
-  { name: "Cardio", href: "/cardio", icon: Activity, feature: "cardio" },
-  { name: "Coach", href: "/coach", icon: Mic },
-  { name: "Squad", href: "/squad", icon: Users, feature: "squad" },
-  { name: "Account", href: "/account", icon: User },
+  { name: "You", href: "/account", icon: User },
 ];
 
 export function BottomNav() {

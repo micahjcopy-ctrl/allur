@@ -1,5 +1,6 @@
 import React from "react";
-import { ShieldCheck, X } from "lucide-react";
+import { MessageCircle, ShieldCheck, X } from "lucide-react";
+import { Link } from "wouter";
 import { BottomNav } from "./BottomNav";
 import { useFitCoach } from "@/context/FitCoachContext";
 
@@ -30,6 +31,15 @@ export function MobileLayout({ children, showNav = true }: MobileLayoutProps) {
         {children}
         {showNav && <div className="h-16 flex-shrink-0" />} {/* Spacer for bottom nav */}
       </main>
+      {showNav && (
+        <Link
+          href="/coach"
+          aria-label="Coach"
+          className="absolute bottom-20 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-[#7c5cff] text-white shadow-lg shadow-[#7c5cff]/40 transition-transform active:scale-90"
+        >
+          <MessageCircle className="h-6 w-6" />
+        </Link>
+      )}
       {showNav && <BottomNav />}
     </div>
   );
