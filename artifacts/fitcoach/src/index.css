@@ -530,8 +530,6 @@
    never touch the public marketing site, which keeps the base theme.
    --------------------------------------------------------------------------- */
 .allur-app {
-  --primary: 252 100% 68%;
-  --ring: 252 100% 68%;
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
 }
