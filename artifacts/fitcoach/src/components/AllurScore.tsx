@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useFitCoach, type PR } from "@/context/FitCoachContext";
@@ -26,9 +26,33 @@ async function fetchReferralCode(): Promise<string | null> {
   }
 }
 
+function useCountUp(value: number, dur = 1200) {
+  const [shown, setShown] = useState(0);
+  useEffect(() => {
+    let raf = 0;
+    const start = performance.now();
+    const tick = (now: number) => {
+      const p = Math.min(1, (now - start) / dur);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setShown(value * eased);
+      if (p < 1) raf = requestAnimationFrame(tick);
+      else setShown(value);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value, dur]);
+  return shown;
+}
+
+function AnimatedNumber({ value }: { value: number }) {
+  const shown = useCountUp(value);
+  return <>{Math.round(shown)}</>;
+}
+
 function ScoreRing({ value }: { value: number }) {
   const R = 52;
   const C = 2 * Math.PI * R;
+  const shown = useCountUp(value);
   return (
     <svg viewBox="0 0 128 128" className="w-32 h-32 -rotate-90">
       <circle cx="64" cy="64" r={R} fill="none" stroke="hsl(var(--secondary))" strokeWidth="10" />
@@ -41,7 +65,7 @@ function ScoreRing({ value }: { value: number }) {
         strokeWidth="10"
         strokeLinecap="round"
         strokeDasharray={C}
-        strokeDashoffset={C * (1 - Math.min(value, 100) / 100)}
+        strokeDashoffset={C * (1 - Math.min(shown, 100) / 100)}
       />
     </svg>
   );
@@ -95,7 +119,7 @@ export function AllurScoreCard() {
           <div className="relative shrink-0">
             <ScoreRing value={score.overall} />
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-3xl font-bold tabular-nums">{score.overall}</span>
+              <span className="text-3xl font-bold tabular-nums"><AnimatedNumber value={score.overall} /></span>
               {score.delta != null && score.delta !== 0 && (
                 <span
                   className={
