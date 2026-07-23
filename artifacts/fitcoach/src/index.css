@@ -530,6 +530,10 @@
    never touch the public marketing site, which keeps the base theme.
    --------------------------------------------------------------------------- */
 .allur-app {
+  /* ALLUR brand accent — cyan/teal from the logo (Option B). Semantic tokens, app-only. */
+  --primary: 183 74% 62%;
+  --primary-foreground: 191 80% 7%;
+  --ring: 183 74% 62%;
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
 }
