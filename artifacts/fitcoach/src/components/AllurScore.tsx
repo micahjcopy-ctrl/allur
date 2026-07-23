@@ -29,6 +29,15 @@ async function fetchReferralCode(): Promise<string | null> {
 function useCountUp(value: number, dur = 1200) {
   const [shown, setShown] = useState(0);
   useEffect(() => {
+    // Respect reduced-motion: snap to final value, no animation.
+    if (
+      typeof window !== "undefined" &&
+      window.matchMedia &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      setShown(value);
+      return;
+    }
     let raf = 0;
     const start = performance.now();
     const tick = (now: number) => {
