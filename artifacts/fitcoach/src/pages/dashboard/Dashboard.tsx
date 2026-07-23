@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { MobileLayout } from "@/components/layout/MobileLayout";
 import { GoalPreview } from "@/components/GoalPreview";
+import { AllurScoreCard } from "@/components/AllurScore";
 import { useFitCoach, dayKeyOf } from "@/context/FitCoachContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -188,6 +189,9 @@ export default function Dashboard() {
             )}
           </div>
         </div>
+
+        {/* ALLUR SCORE — signature number on Home: empty-state CTA before first scan, full score card after. */}
+        {isEnabled(featureToggles, "progress") && <AllurScoreCard />}
 
         {/* CALORIES LEFT — the other "what do I do next" number, front and center. */}
         {isEnabled(featureToggles, "macros") && (
