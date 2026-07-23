@@ -534,6 +534,9 @@
   --primary: 183 74% 62%;
   --primary-foreground: 191 80% 7%;
   --ring: 183 74% 62%;
+  /* logo-arc gradient partners for the Allur Score ring */
+  --accent-navy: 202 61% 14%;
+  --accent-deep: 186 68% 42%;
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
 }
