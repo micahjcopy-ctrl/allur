@@ -5,7 +5,8 @@ import { useFitCoach, type PR } from "@/context/FitCoachContext";
 import { useToast } from "@/hooks/use-toast";
 import { buildAllurScore, prShareCaption, scanShareCaption } from "@/lib/allurScore";
 import { renderPrCard, renderScanCard, sharePng } from "@/lib/shareCard";
-import { Loader2, Share2, Sparkles } from "lucide-react";
+import { ChevronRight, Loader2, Lock, Share2, Sparkles } from "lucide-react";
+import { Link } from "wouter";
 
 // ---------------------------------------------------------------------------
 // Allur Score — the gamified face of the physique analysis, plus the share
@@ -97,7 +98,38 @@ export function AllurScoreCard() {
     [physiqueAnalyses, workoutStreak],
   );
 
-  if (!score) return null;
+  if (!score) {
+    return (
+      <Link href="/progress">
+        <Card className="border-border bg-card/50 overflow-hidden cursor-pointer transition-transform active:scale-[.97]">
+          <CardContent className="p-5 space-y-4">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Sparkles className="w-4 h-4 text-primary" />
+              <span className="text-xs font-medium uppercase tracking-wider">Allur Score</span>
+            </div>
+            <div className="flex items-center gap-5">
+              <div className="relative shrink-0 opacity-40">
+                <ScoreRing value={0} />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Lock className="w-7 h-7 text-muted-foreground" />
+                </div>
+              </div>
+              <div className="flex-1 min-w-0 space-y-1.5">
+                <p className="text-base font-bold text-foreground">Unlock your Allur Score</p>
+                <p className="text-sm text-muted-foreground leading-snug">
+                  Run your first body scan to reveal your physique score and track it over time.
+                </p>
+                <p className="flex items-center gap-1 text-sm font-semibold text-primary pt-1">
+                  Run your first scan
+                  <ChevronRight className="w-4 h-4" />
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </Link>
+    );
+  }
 
   const share = async () => {
     if (sharing) return;
