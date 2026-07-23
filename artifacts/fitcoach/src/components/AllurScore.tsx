@@ -64,13 +64,20 @@ function ScoreRing({ value }: { value: number }) {
   const shown = useCountUp(value);
   return (
     <svg viewBox="0 0 128 128" className="w-32 h-32 -rotate-90">
+      <defs>
+        <linearGradient id="allurArc" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="hsl(var(--accent-navy))" />
+          <stop offset="0.5" stopColor="hsl(var(--accent-deep))" />
+          <stop offset="1" stopColor="hsl(var(--primary))" />
+        </linearGradient>
+      </defs>
       <circle cx="64" cy="64" r={R} fill="none" stroke="hsl(var(--secondary))" strokeWidth="10" />
       <circle
         cx="64"
         cy="64"
         r={R}
         fill="none"
-        stroke="hsl(var(--primary))"
+        stroke="url(#allurArc)"
         strokeWidth="10"
         strokeLinecap="round"
         strokeDasharray={C}
