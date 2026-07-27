@@ -2,6 +2,7 @@ import { db, usersTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
 import type { UserPlan } from "../credits";
 import { isAdminUserId } from "../admin";
+import { isCompedUserId } from "../comped";
 
 // Stripe subscription statuses that grant access (trialing counts — the 14-day
 // Base trial is full access).
@@ -108,6 +109,20 @@ export async function getSubscriptionSummary(
   // summary: unlimited access and, because hasEverSubscribed is true, no
   // post-onboarding paywall. They have no real Stripe subscription to manage.
   if (await isAdminUserId(userId)) {
+    return {
+      plan: "premium",
+      status: "active",
+      trialEnd: null,
+      currentPeriodEnd: null,
+      cancelAtPeriodEnd: false,
+      hasEverSubscribed: true,
+    };
+  }
+
+  // Comped users (COMPED_EMAILS allowlist) get the same synthetic Premium
+  // summary as admins — unlimited access and, because hasEverSubscribed is
+  // true, no post-onboarding paywall. They have no real Stripe subscription.
+  if (await isCompedUserId(userId)) {
     return {
       plan: "premium",
       status: "active",
