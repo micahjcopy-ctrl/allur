@@ -1,6 +1,7 @@
 import { and, eq, gt, sql } from "drizzle-orm";
 import { db, userCreditsTable, premiumGrantsTable } from "@workspace/db";
 import { isAdminUserId } from "./admin";
+import { isCompedUserId } from "./comped";
 
 /**
  * Server-authoritative usage credits.
@@ -51,6 +52,8 @@ const PERIOD_MS = 30 * 24 * 60 * 60 * 1000;
  */
 export async function getUserPlan(userId: string): Promise<UserPlan> {
   if (await isAdminUserId(userId)) return "premium";
+  // Comped accounts (COMPED_EMAILS allowlist) get free Premium — no Stripe.
+  if (await isCompedUserId(userId)) return "premium";
   // Referral reward: an active Premium grant (outside Stripe) counts as premium.
   try {
     const [grant] = await db
