@@ -28,6 +28,8 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
 import { computeStreak, type StreakState } from "@/lib/streak";
+import { emitCelebration } from "@/lib/celebrationBus";
+import { isNewScoreHigh, crossedMilestone } from "@/lib/celebration";
 
 export type { ProgramMeta } from "@/data/trainingKnowledge";
 
@@ -862,8 +864,10 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
   );
   const setFeatureToggle = (key: FeatureKey, on: boolean) =>
     setRawFeatureToggles((prev) => ({ ...prev, [key]: on }));
-  const addCardioActivity = (a: CardioActivity) =>
+  const addCardioActivity = (a: CardioActivity) => {
     setCardioActivities((prev) => [...prev, a]);
+    emitCelebration("cardioComplete");
+  };
   const removeCardioActivity = (id: string) =>
     setCardioActivities((prev) => prev.filter((x) => x.id !== id));
   const todayActiveCalories = useMemo(
@@ -1283,6 +1287,7 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
 
   const addPR = (pr: Omit<PR, "id">) => {
     setPrs(prev => [{ ...pr, id: Math.random().toString(36).substring(7) }, ...prev]);
+    emitCelebration("pr", { message: pr.exercise + ": " + pr.weight + " x " + pr.reps });
   };
 
   const addWeightLog = (weight: number) => {
@@ -1371,6 +1376,14 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
   };
 
   const setPhysiqueAnalysisForWeek = (week: number, analysis: PhysiqueAnalysis | null) => {
+    if (analysis) {
+      const priorScores = physiqueAnalyses
+        .filter((a) => a.week !== week)
+        .map((a) => a.overallScore);
+      if (isNewScoreHigh(priorScores, analysis.overallScore)) {
+        emitCelebration("scoreHigh", { message: "Allur Score " + Math.round(analysis.overallScore) });
+      }
+    }
     setPhysiqueAnalyses(prev => {
       const rest = prev.filter(a => a.week !== week);
       return analysis ? [...rest, { ...analysis, week }] : rest;
@@ -1492,6 +1505,7 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
           : s,
       ),
     );
+    emitCelebration("workoutComplete");
   };
 
   const activeSession = useMemo<WorkoutSession | null>(
@@ -1519,6 +1533,32 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
       }),
     [meals, workoutSessions, cardioActivities, physiqueAnalyses],
   );
+
+  // Celebrate streak level-ups and day-milestones. After hydration the first
+  // pass just baselines the refs so nothing fires on load.
+  const prevLevelRef = useRef(streak.level);
+  const prevStreakRef = useRef(streak.currentStreak);
+  const streakSyncedRef = useRef(false);
+  useEffect(() => {
+    if (!hydrated) return;
+    if (!streakSyncedRef.current) {
+      prevLevelRef.current = streak.level;
+      prevStreakRef.current = streak.currentStreak;
+      streakSyncedRef.current = true;
+      return;
+    }
+    if (streak.level > prevLevelRef.current) {
+      emitCelebration("levelUp", {
+        message: "You reached Level " + streak.level + " (" + streak.tier + ")",
+      });
+    }
+    const milestone = crossedMilestone(prevStreakRef.current, streak.currentStreak);
+    if (milestone) {
+      emitCelebration("streakMilestone", { message: milestone + "-day streak!" });
+    }
+    prevLevelRef.current = streak.level;
+    prevStreakRef.current = streak.currentStreak;
+  }, [hydrated, streak.level, streak.currentStreak, streak.tier]);
 
   const workoutStreak = useMemo<number>(() => {
     const days = new Set([
