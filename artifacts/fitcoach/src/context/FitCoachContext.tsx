@@ -1402,6 +1402,7 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
       { ...meal, id: Math.random().toString(36).substring(7), date: new Date().toISOString() },
       ...prev,
     ]);
+    emitCelebration("mealLogged");
   };
 
   const removeMeal = (id: string) => {
