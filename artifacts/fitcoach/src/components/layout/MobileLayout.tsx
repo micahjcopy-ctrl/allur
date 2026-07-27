@@ -2,6 +2,7 @@ import React from "react";
 import { MessageCircle, ShieldCheck, X } from "lucide-react";
 import { Link } from "wouter";
 import { BottomNav } from "./BottomNav";
+import { StreakBar } from "@/components/StreakBar";
 import { useFitCoach } from "@/context/FitCoachContext";
 
 interface MobileLayoutProps {
@@ -27,6 +28,7 @@ export function MobileLayout({ children, showNav = true }: MobileLayoutProps) {
           </button>
         </div>
       )}
+      {showNav && <StreakBar />}
       <main className="flex-1 flex flex-col w-full h-full overflow-y-auto pb-safe">
         {children}
         {showNav && <div className="h-16 flex-shrink-0" />} {/* Spacer for bottom nav */}
