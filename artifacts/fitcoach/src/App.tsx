@@ -6,6 +6,7 @@ import { FitCoachProvider, useFitCoach } from "@/context/FitCoachContext";
 import { AuthProvider, useAccount } from "@/context/AuthContext";
 import { useEffect } from "react";
 import { Loader2, WifiOff } from "lucide-react";
+import { CelebrationHost } from "@/components/Celebration";
 
 // Pages
 import NotFound from "@/pages/not-found";
@@ -312,6 +313,7 @@ function App() {
                     starts only; overlays the auth/hydration work for ~5s. */}
                 <LaunchSplash />
                 <AuthGate />
+                <CelebrationHost />
               </div>
             </WouterRouter>
           </FitCoachProvider>
