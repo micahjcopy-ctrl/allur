@@ -537,7 +537,33 @@
   /* logo-arc gradient partners for the Allur Score ring */
   --accent-navy: 202 61% 14%;
   --accent-deep: 186 68% 42%;
+  /* one motion easing token — design-system spec */
+  --ease: cubic-bezier(0.23, 1, 0.32, 1);
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
 }
 
+/* ---------------------------------------------------------------------------
+   S3 — one motion easing + global tactile press feedback.
+   Uses the standalone `scale` property so it never overrides Tailwind
+   `transform` utilities; the transition lists what shadcn animates so hover
+   color transitions are preserved (now on the shared --ease). App-scoped
+   (.allur-app) and reduced-motion aware.
+   --------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: no-preference) {
+  .allur-app button,
+  .allur-app [role="button"],
+  .allur-app .press {
+    transition-property:
+      color, background-color, border-color, fill, stroke, opacity, box-shadow,
+      transform, scale;
+    transition-duration: 150ms;
+    transition-timing-function: var(--ease);
+  }
+
+  .allur-app button:active,
+  .allur-app [role="button"]:active,
+  .allur-app .press:active {
+    scale: 0.97;
+  }
+}
