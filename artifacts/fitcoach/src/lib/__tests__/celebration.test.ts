@@ -21,6 +21,7 @@ describe("config", () => {
     expect(CELEBRATIONS.pr.tier).toBe("big");
     expect(CELEBRATIONS.scoreHigh.tier).toBe("big");
     expect(CELEBRATIONS.workoutComplete.tier).toBe("medium");
+    expect(CELEBRATIONS.mealLogged.tier).toBe("medium");
     expect(CELEBRATIONS.generic.tier).toBe("small");
   });
   test("every kind has a title and emoji", () => {
