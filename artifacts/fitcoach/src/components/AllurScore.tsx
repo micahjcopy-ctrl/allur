@@ -59,7 +59,7 @@ function AnimatedNumber({ value }: { value: number }) {
   return <>{Math.round(shown)}</>;
 }
 
-function ScoreRing({ value }: { value: number }) {
+export function ScoreRing({ value }: { value: number }) {
   const R = 52;
   const C = 2 * Math.PI * R;
   const shown = useCountUp(value);
@@ -153,14 +153,20 @@ export function AllurScoreCard() {
   };
 
   return (
-    <Card className="border-border bg-card/50 overflow-hidden">
+    <Card className="relative border-border bg-card/50 overflow-hidden">
+      <Link
+        href="/score"
+        aria-label="View your Allur Score breakdown"
+        className="absolute inset-0 z-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      />
       <CardContent className="p-5 space-y-4">
         <div className="flex items-center gap-2 text-muted-foreground">
           <Sparkles className="w-4 h-4 text-primary" />
           <span className="text-xs font-medium uppercase tracking-wider">Allur Score</span>
-          {score.week != null && (
-            <span className="ml-auto text-xs text-muted-foreground">Week {score.week}</span>
-          )}
+          <span className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground">
+            {score.week != null && <span>Week {score.week}</span>}
+            <ChevronRight className="w-4 h-4" />
+          </span>
         </div>
 
         <div className="flex items-center gap-5">
@@ -204,7 +210,7 @@ export function AllurScoreCard() {
           </div>
         </div>
 
-        <Button variant="secondary" className="w-full h-11" onClick={share} disabled={sharing}>
+        <Button variant="secondary" className="relative z-10 w-full h-11" onClick={share} disabled={sharing}>
           {sharing ? (
             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
           ) : (

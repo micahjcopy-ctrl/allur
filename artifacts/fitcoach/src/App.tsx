@@ -15,6 +15,7 @@ import Onboarding from "@/pages/onboarding/Onboarding";
 import Dashboard from "@/pages/dashboard/Dashboard";
 import Plan from "@/pages/plan/Plan";
 import Progress from "@/pages/progress/Progress";
+import AllurScoreDetail from "@/pages/score/AllurScoreDetail";
 import Macros from "@/pages/macros/Macros";
 import Squad from "@/pages/squad/Squad";
 import Cardio from "@/pages/cardio/Cardio";
@@ -98,6 +99,7 @@ function RouteGuard() {
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/plan" component={Plan} />
       <Route path="/progress" component={Progress} />
+      <Route path="/score" component={AllurScoreDetail} />
       <Route path="/macros" component={Macros} />
       <Route path="/squad" component={Squad} />
       <Route path="/cardio" component={Cardio} />

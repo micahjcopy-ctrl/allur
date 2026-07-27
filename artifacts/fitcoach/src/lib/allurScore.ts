@@ -99,6 +99,17 @@ export function buildAllurScore(
   };
 }
 
+/** The most recent analysis (same recency rule as buildAllurScore), or null. */
+export function latestAnalysis(analyses: PhysiqueAnalysis[]): PhysiqueAnalysis | null {
+  if (!analyses.length) return null;
+  return [...analyses].sort((a, b) => analysisSortValue(b) - analysisSortValue(a))[0];
+}
+
+/** All analyses, newest first. */
+export function analysesByRecency(analyses: PhysiqueAnalysis[]): PhysiqueAnalysis[] {
+  return [...analyses].sort((a, b) => analysisSortValue(b) - analysisSortValue(a));
+}
+
 /** Share-sheet caption for a scan card. */
 export function scanShareCaption(d: AllurScoreData): string {
   const delta = d.delta != null && d.delta !== 0 ? ` (${d.delta > 0 ? "+" : ""}${d.delta})` : "";
