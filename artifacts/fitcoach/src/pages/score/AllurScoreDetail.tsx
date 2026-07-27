@@ -71,11 +71,11 @@ function Header() {
 }
 
 export default function AllurScoreDetail() {
-  const { physiqueAnalyses, workoutStreak, workoutSessions } = useFitCoach();
+  const { physiqueAnalyses, workoutStreak, workoutSessions, streak } = useFitCoach();
 
   const score = useMemo(
-    () => buildAllurScore(physiqueAnalyses, workoutStreak),
-    [physiqueAnalyses, workoutStreak],
+    () => buildAllurScore(physiqueAnalyses, workoutStreak, streak.momentum),
+    [physiqueAnalyses, workoutStreak, streak.momentum],
   );
   const latest = useMemo(() => latestAnalysis(physiqueAnalyses), [physiqueAnalyses]);
   const history = useMemo(() => analysesByRecency(physiqueAnalyses), [physiqueAnalyses]);

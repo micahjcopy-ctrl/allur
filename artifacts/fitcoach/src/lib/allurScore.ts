@@ -64,11 +64,12 @@ export function orderedParts(parts: BodyPartRating[]): BodyPartRating[] {
  * a small consistency bonus, always at least +4 above today and capped at 99
  * so there is forever one more point to chase.
  */
-export function computePotential(overall: number, workoutStreak: number): number {
+export function computePotential(overall: number, workoutStreak: number, momentum = 1): number {
   const base = Math.max(0, Math.min(100, overall));
   const headroom = (100 - base) * 0.45;
   const consistency = (Math.min(Math.max(workoutStreak, 0), 14) / 14) * 3;
-  return Math.min(99, Math.max(base + 4, Math.round(base + headroom + consistency)));
+  const drive = (Math.min(Math.max(momentum, 1), 2) - 1) * 4;
+  return Math.min(99, Math.max(base + 4, Math.round(base + headroom + consistency + drive)));
 }
 
 /** Latest analysis wins by week (undefined week = oldest), then by date. */
@@ -82,6 +83,7 @@ const analysisSortValue = (a: PhysiqueAnalysis): number =>
 export function buildAllurScore(
   analyses: PhysiqueAnalysis[],
   workoutStreak: number,
+  momentum = 1,
 ): AllurScoreData | null {
   if (!analyses.length) return null;
   const sorted = [...analyses].sort((a, b) => analysisSortValue(b) - analysisSortValue(a));
@@ -90,7 +92,7 @@ export function buildAllurScore(
   return {
     overall: Math.round(latest.overallScore),
     delta: previous ? Math.round(latest.overallScore) - Math.round(previous.overallScore) : null,
-    potential: computePotential(latest.overallScore, workoutStreak),
+    potential: computePotential(latest.overallScore, workoutStreak, momentum),
     bodyFat: latest.bodyFatEstimate,
     parts: orderedParts(latest.parts ?? []),
     week: latest.week,

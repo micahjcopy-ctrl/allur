@@ -27,6 +27,7 @@ import {
 } from "@/lib/cardio";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
+import { computeStreak, type StreakState } from "@/lib/streak";
 
 export type { ProgramMeta } from "@/data/trainingKnowledge";
 
@@ -671,6 +672,7 @@ interface FitCoachState {
   // Count of consecutive calendar days (ending today/yesterday) with a finished
   // workout OR a completed rest day. Derived from workoutSessions + restDaysCompleted.
   workoutStreak: number;
+  streak: StreakState;
   macroTarget: MacroBreakdown;
   // Cardio-adjusted daily targets (earned activity calories folded in).
   macroTargetAdjusted: MacroBreakdown;
@@ -1507,6 +1509,17 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
   // Consecutive-day streak ending today or yesterday, counted from the distinct
   // calendar days that have a finished workout or a completed rest day (rest
   // days the plan assigns count toward consistency once checked off).
+  const streak = useMemo(
+    () =>
+      computeStreak({
+        meals,
+        workoutSessions,
+        cardioActivities,
+        physiqueAnalyses,
+      }),
+    [meals, workoutSessions, cardioActivities, physiqueAnalyses],
+  );
+
   const workoutStreak = useMemo<number>(() => {
     const days = new Set([
       ...workoutSessions
@@ -1717,6 +1730,7 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
         notificationPrefs,
         setNotificationPrefs,
         workoutStreak,
+        streak,
         startWorkoutSession,
         toggleExerciseComplete,
         logExerciseWeight,

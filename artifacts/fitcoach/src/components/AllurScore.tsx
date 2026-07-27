@@ -89,13 +89,13 @@ export function ScoreRing({ value }: { value: number }) {
 }
 
 export function AllurScoreCard() {
-  const { physiqueAnalyses, workoutStreak } = useFitCoach();
+  const { physiqueAnalyses, workoutStreak, streak } = useFitCoach();
   const { toast } = useToast();
   const [sharing, setSharing] = useState(false);
 
   const score = useMemo(
-    () => buildAllurScore(physiqueAnalyses, workoutStreak),
-    [physiqueAnalyses, workoutStreak],
+    () => buildAllurScore(physiqueAnalyses, workoutStreak, streak.momentum),
+    [physiqueAnalyses, workoutStreak, streak.momentum],
   );
 
   if (!score) {
