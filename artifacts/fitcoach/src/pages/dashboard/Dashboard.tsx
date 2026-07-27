@@ -6,7 +6,7 @@ import { useFitCoach, dayKeyOf } from "@/context/FitCoachContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Activity, Camera, Mic, Target, Flame, Zap, UtensilsCrossed, Gift, ChevronRight, Moon, CheckCircle2 } from "lucide-react";
+import { X, Activity, Camera, Mic, Target, Flame, Zap, UtensilsCrossed, Gift, ChevronRight, Moon, CheckCircle2 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { isEnabled } from "@/lib/features";
 import { WelcomeTour, hasSeenTour } from "@/components/WelcomeTour";
@@ -82,7 +82,28 @@ const dayOffset = (dayName: string, todayIdx: number): number => {
 };
 
 export default function Dashboard() {
-  const { profile, goal, workoutPlan, credits, isPremium, meals, macroTargetAdjusted: macroTarget, todayActiveCalories, featureToggles, cardioLoad, physiqueAnalyses, restDaysCompleted, toggleRestDayComplete } = useFitCoach();
+  const { profile, goal, workoutPlan, credits, isPremium, meals, macroTargetAdjusted: macroTarget, todayActiveCalories, featureToggles, cardioLoad, physiqueAnalyses, restDaysCompleted, toggleRestDayComplete, subscription } = useFitCoach();
+  const [showGiftWelcome, setShowGiftWelcome] = useState(() => {
+    try {
+      return localStorage.getItem("allur:giftWelcomeDismissed") !== "1";
+    } catch {
+      return true;
+    }
+  });
+  const dismissGiftWelcome = () => {
+    try {
+      localStorage.setItem("allur:giftWelcomeDismissed", "1");
+    } catch {
+      /* storage unavailable — dismiss for this session only */
+    }
+    setShowGiftWelcome(false);
+  };
+  // Gifted/comped Premium = a Premium summary with no Stripe billing period or
+  // trial (matches admins + comped emails; excludes paying and referral-grant users).
+  const isGifted =
+    subscription?.plan === "premium" &&
+    !subscription?.currentPeriodEnd &&
+    !subscription?.trialEnd;
   const [, setLocation] = useLocation();
   const [tourOpen, setTourOpen] = useState(false);
 
@@ -133,6 +154,25 @@ export default function Dashboard() {
   return (
     <MobileLayout>
       <div className="p-6 space-y-6">
+        {isGifted && showGiftWelcome && (
+          <div className="relative rounded-2xl border border-primary/30 bg-primary/10 p-4 pr-10">
+            <button
+              type="button"
+              aria-label="Dismiss"
+              onClick={dismissGiftWelcome}
+              className="absolute top-3 right-3 text-muted-foreground active:scale-95"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <div className="flex items-center gap-2">
+              <Gift className="w-4 h-4 text-primary" />
+              <p className="text-sm font-semibold text-foreground">You’ve been given free full access</p>
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Everything’s unlocked — no trial, no paywall. Enjoy ALLUR on us.
+            </p>
+          </div>
+        )}
         <header className="flex justify-between items-center pt-2">
           <div>
             <h1 className="text-2xl font-bold">Hey, {profile.name || "Athlete"}</h1>
