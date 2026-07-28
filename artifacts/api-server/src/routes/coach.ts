@@ -38,6 +38,7 @@ import {
 import { requireCredit } from "../lib/creditGuard";
 import { makeRateLimit } from "../lib/rateLimit";
 import { buildCoachSystemPrompt, buildPersonalizePlanPrompt } from "../lib/coachPrompt";
+import { normalizeCoachPlan } from "../lib/coachPlanNormalize";
 import {
   buildBodyFatSystemPrompt,
   referenceChartsFor,
@@ -213,7 +214,10 @@ async function runCoach(
       planSummary: rawArgs.summary ?? null,
       updatedPlan: rawArgs.days,
     });
-    const updatedPlan = validated.success ? validated.data.updatedPlan : null;
+    const rawUpdatedPlan = validated.success ? validated.data.updatedPlan : null;
+    // Deterministic guardrail: force the model plan onto the real today-first
+    // weekday slots so a requested workout can never land on the wrong day.
+    const updatedPlan = normalizeCoachPlan(body.plan, rawUpdatedPlan);
     // Only honour a plan edit when we actually have a complete, non-empty plan.
     // Otherwise the UI would show "Plan updated" while nothing changed.
     if (
@@ -222,7 +226,7 @@ async function runCoach(
       Array.isArray(updatedPlan) &&
       updatedPlan.length > 0
     ) {
-      return validated.data;
+      return { ...validated.data, updatedPlan };
     }
     log.warn(
       { err: validated.success ? "missing reply or plan" : validated.error },
