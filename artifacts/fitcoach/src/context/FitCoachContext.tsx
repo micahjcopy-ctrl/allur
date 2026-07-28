@@ -30,6 +30,7 @@ import { toast } from "@/hooks/use-toast";
 import { computeStreak, type StreakState } from "@/lib/streak";
 import { emitCelebration } from "@/lib/celebrationBus";
 import { isNewScoreHigh, crossedMilestone } from "@/lib/celebration";
+import { nutritionGoalMet, nutritionGoalMessage } from "@/lib/nutritionGoal";
 
 export type { ProgramMeta } from "@/data/trainingKnowledge";
 
@@ -875,6 +876,36 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
     [cardioActivities],
   );
   const macroTargetAdjusted = applyActivityCalories(macroTarget, todayActiveCalories);
+
+  // Celebrate hitting the daily nutrition goal (once per day). The first
+  // post-hydration pass just baselines, so an already-met day doesn't fire on load.
+  const nutritionFiredRef = useRef<string | null>(null);
+  const nutritionSyncedRef = useRef(false);
+  useEffect(() => {
+    if (!hydrated) return;
+    const todayStr = new Date().toDateString();
+    const consumed = meals
+      .filter((m) => new Date(m.date).toDateString() === todayStr)
+      .reduce(
+        (acc, m) => ({
+          calories: acc.calories + m.macros.calories,
+          protein: acc.protein + m.macros.protein,
+          carbs: acc.carbs + m.macros.carbs,
+          fat: acc.fat + m.macros.fat,
+        }),
+        { calories: 0, protein: 0, carbs: 0, fat: 0 },
+      );
+    const met = nutritionGoalMet(goal, consumed, macroTargetAdjusted);
+    if (!nutritionSyncedRef.current) {
+      nutritionSyncedRef.current = true;
+      if (met) nutritionFiredRef.current = todayStr;
+      return;
+    }
+    if (met && nutritionFiredRef.current !== todayStr) {
+      nutritionFiredRef.current = todayStr;
+      emitCelebration("nutritionGoal", { message: nutritionGoalMessage(goal) });
+    }
+  }, [hydrated, meals, macroTargetAdjusted, goal]);
   const cardioLoad = useMemo(
     () => buildCardioLoadSummary(cardioActivities, new Date()),
     [cardioActivities],
