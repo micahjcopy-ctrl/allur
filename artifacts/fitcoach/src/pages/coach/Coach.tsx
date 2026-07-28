@@ -35,6 +35,22 @@ const NON_LIFT_DAY_RE = /cardio|rest|recovery|zone\s*2|mobility|walk/i;
 // while the actual plan was something else. Everything shown on the card that is
 // derivable from the plan (split name + days/week) is recomputed here; the rest
 // (philosophy, volume model, etc.) is preserved.
+const COACH_WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+/** Order the plan starting from today's weekday so the coach can tell which day
+ *  is "today" (the first entry) without a request-schema change. Mirrors the
+ *  weekday lookup the dashboard uses to pick today's workout. */
+function planFromToday(plan: Workout[]): Workout[] {
+  const today = new Date().getDay();
+  const offset = (dayName: string): number => {
+    const i = COACH_WEEKDAYS.findIndex(
+      (d) => d.toLowerCase() === dayName.trim().toLowerCase(),
+    );
+    return i === -1 ? 99 : (i - today + 7) % 7;
+  };
+  return [...plan].sort((a, b) => offset(a.dayName) - offset(b.dayName));
+}
+
 function syncMetaToPlan(plan: Workout[], prev: ProgramMeta | null): ProgramMeta | null {
   if (!prev) return prev;
   const scheduled = plan.filter((d) => d.exercises.length > 0);
@@ -117,7 +133,7 @@ export default function Coach() {
       dislikes: composeDislikes(profile),
       preferences: composePreferences(profile),
     },
-    plan: workoutPlan,
+    plan: planFromToday(workoutPlan),
     physique: buildPhysiqueContext(physiqueAnalysis),
   });
 
