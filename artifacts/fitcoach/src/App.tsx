@@ -7,6 +7,7 @@ import { AuthProvider, useAccount } from "@/context/AuthContext";
 import { useEffect } from "react";
 import { Loader2, WifiOff } from "lucide-react";
 import { CelebrationHost } from "@/components/Celebration";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 // Pages
 import NotFound from "@/pages/not-found";
@@ -312,7 +313,9 @@ function App() {
                 {/* Branded launch screen — installed app (standalone) cold
                     starts only; overlays the auth/hydration work for ~5s. */}
                 <LaunchSplash />
-                <AuthGate />
+                <ErrorBoundary>
+                  <AuthGate />
+                </ErrorBoundary>
                 <CelebrationHost />
               </div>
             </WouterRouter>
