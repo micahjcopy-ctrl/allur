@@ -28,6 +28,7 @@ import { and, eq, gt, isNull, or, sql } from "drizzle-orm";
 import { sendEmail } from "../lib/email";
 import { publicBaseUrl } from "../lib/appUrl";
 import { makeRateLimit } from "../lib/rateLimit";
+import { getUncachableStripeClient } from "../lib/stripe/stripeClient";
 import {
   clearSession,
   getOidcConfig,
@@ -292,6 +293,44 @@ router.post("/auth/logout", async (req: Request, res: Response) => {
   await clearSession(res, sid);
   res.json(LogoutAccountResponse.parse({ success: true }));
 });
+
+// Permanently delete the authenticated user's account and ALL their data.
+// Every user-owned table references users.id with onDelete: "cascade", so
+// deleting the user row removes everything in one transaction. Any active
+// Stripe subscription is cancelled first (best-effort) so billing stops.
+router.post(
+  "/auth/delete-account",
+  async (req: Request, res: Response): Promise<void> => {
+    if (!req.isAuthenticated()) {
+      res.status(401).json({ error: "Not authenticated." });
+      return;
+    }
+    const userId = req.user.id;
+
+    try {
+      const rows = await db
+        .select({ sub: usersTable.stripeSubscriptionId })
+        .from(usersTable)
+        .where(eq(usersTable.id, userId))
+        .limit(1);
+      const subId = rows[0]?.sub;
+      if (subId) {
+        const stripe = await getUncachableStripeClient();
+        await stripe.subscriptions.cancel(subId);
+      }
+    } catch (err) {
+      // Never block account deletion on a billing hiccup.
+      console.error("delete-account: stripe cancel failed", err);
+    }
+
+    await db.delete(usersTable).where(eq(usersTable.id, userId));
+
+    const sid = getSessionId(req);
+    await clearSession(res, sid);
+
+    res.json({ success: true });
+  },
+);
 
 // Password reset tokens live for one hour and are single-use. We email the raw
 // token but only ever store its SHA-256 hash, so the DB never holds anything
