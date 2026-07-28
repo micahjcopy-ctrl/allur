@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { MobileLayout } from "@/components/layout/MobileLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useFitCoach } from "@/context/FitCoachContext";
 import { useAccount } from "@/context/AuthContext";
@@ -16,7 +17,7 @@ import {
   BASE_MONTHLY_CREDITS,
   type PlanTag,
 } from "@/lib/subscription";
-import { Check, Star, Zap, User, Users, LogOut, Loader2, Scale } from "lucide-react";
+import { Check, Star, Zap, User, Users, LogOut, Loader2, Scale, AlertTriangle, Trash2 } from "lucide-react";
 
 const apiBase = () => import.meta.env.BASE_URL.replace(/\/+$/, "");
 
@@ -112,6 +113,35 @@ export default function Account() {
       await refreshAuth();
     } catch {
       toast({ title: "Logout failed", description: "Please try again.", variant: "destructive" });
+    }
+  };
+
+  const [confirmingDelete, setConfirmingDelete] = React.useState(false);
+  const [deleteConfirm, setDeleteConfirm] = React.useState("");
+  const [deleting, setDeleting] = React.useState(false);
+
+  const handleDeleteAccount = async () => {
+    if (deleting) return;
+    setDeleting(true);
+    try {
+      const res = await fetch("/api/auth/delete-account", {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("delete failed");
+      try {
+        localStorage.clear();
+      } catch {
+        /* ignore */
+      }
+      window.location.href = "/";
+    } catch {
+      setDeleting(false);
+      toast({
+        title: "Couldn't delete account",
+        description: "Please try again in a moment.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -370,6 +400,69 @@ export default function Account() {
             )}{" "}
             Log Out
           </Button>
+        </section>
+
+        <section className="px-4 pb-6">
+          <Card className="border-destructive/40 bg-destructive/5">
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2 text-destructive">
+                <AlertTriangle className="w-4 h-4" /> Delete account
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Permanently delete your account and all your data — workouts,
+                meals, photos, scores and progress. This can't be undone
+                {isPremium ? ", and your subscription will be cancelled" : ""}.
+              </p>
+              {!confirmingDelete ? (
+                <Button variant="destructive" onClick={() => setConfirmingDelete(true)}>
+                  <Trash2 className="w-4 h-4 mr-2" /> Delete account
+                </Button>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-xs text-muted-foreground">
+                    Type{" "}
+                    <span className="font-semibold text-foreground">DELETE</span>{" "}
+                    to confirm.
+                  </p>
+                  <Input
+                    value={deleteConfirm}
+                    onChange={(e) => setDeleteConfirm(e.target.value)}
+                    placeholder="DELETE"
+                    autoCapitalize="characters"
+                    autoCorrect="off"
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      variant="destructive"
+                      disabled={
+                        deleteConfirm.trim().toUpperCase() !== "DELETE" || deleting
+                      }
+                      onClick={handleDeleteAccount}
+                    >
+                      {deleting ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-4 h-4 mr-2" />
+                      )}
+                      Permanently delete
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      disabled={deleting}
+                      onClick={() => {
+                        setConfirmingDelete(false);
+                        setDeleteConfirm("");
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </section>
       </div>
     </MobileLayout>
