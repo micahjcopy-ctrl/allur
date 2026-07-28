@@ -23,6 +23,7 @@ export type CelebrationKind =
   | "workoutComplete"
   | "cardioComplete"
   | "mealLogged"
+  | "nutritionGoal"
   | "goalHit"
   | "generic";
 
@@ -41,6 +42,7 @@ export const CELEBRATIONS: Record<CelebrationKind, CelebrationConfig> = {
   workoutComplete: { tier: "medium", emoji: "💪", title: "Workout complete" },
   cardioComplete: { tier: "medium", emoji: "🏃", title: "Cardio logged" },
   mealLogged: { tier: "medium", emoji: "🍽️", title: "Meal logged" },
+  nutritionGoal: { tier: "big", emoji: "🥗", title: "Nutrition goal hit!" },
   generic: { tier: "small", emoji: "✨", title: "Nice" },
 };
 
