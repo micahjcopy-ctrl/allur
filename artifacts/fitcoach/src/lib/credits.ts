@@ -12,7 +12,16 @@ export const OUT_OF_CREDITS_STATUS = 402;
 // { type: "needs_subscription" }.
 export const NEEDS_SUBSCRIPTION_STATUS = 403;
 
-type CreditKind = "coaching requests" | "photo logs" | "body scans";
+// User-facing label for the exhausted bucket, dropped into the toast copy.
+// The server tracks three buckets (coaching / photo / bodyScan) but the photo
+// bucket is spent by two different features, so it has two labels — a meal
+// photo and a goal-photo enhancement should not both read "photo logs".
+type CreditKind =
+  | "coaching requests"
+  | "photo logs"
+  | "meal logs"
+  | "photo enhancements"
+  | "body scans";
 
 export function outOfCreditsToast(kind: CreditKind) {
   return {
