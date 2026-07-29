@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { HealthEstimateNote } from "@/components/HealthEstimateNote";
 import { useToast } from "@/hooks/use-toast";
 import { OUT_OF_CREDITS_STATUS, outOfCreditsToast, needsSubscriptionToast } from "@/lib/credits";
 import { cn } from "@/lib/utils";
@@ -836,6 +837,7 @@ export default function Progress() {
                         {weekAnalysis.confidence} confidence
                       </span>
                     </div>
+                    <HealthEstimateNote variant="full" />
                   </div>
 
                   {/* What the AI saw */}
