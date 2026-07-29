@@ -28,7 +28,10 @@ export default function HeroGraphic() {
   const float = (delay: number) =>
     reduced
       ? {}
-      : { y: [0, -7, 0], transition: { duration: 3.6, repeat: Infinity, delay, ease: "easeInOut" } };
+      // `as const` keeps `ease` as the literal "easeInOut" — without it the
+      // object literal widens it to `string`, which is not assignable to
+      // framer-motion's Easing union.
+      : { y: [0, -7, 0], transition: { duration: 3.6, repeat: Infinity, delay, ease: "easeInOut" as const } };
 
   return (
     <div className="relative w-full max-w-[440px] mx-auto select-none">
