@@ -6,6 +6,7 @@ import { useFitCoach } from "@/context/FitCoachContext";
 import { useToast } from "@/hooks/use-toast";
 import { awardReps } from "@/lib/reps";
 import { cn } from "@/lib/utils";
+import { startLocationWatch, getLocationOnce, type GeoWatch } from "@/lib/native";
 import {
   ACTIVITY_LABELS,
   activityCaloriesOn,
@@ -143,7 +144,7 @@ export default function Cardio() {
   const [suggestBusy, setSuggestBusy] = useState(false);
   const [suggestHidden, setSuggestHidden] = useState(false);
 
-  const watchIdRef = useRef<number | null>(null);
+  const watchIdRef = useRef<GeoWatch | null>(null);
   const startedAtRef = useRef<number>(0);
   const pausedMsRef = useRef<number>(0);
   const pauseStartRef = useRef<number>(0);
@@ -163,51 +164,48 @@ export default function Cardio() {
   }, [phase]);
 
   const stopWatching = () => {
-    if (watchIdRef.current != null && navigator.geolocation) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
-      watchIdRef.current = null;
-    }
+    watchIdRef.current?.clear();
+    watchIdRef.current = null;
     void wakeLockRef.current?.release().catch(() => {});
     wakeLockRef.current = null;
   };
 
   useEffect(() => () => stopWatching(), []);
 
-  const beginWatch = () => {
-    if (!("geolocation" in navigator)) {
-      setGpsError("This device doesn't expose GPS to the app.");
-      return false;
-    }
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      (pos) => {
+  // Starting a watch is async on native (the OS permission prompt), so this
+  // returns a promise and the callers await it before flipping to "tracking".
+  // Without that, a denied permission would leave the UI in a tracking state
+  // that never receives a point.
+  const beginWatch = async (): Promise<boolean> => {
+    const handle = await startLocationWatch(
+      (p) => {
         setGpsError(null);
-        const { latitude, longitude, altitude, accuracy } = pos.coords;
-        setPoints((prev) => [
-          ...prev,
-          { t: pos.timestamp || Date.now(), lat: latitude, lon: longitude, alt: altitude ?? undefined, acc: accuracy ?? undefined },
-        ]);
+        setPoints((prev) => [...prev, p]);
       },
-      (err) => {
+      (kind) => {
         setGpsError(
-          err.code === err.PERMISSION_DENIED
+          kind === "denied"
             ? "Location permission denied — you can still log the session manually below."
-            : "GPS signal lost — keep moving, we'll re-acquire.",
+            : kind === "unavailable"
+              ? "This device doesn't expose GPS to the app."
+              : "GPS signal lost — keep moving, we'll re-acquire.",
         );
       },
-      { enableHighAccuracy: true, maximumAge: 2000, timeout: 15000 },
     );
+    if (!handle) return false;
+    watchIdRef.current = handle;
     // keep the screen awake during a session (best-effort)
     const nav = navigator as Navigator & { wakeLock?: { request: (t: "screen") => Promise<{ release: () => Promise<void> }> } };
     nav.wakeLock?.request("screen").then((l) => { wakeLockRef.current = l; }).catch(() => {});
     return true;
   };
 
-  const start = () => {
+  const start = async () => {
     setPoints([]);
     setGpsError(null);
     startedAtRef.current = Date.now();
     pausedMsRef.current = 0;
-    if (beginWatch()) setPhase("tracking");
+    if (await beginWatch()) setPhase("tracking");
   };
 
   const pause = () => {
@@ -216,9 +214,9 @@ export default function Cardio() {
     setPhase("paused");
   };
 
-  const resume = () => {
+  const resume = async () => {
     pausedMsRef.current += Date.now() - pauseStartRef.current;
-    if (beginWatch()) setPhase("tracking");
+    if (await beginWatch()) setPhase("tracking");
   };
 
   const liveStats = useMemo(() => computeTrackStats(points), [points]);
@@ -312,48 +310,44 @@ export default function Cardio() {
   // Scenic loop ideas from the server-side route provider (Phase 2 — ORS).
   // A 501 means no provider key is configured yet: hide the button quietly.
   const apiBase = () => import.meta.env.BASE_URL.replace(/\/+$/, "");
-  const suggestRoutes = () => {
+  const suggestRoutes = async () => {
     if (suggestBusy) return;
-    if (!("geolocation" in navigator)) {
-      toast({ variant: "destructive", title: "This device doesn't expose GPS to the app." });
+    setSuggestBusy(true);
+    // getLocationOnce() handles the native permission prompt on device and
+    // falls back to navigator.geolocation in the browser. A null result covers
+    // "no GPS", "denied" and "timed out" alike — all one message to the user.
+    const here = await getLocationOnce();
+    if (!here) {
+      setSuggestBusy(false);
+      toast({ variant: "destructive", title: "Location needed", description: "Allow location access to get route ideas." });
       return;
     }
-    setSuggestBusy(true);
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        try {
-          const target = { run: 5000, walk: 3000, hike: 8000, cycle: 20000 }[type];
-          const res = await fetch(`${apiBase()}/api/cardio/route-suggestions`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({
-              lat: pos.coords.latitude,
-              lon: pos.coords.longitude,
-              type,
-              targetDistanceM: target,
-            }),
-          });
-          if (res.status === 501) {
-            setSuggestHidden(true);
-            toast({ title: "Route suggestions coming soon", description: "This feature isn't switched on for your account yet." });
-            return;
-          }
-          if (!res.ok) throw new Error(String(res.status));
-          const data = (await res.json()) as { suggestions: RouteSuggestion[] };
-          setSuggestions(data.suggestions);
-        } catch {
-          toast({ variant: "destructive", title: "Couldn't fetch routes", description: "Try again in a moment." });
-        } finally {
-          setSuggestBusy(false);
-        }
-      },
-      () => {
-        setSuggestBusy(false);
-        toast({ variant: "destructive", title: "Location needed", description: "Allow location access to get route ideas." });
-      },
-      { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 },
-    );
+    try {
+      const target = { run: 5000, walk: 3000, hike: 8000, cycle: 20000 }[type];
+      const res = await fetch(`${apiBase()}/api/cardio/route-suggestions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          lat: here.lat,
+          lon: here.lon,
+          type,
+          targetDistanceM: target,
+        }),
+      });
+      if (res.status === 501) {
+        setSuggestHidden(true);
+        toast({ title: "Route suggestions coming soon", description: "This feature isn't switched on for your account yet." });
+        return;
+      }
+      if (!res.ok) throw new Error(String(res.status));
+      const data = (await res.json()) as { suggestions: RouteSuggestion[] };
+      setSuggestions(data.suggestions);
+    } catch {
+      toast({ variant: "destructive", title: "Couldn't fetch routes", description: "Try again in a moment." });
+    } finally {
+      setSuggestBusy(false);
+    }
   };
 
   const todayKcal = activityCaloriesOn(cardioActivities, new Date());
