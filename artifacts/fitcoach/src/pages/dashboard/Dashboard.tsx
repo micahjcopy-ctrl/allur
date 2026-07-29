@@ -12,6 +12,7 @@ import { isEnabled } from "@/lib/features";
 import { WelcomeTour, hasSeenTour } from "@/components/WelcomeTour";
 import { GettingStarted } from "@/components/GettingStarted";
 import { NotificationsBell } from "@/components/NotificationsBell";
+import { HealthEstimateNote } from "@/components/HealthEstimateNote";
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -382,6 +383,7 @@ export default function Dashboard() {
                 <span className="text-xs font-medium uppercase tracking-wider">BODY FAT (EST)</span>
               </div>
               <span className="text-lg font-bold">{bodyFatLabel}</span>
+              <HealthEstimateNote />
             </CardContent>
           </Card>
         </div>
