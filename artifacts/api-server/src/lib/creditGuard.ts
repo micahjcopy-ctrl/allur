@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { spendCredit, refundCredit, type CreditType } from "./credits";
+import { recordServerEvent } from "./analytics";
 
 export interface CreditCharge {
   /** Give the spent credit back — call when the paid call fails after spending. */
@@ -17,6 +18,17 @@ export async function requireCredit(
   req: Request,
   res: Response,
   type: CreditType,
+  /**
+   * Analytics label for the feature being used. Recorded server-side on a
+   * successful spend, which is the only place that can't be missed: it sits
+   * behind auth, behind the credit check, and behind every client (web, PWA,
+   * native shell). One credit spent === one `feature_used` event.
+   *
+   * More specific than `type` on purpose — three different features share the
+   * "photo" credit bucket, and adoption of a meal photo vs a goal-photo
+   * enhancement are different questions.
+   */
+  feature?: string,
 ): Promise<CreditCharge | null> {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Please sign in to use this feature." });
@@ -45,6 +57,13 @@ export async function requireCredit(
     });
     return null;
   }
+
+  // Fire-and-forget: the paid call that follows takes seconds, so this lands
+  // long before the response does, and a failure here is invisible by design.
+  void recordServerEvent("feature_used", {
+    userId,
+    props: { feature: feature ?? type, creditType: type },
+  });
 
   return {
     async refund() {
