@@ -16,6 +16,7 @@ import { useFitCoach } from "@/context/FitCoachContext";
 import { buildAllurScore, latestAnalysis, analysesByRecency } from "@/lib/allurScore";
 import { ScoreRing } from "@/components/AllurScore";
 import { MobileLayout } from "@/components/layout/MobileLayout";
+import { HealthEstimateNote, HealthEstimateInline } from "@/components/HealthEstimateNote";
 
 // Muscle status -> label + token-based colours (all classes exist in the theme).
 const STATUS = {
@@ -182,6 +183,7 @@ export default function AllurScoreDetail() {
         <Card className="border-border bg-card/50">
           <CardContent className="p-5 space-y-4">
             <SectionTitle icon={Scale}>Body composition</SectionTitle>
+            <HealthEstimateInline />
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-xl bg-secondary/40 p-3">
                 <p className="text-xs text-muted-foreground">Projected body fat</p>
@@ -208,6 +210,7 @@ export default function AllurScoreDetail() {
                 </div>
               </div>
             ) : null}
+            <HealthEstimateNote variant="full" />
           </CardContent>
         </Card>
 
