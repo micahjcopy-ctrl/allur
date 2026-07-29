@@ -4,6 +4,7 @@ import { Check, Loader2, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { startCheckout, PLAN_PRICES, TRIAL_DAYS } from "@/lib/subscription";
+import { track, flush } from "@/lib/analytics";
 
 /**
  * Mandatory payment screen shown immediately after onboarding for brand-new
@@ -14,8 +15,19 @@ export default function Paywall() {
   const { toast } = useToast();
   const [loading, setLoading] = React.useState(false);
 
+  React.useEffect(() => {
+    track("paywall_viewed", { plan: "base" });
+  }, []);
+
   const onStart = async () => {
     setLoading(true);
+    // `trial_started` = intent (they tapped through to Stripe), not money.
+    // The paid conversion is recorded server-side from the Stripe webhook, so
+    // the two can be compared to see how many drop out inside Checkout.
+    track("trial_started", { plan: "base" });
+    // startCheckout navigates away to Stripe, so push the queue out now rather
+    // than waiting for the 5s timer that this page won't live to see.
+    flush(true);
     try {
       await startCheckout("base");
     } catch (err) {
