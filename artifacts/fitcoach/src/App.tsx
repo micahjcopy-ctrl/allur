@@ -43,8 +43,25 @@ import Features from "@/pages/features/Features";
 import InstallAppPrompt from "@/components/InstallAppPrompt";
 import { LaunchSplash } from "@/components/LaunchSplash";
 import { captureRefFromUrl, claimStoredReferral } from "@/lib/reps";
+import { trackPageView } from "@/lib/analytics";
 
 const queryClient = new QueryClient();
+
+/**
+ * Emits `page_view` on every route change (marketing site and app alike).
+ *
+ * Mounted inside <WouterRouter> and above every gate/redirect, so it sees the
+ * signed-out landing page and the redirect targets too — the funnel starts
+ * before authentication, and a page_view that only fires for signed-in users
+ * would make the top of the funnel unmeasurable.
+ */
+function PageViewTracker() {
+  const [location] = useLocation();
+  useEffect(() => {
+    trackPageView(location);
+  }, [location]);
+  return null;
+}
 
 function RouteGuard() {
   const [location, setLocation] = useLocation();
@@ -313,6 +330,7 @@ function App() {
                 {/* Branded launch screen — installed app (standalone) cold
                     starts only; overlays the auth/hydration work for ~5s. */}
                 <LaunchSplash />
+                <PageViewTracker />
                 <ErrorBoundary>
                   <AuthGate />
                 </ErrorBoundary>

@@ -1,5 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { makeRateLimit } from "../lib/rateLimit";
+import { recordServerEvent } from "../lib/analytics";
 
 const router: IRouter = Router();
 
@@ -71,6 +72,15 @@ router.post(
       return;
     }
     const profile = PROFILES[typeof type === "string" ? type : "run"] ?? "foot-walking";
+
+    // Cardio is the one of the four tracked features that isn't credit-gated,
+    // so it can't ride along on requireCredit — record it here instead, after
+    // the request is known to be valid and authenticated.
+    void recordServerEvent("feature_used", {
+      userId: req.user.id,
+      props: { feature: "cardio_route", activity: typeof type === "string" ? type : "run" },
+    });
+
     const length = Math.min(Math.max(Number(targetDistanceM) || 5000, 1000), 60_000);
     const green = profile.startsWith("foot");
 

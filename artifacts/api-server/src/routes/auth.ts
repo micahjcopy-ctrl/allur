@@ -298,6 +298,14 @@ router.post("/auth/logout", async (req: Request, res: Response) => {
 // Every user-owned table references users.id with onDelete: "cascade", so
 // deleting the user row removes everything in one transaction. Any active
 // Stripe subscription is cancelled first (best-effort) so billing stops.
+//
+// This includes their analytics history: analytics_events.user_id carries the
+// same cascade, so behavioural data is destroyed with the account and no
+// separate cleanup step exists to forget. Any future table holding user data
+// MUST use the same cascade — that is the whole mechanism behind our deletion
+// promise (and Apple's account-deletion requirement, Guideline 5.1.1(v)).
+// Anonymous pre-signup events (user_id NULL) survive by design: they belong to
+// no account and carry only a rotating random id.
 router.post(
   "/auth/delete-account",
   async (req: Request, res: Response): Promise<void> => {

@@ -18,6 +18,7 @@ import {
   type PlanTag,
 } from "@/lib/subscription";
 import { Check, Star, Zap, User, Users, LogOut, Loader2, Scale, AlertTriangle, Trash2 } from "lucide-react";
+import { track, flush } from "@/lib/analytics";
 
 const apiBase = () => import.meta.env.BASE_URL.replace(/\/+$/, "");
 
@@ -44,6 +45,10 @@ export default function Account() {
     const checkout = params.get("checkout");
     if (!checkout) return;
     if (checkout === "success") {
+      // The end of the money funnel. Fired on Stripe's redirect back, which is
+      // the first moment the app knows a subscription exists. The query param
+      // is stripped below, so a reload can't double-count it.
+      track("subscription_started", { plan: plan ?? "base" });
       toast({
         title: "Subscription active",
         description: "You're all set. Enjoy full access to ALLUR!",
@@ -63,6 +68,11 @@ export default function Account() {
 
   const handleCheckout = async (target: PlanTag) => {
     setBusyPlan(target);
+    // Same intent signal as the paywall, from the Account page's own plan
+    // buttons — otherwise upgrades taken from here would be invisible in the
+    // conversion chain. Flushed now because startCheckout navigates to Stripe.
+    track("trial_started", { plan: target, source: "account" });
+    flush(true);
     try {
       await startCheckout(target);
     } catch (err) {

@@ -247,7 +247,7 @@ router.post("/coach/chat", rateLimit, async (req: Request, res: Response): Promi
     return;
   }
 
-  const charge = await requireCredit(req, res, "coaching");
+  const charge = await requireCredit(req, res, "coaching", "coach_chat");
   if (!charge) return;
 
   try {
@@ -446,7 +446,7 @@ router.post("/coach/voice", rateLimit, async (req: Request, res: Response): Prom
   }
   const body = parsed.data;
 
-  const charge = await requireCredit(req, res, "coaching");
+  const charge = await requireCredit(req, res, "coaching", "coach_voice");
   if (!charge) return;
 
   try {
@@ -674,7 +674,7 @@ router.post(
       }
     }
 
-    const charge = await requireCredit(req, res, "bodyScan");
+    const charge = await requireCredit(req, res, "bodyScan", "body_scan");
     if (!charge) return;
 
     try {
@@ -957,7 +957,7 @@ router.post(
       return;
     }
 
-    const charge = await requireCredit(req, res, "photo");
+    const charge = await requireCredit(req, res, "photo", "meal_photo");
     if (!charge) return;
 
     try {
@@ -1194,7 +1194,7 @@ router.post(
       return;
     }
 
-    const charge = await requireCredit(req, res, "photo");
+    const charge = await requireCredit(req, res, "photo", "meal_text");
     if (!charge) return;
 
     try {
@@ -1562,7 +1562,7 @@ router.post(
       typeof body?.profile?.targetPhysique === "string" ? body.profile.targetPhysique : "";
     const goal = typeof body?.profile?.goal === "string" ? body.profile.goal : "";
 
-    const charge = await requireCredit(req, res, "photo");
+    const charge = await requireCredit(req, res, "photo", "goal_photo");
     if (!charge) return;
 
     try {

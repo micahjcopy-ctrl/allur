@@ -21,6 +21,7 @@ import { Mic, Square, Loader2, ShieldAlert, Salad, ChevronRight, Activity, Zap, 
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { compressForStorage } from "@/lib/image";
+import { track, flush } from "@/lib/analytics";
 
 const apiBase = () => import.meta.env.BASE_URL.replace(/\/+$/, "");
 
@@ -292,8 +293,43 @@ export default function Onboarding() {
     });
   };
 
-  const nextStep = () => setStep((s) => Math.min(s + 1, 7));
+  const nextStep = () => {
+    track("onboarding_step_completed", { step });
+    setStep((s) => Math.min(s + 1, 7));
+  };
   const prevStep = () => setStep((s) => Math.max(s - 1, 1));
+
+  /* ---- Funnel instrumentation -------------------------------------------
+     The single most valuable number in the product is which of these seven
+     steps bleeds users. That needs three things: an entry event per step (the
+     denominator), a completion event per step (the numerator), and an
+     abandonment event that survives the user closing the tab. */
+
+  // Step entry. Fires on mount and on every step change, forward or back.
+  useEffect(() => {
+    track("onboarding_step_viewed", { step });
+  }, [step]);
+
+  // Abandonment. Reported at most once per visit, on the first time the page
+  // is hidden without onboarding having finished — backgrounding an app to
+  // check a text and coming back is common, so re-firing on every hide would
+  // badly overstate the drop-off. `flush(true)` sends via sendBeacon, the only
+  // transport a browser reliably completes while the page is going away.
+  const onboardingDoneRef = useRef(false);
+  const stepRef = useRef(step);
+  stepRef.current = step;
+  useEffect(() => {
+    let reported = false;
+    const onHide = () => {
+      if (document.visibilityState !== "hidden") return;
+      if (reported || onboardingDoneRef.current) return;
+      reported = true;
+      track("onboarding_abandoned", { step: stepRef.current });
+      flush(true);
+    };
+    document.addEventListener("visibilitychange", onHide);
+    return () => document.removeEventListener("visibilitychange", onHide);
+  }, []);
 
   // Target-physique options shown on step 3, chosen by the gender captured on
   // step 1. Each `id` is a stable TargetPhysique value; `img` lives in
@@ -416,6 +452,12 @@ export default function Onboarding() {
     }
 
     setWorkoutPlan(finalPlan);
+    // Step 7 is only truly "completed" once the plan exists and we're routing
+    // to the dashboard — mark it here, not on the button press, so a failed
+    // generation doesn't count as a conversion.
+    onboardingDoneRef.current = true;
+    track("onboarding_step_completed", { step: 7 });
+    track("onboarding_completed", { injuriesAdapted: injuriesApplied });
     setOnboardingComplete(true);
     // Profile is created — nudge them to install ALLUR to their home screen.
     setShowInstallPrompt(true);

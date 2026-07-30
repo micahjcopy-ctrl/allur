@@ -12,6 +12,7 @@ import { useAccount } from "@/context/AuthContext";
 import { useLocation } from "wouter";
 import { Loader2, ArrowLeft, MailCheck } from "lucide-react";
 import { offerToSaveCredential } from "@/lib/credentials";
+import { track } from "@/lib/analytics";
 
 const ALLUR_LOGO = `${import.meta.env.BASE_URL}allur-logo.png`;
 
@@ -74,10 +75,15 @@ export default function Auth() {
       toast({ title: "Password too short", description: "Use at least 8 characters.", variant: "destructive" });
       return;
     }
+    // Fired after client-side validation passes, so the started/completed gap
+    // measures signup failures the user couldn't fix themselves (taken email,
+    // server error) rather than typos they corrected in place.
+    track("signup_started");
     try {
       const envelope = await registerMut.mutateAsync({
         data: { email: email.trim(), username: username.trim(), password },
       });
+      track("signup_completed");
       // Seed the auth cache synchronously so `authUser` is non-null before we
       // navigate — otherwise the signed-out guard can bounce the brand-new user
       // to the marketing page before the auth query refetch lands.

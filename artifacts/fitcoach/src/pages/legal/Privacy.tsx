@@ -43,6 +43,14 @@ export default function Privacy() {
             <strong>Usage data:</strong> basic technical information (such as device type and IP
             address) used to keep the service secure and reliable.
           </li>
+          <li>
+            <strong>Product analytics:</strong> which screens you open and which features you use —
+            for example, that an onboarding step was reached or that a meal photo was analysed. This
+            records the action, never its content: no photo, no message text, and no health values
+            are included. It is stored on our own servers and is not shared with a third-party
+            analytics company. Before you sign in, these records are tied only to a random
+            identifier that rotates periodically and is never derived from your email or device.
+          </li>
         </ul>
       </LegalSection>
 
@@ -53,6 +61,11 @@ export default function Privacy() {
           <li>To process subscriptions and provide customer support.</li>
           <li>To send essential account emails (for example, password resets).</li>
           <li>To secure the service, prevent abuse, and comply with the law.</li>
+        <li>
+          To understand how the product is used in aggregate — where people get stuck during
+          onboarding, which features are worth improving — so we can make ALLUR better. We do not
+          use this for advertising or sell it to anyone.
+        </li>
         </ul>
       </LegalSection>
 
@@ -77,7 +90,8 @@ export default function Privacy() {
         <p>
           We keep your account data for as long as your account is active. You can delete your
           account at any time, after which we remove your durable fitness data, subject to any
-          records we must retain for legal or billing purposes.
+          records we must retain for legal or billing purposes. Deleting your account also deletes
+          the product-analytics records linked to it.
         </p>
       </LegalSection>
 
