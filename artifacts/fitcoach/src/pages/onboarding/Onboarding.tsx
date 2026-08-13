@@ -1,9 +1,24 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useLocation } from "wouter";
-import { useFitCoach, composeGuideline, composeEquipment, composeDislikes, composePreferences, physiqueLabel, Goal, TargetPhysique, hasCalculableProfile, type Workout } from "@/context/FitCoachContext";
+import {
+  useFitCoach,
+  composeGuideline,
+  composeEquipment,
+  composeDislikes,
+  composePreferences,
+  physiqueLabel,
+  computeMacroTarget,
+  Goal,
+  TargetPhysique,
+  hasCalculableProfile,
+  type Workout,
+  type ProgramMeta,
+  type MacroBreakdown,
+} from "@/context/FitCoachContext";
 import { buildProgram } from "@/data/trainingKnowledge";
-import { EQUIPMENT_OPTIONS, SPORTS_OPTIONS, CLASS_OPTIONS, ENJOY_OPTIONS, AVOID_OPTIONS } from "@/data/exerciseOptimizer";
+import { EQUIPMENT_OPTIONS } from "@/data/exerciseOptimizer";
 import { physiqueOptionsFor } from "@/data/physiques";
+import { BODY_TYPE_PATHS, BODY_TYPE_OPTIONS } from "@/data/bodyTypes";
 import { useAccount } from "@/context/AuthContext";
 import { useLogoutAccount } from "@workspace/api-client-react";
 import { MobileLayout } from "@/components/layout/MobileLayout";
@@ -13,60 +28,74 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { ChevronRight, Activity, Zap, Shield, ArrowRight, Check, Dumbbell, Salad, ShieldAlert, Wrench, Trophy, Bike, ThumbsUp, ThumbsDown } from "lucide-react";
+import { ChevronRight, Activity, Zap, Shield, ArrowRight, Check, Dumbbell, Salad, ShieldAlert, Wrench, Trophy, ThumbsUp, ThumbsDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 const apiBase = () => import.meta.env.BASE_URL.replace(/\/+$/, "");
 
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 8;
+const DAYS_FULL = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const DAYS_ABBR = ["M", "T", "W", "T", "F", "S", "S"];
 
 const INJURY_OPTIONS = ["Lower back", "Knee", "Shoulder", "Neck", "Hip", "Wrist / elbow", "Ankle / foot"];
 const DIETARY_OPTIONS = ["Vegetarian", "Vegan", "Pescatarian", "Gluten-free", "Lactose-free", "Nut allergy", "Halal", "Kosher", "Keto"];
 
-/**
- * Big, tappable selection cards. The onboarding is a series of "pick what
- * applies" screens, so every multi-select uses this: a responsive grid of
- * generously-sized cards with a clear selected state — far easier to hit than
- * small chips, especially one-handed on a phone.
- */
-function CardChips({
-  options,
-  selected,
-  onToggle,
-  columns = 2,
-}: {
-  options: string[];
-  selected: string[];
-  onToggle: (option: string) => void;
-  columns?: 1 | 2;
-}) {
+const GOAL_OPTIONS: { id: Goal; icon: React.ComponentType<{ className?: string }>; desc: string }[] = [
+  { id: "Weight Loss", icon: Activity, desc: "Shred fat and lean out" },
+  { id: "Muscle Gain", icon: Dumbbell, desc: "Build size and shape" },
+  { id: "Strength", icon: Shield, desc: "Get strong on the main lifts" },
+  { id: "Athleticism", icon: Zap, desc: "Speed, power, conditioning" },
+];
+
+const PAST_FAILURES: { label: string; fix: string }[] = [
+  { label: "Started strong, life got busy", fix: "adapts to your week" },
+  { label: "Generic plans I couldn't stick to", fix: "built only for you" },
+  { label: "Never knew if I was doing it right", fix: "AI coach checks you" },
+  { label: "No time / unpredictable schedule", fix: "15-min busy-day versions" },
+  { label: "Results too slow — lost motivation", fix: "visible weekly progress" },
+  { label: "Injuries got in the way", fix: "trains around your limits" },
+];
+
+const IDENTITY_OPTIONS = [
+  "In my teens / early 20s",
+  "A few years back",
+  "After a program that worked for a while",
+  "Recently — I want it back",
+  "Honestly, never — this is my first real shot",
+];
+
+/** Large tappable card for a single- or multi-select option. */
+function CardBtn({ active, onClick, children, className }: { active: boolean; onClick: () => void; children: React.ReactNode; className?: string }) {
   return (
-    <div className={cn("grid gap-2.5", columns === 2 ? "grid-cols-2" : "grid-cols-1")}>
-      {options.map((opt) => {
-        const active = selected.includes(opt);
-        return (
-          <button
-            key={opt}
-            type="button"
-            onClick={() => onToggle(opt)}
-            className={cn(
-              "relative text-left rounded-2xl border-2 px-4 py-3.5 text-sm font-medium transition-all",
-              active
-                ? "border-primary bg-primary/10 text-foreground"
-                : "border-border bg-card text-muted-foreground hover:border-primary/40",
-            )}
-          >
-            <span className="pr-5 leading-snug">{opt}</span>
-            {active && <Check className="absolute top-3 right-3 w-4 h-4 text-primary" />}
-          </button>
-        );
-      })}
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "relative text-left rounded-2xl border-2 px-4 py-3.5 text-sm font-medium transition-all",
+        active ? "border-primary bg-primary/10 text-foreground" : "border-border bg-card text-muted-foreground hover:border-primary/40",
+        className,
+      )}
+    >
+      {children}
+      {active && <Check className="absolute top-3 right-3 w-4 h-4 text-primary" />}
+    </button>
+  );
+}
+
+/** Grid of tappable card chips (multi-select array field). */
+function CardChips({ options, selected, onToggle }: { options: string[]; selected: string[]; onToggle: (o: string) => void }) {
+  return (
+    <div className="grid grid-cols-2 gap-2.5">
+      {options.map((o) => (
+        <CardBtn key={o} active={selected.includes(o)} onClick={() => onToggle(o)}>
+          <span className="pr-5 leading-snug">{o}</span>
+        </CardBtn>
+      ))}
     </div>
   );
 }
 
-/** Section heading with an icon bubble, used above each card group. */
 function SectionHead({ icon: Icon, title, description }: { icon: React.ComponentType<{ className?: string }>; title: string; description?: string }) {
   return (
     <div className="flex items-start gap-3 mb-3">
@@ -81,6 +110,26 @@ function SectionHead({ icon: Icon, title, description }: { icon: React.Component
   );
 }
 
+function Segmented({ options, value, onChange }: { options: string[]; value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="flex bg-card border border-border rounded-xl p-1 gap-1">
+      {options.map((o) => (
+        <button
+          key={o}
+          type="button"
+          onClick={() => onChange(o)}
+          className={cn(
+            "flex-1 py-2 rounded-lg text-xs font-bold transition-colors",
+            value === o ? "bg-primary/15 text-foreground shadow-[0_0_0_1px] shadow-primary/40" : "text-muted-foreground",
+          )}
+        >
+          {o}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function UnitToggle({ options, value, onChange }: { options: { label: string; val: string }[]; value: string; onChange: (v: string) => void }) {
   return (
     <div className="flex bg-secondary rounded-full p-0.5 gap-0.5">
@@ -89,10 +138,7 @@ function UnitToggle({ options, value, onChange }: { options: { label: string; va
           key={o.val}
           type="button"
           onClick={() => onChange(o.val)}
-          className={cn(
-            "px-2.5 py-0.5 text-xs rounded-full transition-colors",
-            value === o.val ? "bg-primary text-primary-foreground font-semibold" : "text-muted-foreground",
-          )}
+          className={cn("px-2.5 py-0.5 text-xs rounded-full transition-colors", value === o.val ? "bg-primary text-primary-foreground font-semibold" : "text-muted-foreground")}
         >
           {o.label}
         </button>
@@ -113,7 +159,17 @@ export default function Onboarding() {
   const logoutMut = useLogoutAccount();
   const [switchingAccount, setSwitchingAccount] = useState(false);
 
-  // Timezone: auto-detect and pre-fill silently so reminders land locally later.
+  // Funnel answers that enrich the plan + power the reveal (kept local; fed to
+  // the coach adaptation and shown back on the "here's your plan" screen).
+  const [startingPoint, setStartingPoint] = useState("");
+  const [pastFailures, setPastFailures] = useState<string[]>([]);
+  const [bestShape, setBestShape] = useState("");
+  const [reliableDays, setReliableDays] = useState("3");
+  const [trainDays, setTrainDays] = useState<number[]>([0, 2, 5]);
+  const [sessionLen, setSessionLen] = useState("45 min");
+  const [busyDay, setBusyDay] = useState("15 min");
+  const [built, setBuilt] = useState<{ plan: Workout[]; meta: ProgramMeta; macros: MacroBreakdown } | null>(null);
+
   const detectedTz = useMemo(() => {
     try {
       return Intl.DateTimeFormat().resolvedOptions().timeZone || "";
@@ -122,13 +178,10 @@ export default function Onboarding() {
     }
   }, []);
   useEffect(() => {
-    if (!profile.timezone && detectedTz) {
-      setProfile((p) => (p.timezone ? p : { ...p, timezone: detectedTz }));
-    }
+    if (!profile.timezone && detectedTz) setProfile((p) => (p.timezone ? p : { ...p, timezone: detectedTz }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detectedTz]);
 
-  // Sign out and let AuthGate route to the welcome / login screen.
   const switchAccount = async () => {
     if (switchingAccount) return;
     setSwitchingAccount(true);
@@ -145,17 +198,20 @@ export default function Onboarding() {
   const nextStep = () => setStep((s) => Math.min(s + 1, TOTAL_STEPS));
   const prevStep = () => setStep((s) => Math.max(s - 1, 1));
 
-  // Physique options depend on gender, which we capture at the top of the
-  // physique step (step 2) so the right body-goal images are shown.
   const physiqueOptions = physiqueOptionsFor(profile.gender);
   const physiqueSelected = physiqueOptions.some((p) => p.id === profile.targetPhysique);
 
-  // Generic chip toggler for an array field on the profile.
   const toggleField = (field: "equipment" | "sports" | "classes" | "enjoy" | "dislikes") => (opt: string) =>
     setProfile((p) => {
       const arr = (p[field] as string[]) ?? [];
       return { ...p, [field]: arr.includes(opt) ? arr.filter((x) => x !== opt) : [...arr, opt] };
     });
+  const toggleInjury = (opt: string) =>
+    setProfile((p) => ({ ...p, injuries: p.injuries.includes(opt) ? p.injuries.filter((i) => i !== opt) : [...p.injuries, opt] }));
+  const toggleDietary = (opt: string) =>
+    setProfile((p) => ({ ...p, dietary: p.dietary.includes(opt) ? p.dietary.filter((d) => d !== opt) : [...p.dietary, opt] }));
+  const toggleFailure = (opt: string) => setPastFailures((a) => (a.includes(opt) ? a.filter((x) => x !== opt) : [...a, opt]));
+  const toggleDay = (i: number) => setTrainDays((a) => (a.includes(i) ? a.filter((x) => x !== i) : [...a, i].sort((m, n) => m - n)));
 
   const EQUIPMENT_LABELS = EQUIPMENT_OPTIONS.map((o) => o.label);
 
@@ -164,7 +220,6 @@ export default function Onboarding() {
     return { ft: m?.[1] ?? "", inch: m?.[2] ?? "" };
   };
   const composeImperial = (ft: string, inch: string) => (ft || inch ? `${ft || 0}' ${inch || 0}"` : "");
-
   const setHeightCm = (cm: string) => setProfile({ ...profile, height: cm, heightUnit: "cm" });
   const setHeightFt = (ft: string) => setProfile({ ...profile, height: composeImperial(ft, parseImperial(profile.height).inch), heightUnit: "ft" });
   const setHeightIn = (inch: string) => setProfile({ ...profile, height: composeImperial(parseImperial(profile.height).ft, inch), heightUnit: "ft" });
@@ -172,45 +227,34 @@ export default function Onboarding() {
     if (unit !== profile.heightUnit) setProfile({ ...profile, height: "", heightUnit: unit });
   };
 
-  const toggleInjury = (opt: string) =>
-    setProfile({
-      ...profile,
-      injuries: profile.injuries.includes(opt) ? profile.injuries.filter((i) => i !== opt) : [...profile.injuries, opt],
-    });
-  const toggleDietary = (opt: string) =>
-    setProfile({
-      ...profile,
-      dietary: profile.dietary.includes(opt) ? profile.dietary.filter((d) => d !== opt) : [...profile.dietary, opt],
-    });
-
-  const injuriesGuideline = composeGuideline(profile.injuries, profile.injuryNotes);
-  const dietaryGuideline = composeGuideline(profile.dietary, profile.dietaryNotes);
-
-  // Build the deterministic base program, then — if the user flagged any
-  // injuries — let the coach adapt it to train safely around them. New users
-  // land on the mandatory paywall (RouteGuard) immediately after this.
+  // Build the deterministic plan, then reshape it around the user's real week +
+  // injuries via the coach, then store it for the reveal screen.
   const generatePlan = async () => {
+    if (!goal) return;
     setGenerating(true);
     const program = buildProgram(profile, goal);
-    setProgramMeta(program.meta);
+    const macros = computeMacroTarget(profile, goal);
+    const injuriesGuideline = composeGuideline(profile.injuries, profile.injuryNotes);
+    const dietaryGuideline = composeGuideline(profile.dietary, profile.dietaryNotes);
+    const dayNames = trainDays.map((i) => DAYS_FULL[i]).join(", ");
 
     let finalPlan = program.days;
-    let injuriesApplied = false;
-    if (injuriesGuideline) {
+    if (injuriesGuideline || reliableDays) {
       try {
+        const content =
+          `I'm just starting this plan. Reshape it to fit my real week: I can reliably train ${reliableDays} day(s) a week` +
+          (dayNames ? ` (${dayNames})` : "") +
+          `, about ${sessionLen} per session, and on my busiest day I can still give ${busyDay}. ` +
+          `Make it exactly ${reliableDays} training day(s) per week while keeping my ${goal} goal and the overall structure.` +
+          (injuriesGuideline ? ` Keep it safe for these injuries/limitations: ${injuriesGuideline} — swap or modify any movement that could aggravate them and add a short note on each change.` : "") +
+          (pastFailures.length ? ` In the past I've struggled with: ${pastFailures.join("; ")} — keep it simple and sustainable so it actually sticks.` : "") +
+          ` Apply the update now.`;
         const res = await fetch(`${apiBase()}/api/coach/adapt-plan`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           body: JSON.stringify({
-            messages: [
-              {
-                role: "user",
-                content:
-                  `I'm just starting this plan. Please adapt it so it's safe for my injuries/limitations: ${injuriesGuideline}. ` +
-                  `Keep my ${goal ?? "training"} goal and the overall structure, but swap or modify any movement that could aggravate these and add a short note on each change. Apply the update now.`,
-              },
-            ],
+            messages: [{ role: "user", content }],
             goal,
             profile: {
               name: profile.name,
@@ -228,82 +272,81 @@ export default function Onboarding() {
         });
         if (res.ok) {
           const data = (await res.json()) as { planUpdated?: boolean; updatedPlan?: Workout[] | null };
-          if (data.planUpdated && Array.isArray(data.updatedPlan) && data.updatedPlan.length) {
-            finalPlan = data.updatedPlan;
-            injuriesApplied = true;
-          }
+          if (data.planUpdated && Array.isArray(data.updatedPlan) && data.updatedPlan.length) finalPlan = data.updatedPlan;
         }
       } catch {
-        // Network/coach failure → fall back to the deterministic base plan.
+        /* fall back to the deterministic base plan */
       }
     }
 
-    setWorkoutPlan(finalPlan);
+    // Keep the label + day count honest against the plan we actually built.
+    const n = finalPlan.length;
+    const meta: ProgramMeta = {
+      ...program.meta,
+      daysPerWeek: n,
+      splitName: program.meta.splitName.replace(/^\s*\d+\s*-?\s*[Dd]ay\b/, `${n}-Day`),
+    };
+    setBuilt({ plan: finalPlan, meta, macros });
+    setGenerating(false);
+    setStep(8);
+  };
+
+  const commitAndContinue = () => {
+    if (!built) return;
+    setWorkoutPlan(built.plan);
+    setProgramMeta(built.meta);
     setOnboardingComplete(true);
     setShowInstallPrompt(true);
     setLocation("/dashboard");
-
-    if (injuriesGuideline && !injuriesApplied) {
-      toast({
-        title: "Using your base plan for now",
-        description: "We couldn't auto-adapt your plan for your injuries just now. Ask the AI Coach to adjust it — it has your guidelines on file.",
-      });
-    }
   };
+
+  // ---- reveal derivations ----
+  const reveal = useMemo(() => {
+    if (!built) return null;
+    const first = built.plan[0];
+    const dur = first ? Math.round(first.exercises.length * 9 + 6) : 40;
+    const shoulderSafe = profile.injuries.includes("Shoulder");
+    const dayTitle = (i: number) => {
+      const w = built.plan.find((d) => d.dayName === DAYS_FULL[i]);
+      return w ? w.title.split(" ")[0] : null;
+    };
+    const why: string[] = [];
+    why.push(`${built.meta.splitName} — ${built.meta.daysPerWeek}×/week, matched to the days you gave us.`);
+    if (profile.injuries.length) why.push(`Adjusted around your ${profile.injuries.join(", ").toLowerCase()} so nothing aggravates it.`);
+    if (pastFailures.some((f) => /generic/i.test(f))) why.push(`You said generic plans never stuck — this one is built only from your answers.`);
+    else if (profile.equipment.length) why.push(`Only movements your setup allows: ${profile.equipment.slice(0, 2).join(", ").toLowerCase()}.`);
+    return { first, dur, shoulderSafe, dayTitle, why: why.slice(0, 3) };
+  }, [built, profile.injuries, profile.equipment, pastFailures]);
 
   return (
     <MobileLayout showNav={false}>
       <div className="flex-1 flex flex-col pt-12 pb-6 px-6">
-        {/* Preview-only step jumper (DEV builds only). */}
         {import.meta.env.DEV && (
           <div className="mb-4 rounded-xl border border-primary/30 bg-primary/5 p-2">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 px-1">Preview only · jump to step</p>
             <div className="flex flex-wrap gap-1.5">
-              {["Goal", "Physique", "Setup", "Injuries", "Sports", "Profile"].map((label, i) => {
+              {["Start", "Goal", "Why", "You", "Week", "Around", "Numbers", "Plan"].map((label, i) => {
                 const n = i + 1;
                 return (
-                  <button
-                    key={n}
-                    type="button"
-                    onClick={() => setStep(n)}
-                    className={cn(
-                      "text-xs font-medium rounded-full px-3 py-1 border transition-colors",
-                      step === n ? "bg-primary text-primary-foreground border-primary" : "bg-card text-muted-foreground border-border hover:border-primary/50",
-                    )}
-                  >
+                  <button key={n} type="button" onClick={() => setStep(n)} className={cn("text-xs font-medium rounded-full px-3 py-1 border transition-colors", step === n ? "bg-primary text-primary-foreground border-primary" : "bg-card text-muted-foreground border-border hover:border-primary/50")}>
                     {n}. {label}
                   </button>
                 );
               })}
-              <button
-                type="button"
-                onClick={() => setLocation("/paywall")}
-                className="text-xs font-medium rounded-full px-3 py-1 border border-primary/50 bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-              >
-                → Paywall
-              </button>
+              <button type="button" onClick={() => setLocation("/paywall")} className="text-xs font-medium rounded-full px-3 py-1 border border-primary/50 bg-primary/10 text-primary hover:bg-primary/20 transition-colors">→ Paywall</button>
             </div>
           </div>
         )}
 
-        {/* Account escape hatch. */}
         {authUser && (
           <div className="flex items-center justify-between gap-2 mb-4 text-xs text-muted-foreground">
-            <span className="truncate">
-              Signed in as <span className="font-medium text-foreground">{authUser.email ?? authUser.username}</span>
-            </span>
-            <button
-              type="button"
-              onClick={() => void switchAccount()}
-              disabled={switchingAccount}
-              className="shrink-0 font-semibold text-primary hover:underline disabled:opacity-60"
-            >
+            <span className="truncate">Signed in as <span className="font-medium text-foreground">{authUser.email ?? authUser.username}</span></span>
+            <button type="button" onClick={() => void switchAccount()} disabled={switchingAccount} className="shrink-0 font-semibold text-primary hover:underline disabled:opacity-60">
               {switchingAccount ? "Signing out…" : "Not you? Log in"}
             </button>
           </div>
         )}
 
-        {/* Progress bar. */}
         <div className="w-full flex gap-1 mb-8">
           {Array.from({ length: TOTAL_STEPS }, (_, idx) => idx + 1).map((i) => (
             <div key={i} className="h-1 flex-1 bg-secondary rounded-full overflow-hidden">
@@ -313,123 +356,151 @@ export default function Onboarding() {
         </div>
 
         <AnimatePresence mode="wait">
-          {/* STEP 1 — PRIMARY GOAL */}
+          {/* 1 — SELF-ID */}
           {step === 1 && (
-            <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex-1 flex flex-col">
-              <h1 className="text-3xl font-bold tracking-tight mb-2">What is your primary goal?</h1>
-              <p className="text-muted-foreground mb-8">We'll tailor your training and nutrition to this objective.</p>
+            <motion.div key="s1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex-1 flex flex-col">
+              <p className="text-[11px] font-bold tracking-[0.16em] uppercase text-primary mb-2">Let's build your plan</p>
+              <h1 className="text-3xl font-bold tracking-tight mb-2">Where are you starting from?</h1>
+              <p className="text-muted-foreground mb-6">No judgment — just where we're starting. This is day one.</p>
+
+              <div className="flex gap-3 mb-6">
+                {(["Male", "Female"] as const).map((g) => (
+                  <button key={g} type="button" onClick={() => setProfile({ ...profile, gender: g })} className={cn("flex-1 rounded-2xl border-2 py-3 text-sm font-semibold transition-all", profile.gender === g ? "border-primary bg-primary/10 text-foreground" : "border-border bg-card text-muted-foreground hover:border-primary/40")}>{g}</button>
+                ))}
+              </div>
+
+              {profile.gender ? (
+                <div className="grid grid-cols-2 gap-2.5 flex-1 content-start">
+                  {BODY_TYPE_OPTIONS.map((b, idx) => {
+                    const active = startingPoint === b.id;
+                    return (
+                      <button key={b.id} type="button" onClick={() => setStartingPoint(b.id)} className={cn("relative rounded-2xl border-2 p-3 text-center transition-all", idx === 4 && "col-span-2", active ? "border-primary bg-primary/10" : "border-border bg-card hover:border-primary/40")}>
+                        <svg viewBox="0 0 120 150" className="w-14 h-[70px] mx-auto mb-1.5"><path d={BODY_TYPE_PATHS[profile.gender === "Female" ? "f" : "m"][b.id]} className={active ? "fill-primary" : "fill-muted-foreground"} /></svg>
+                        <div className={cn("text-xs font-semibold leading-tight", active ? "text-foreground" : "text-muted-foreground")}>{b.label}</div>
+                        {active && <Check className="absolute top-2 right-2 w-4 h-4 text-primary" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="flex-1 flex items-center justify-center text-center text-sm text-muted-foreground">Pick one above to see your starting-point options.</div>
+              )}
+
+              <Button onClick={nextStep} className="w-full mt-8 rounded-full h-12 text-lg font-medium" disabled={!profile.gender || !startingPoint}>Next <ChevronRight className="ml-2 w-5 h-5" /></Button>
+            </motion.div>
+          )}
+
+          {/* 2 — DESIRE (goal + physique) */}
+          {step === 2 && (
+            <motion.div key="s2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex-1 flex flex-col">
+              <h1 className="text-3xl font-bold tracking-tight mb-2">What are you chasing?</h1>
+              <p className="text-muted-foreground mb-5">We'll build your training and nutrition around this.</p>
+              <div className="grid grid-cols-2 gap-2.5 mb-6">
+                {GOAL_OPTIONS.map((g) => (
+                  <CardBtn key={g.id} active={goal === g.id} onClick={() => setGoal(g.id)}>
+                    <g.icon className="w-5 h-5 mb-1.5 text-primary" />
+                    <div className="font-semibold text-foreground">{g.id}</div>
+                    <div className="text-xs text-muted-foreground">{g.desc}</div>
+                  </CardBtn>
+                ))}
+              </div>
+              <Label className="mb-2 block">And the look you want</Label>
               <div className="space-y-3 flex-1">
-                {[
-                  { id: "Weight Loss", icon: Activity, desc: "Shred fat and lean out" },
-                  { id: "Muscle Gain", icon: Dumbbell, desc: "Build size and hypertrophy" },
-                  { id: "Strength", icon: Shield, desc: "Increase 1RM on main lifts" },
-                  { id: "Athleticism", icon: Zap, desc: "Speed, power, and conditioning" },
-                ].map((g) => (
-                  <div
-                    key={g.id}
-                    onClick={() => setGoal(g.id as Goal)}
-                    className={cn(
-                      "p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center gap-4",
-                      goal === g.id ? "border-primary bg-primary/10" : "border-border bg-card hover:border-primary/50",
-                    )}
-                  >
-                    <div className={cn("p-3 rounded-full", goal === g.id ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground")}>
-                      <g.icon className="w-6 h-6" />
+                {physiqueOptions.map((p) => (
+                  <div key={p.id} onClick={() => setProfile({ ...profile, targetPhysique: p.id as TargetPhysique })} className={cn("rounded-2xl border-2 transition-all cursor-pointer flex items-stretch gap-4 overflow-hidden", profile.targetPhysique === p.id ? "border-primary bg-primary/10" : "border-border bg-card hover:border-primary/50")}>
+                    <div className="w-20 shrink-0 bg-black/40 relative">
+                      <img src={`${import.meta.env.BASE_URL}physiques/${p.img}`} alt={p.label} className="w-full h-full object-cover object-top" />
+                      {profile.targetPhysique === p.id && <div className="absolute top-2 left-2 bg-primary text-primary-foreground rounded-full p-1"><Check className="w-3 h-3" /></div>}
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-lg">{g.id}</h3>
-                      <p className="text-sm text-muted-foreground">{g.desc}</p>
+                    <div className="flex-1 py-3 pr-4 flex flex-col justify-center">
+                      <h3 className="font-semibold">{p.label}</h3>
+                      <p className="text-xs text-muted-foreground">{p.desc}</p>
                     </div>
                   </div>
                 ))}
               </div>
-              <Button onClick={nextStep} className="w-full mt-8 rounded-full h-12 text-lg font-medium" disabled={!goal}>
-                Next <ChevronRight className="ml-2 w-5 h-5" />
-              </Button>
-            </motion.div>
-          )}
-
-          {/* STEP 2 — PHYSIQUE (gender captured here) */}
-          {step === 2 && (
-            <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex-1 flex flex-col">
-              <h1 className="text-3xl font-bold tracking-tight mb-2">Which physique are you chasing?</h1>
-              <p className="text-muted-foreground mb-6">We'll shape your training emphasis around the look you want.</p>
-
-              <div className="mb-6">
-                <Label className="mb-2 block">You are</Label>
-                <div className="flex gap-3">
-                  {(["Male", "Female"] as const).map((gnd) => (
-                    <button
-                      key={gnd}
-                      type="button"
-                      onClick={() => setProfile({ ...profile, gender: gnd })}
-                      className={cn(
-                        "flex-1 rounded-2xl border-2 py-3 text-sm font-semibold transition-all",
-                        profile.gender === gnd ? "border-primary bg-primary/10 text-foreground" : "border-border bg-card text-muted-foreground hover:border-primary/40",
-                      )}
-                    >
-                      {gnd}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {profile.gender ? (
-                <div className="space-y-3 flex-1">
-                  {physiqueOptions.map((p) => (
-                    <div
-                      key={p.id}
-                      onClick={() => setProfile({ ...profile, targetPhysique: p.id as TargetPhysique })}
-                      className={cn(
-                        "rounded-2xl border-2 transition-all cursor-pointer flex items-stretch gap-4 overflow-hidden",
-                        profile.targetPhysique === p.id ? "border-primary bg-primary/10" : "border-border bg-card hover:border-primary/50",
-                      )}
-                    >
-                      <div className="w-24 shrink-0 bg-black/40 relative">
-                        <img src={`${import.meta.env.BASE_URL}physiques/${p.img}`} alt={p.label} className="w-full h-full object-cover object-top" />
-                        {profile.targetPhysique === p.id && (
-                          <div className="absolute top-2 left-2 bg-primary text-primary-foreground rounded-full p-1">
-                            <Check className="w-3.5 h-3.5" />
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 py-4 pr-4 flex flex-col justify-center">
-                        <h3 className="font-semibold text-lg">{p.label}</h3>
-                        <p className="text-sm text-muted-foreground">{p.desc}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex-1 flex items-center justify-center text-center text-sm text-muted-foreground">Pick one above to see your body-goal options.</div>
-              )}
-
               <div className="flex gap-3 mt-8">
                 <Button variant="secondary" onClick={prevStep} className="rounded-full h-12 px-6">Back</Button>
-                <Button onClick={nextStep} className="flex-1 rounded-full h-12 text-lg font-medium" disabled={!physiqueSelected}>
-                  Next <ChevronRight className="ml-2 w-5 h-5" />
-                </Button>
+                <Button onClick={nextStep} className="flex-1 rounded-full h-12 text-lg font-medium" disabled={!goal || !physiqueSelected}>Next <ChevronRight className="ml-2 w-5 h-5" /></Button>
               </div>
             </motion.div>
           )}
 
-          {/* STEP 3 — TRAINING SETUP */}
+          {/* 3 — PAST FAILURE */}
           {step === 3 && (
-            <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex-1 flex flex-col">
-              <h1 className="text-3xl font-bold tracking-tight mb-2">Your training setup</h1>
-              <p className="text-muted-foreground mb-6">Tap what fits. We only program what you can actually do — lean into what you enjoy, skip what you hate.</p>
-              <div className="flex-1 space-y-6">
+            <motion.div key="s3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex-1 flex flex-col">
+              <p className="text-[11px] font-bold tracking-[0.16em] uppercase text-primary mb-2">Be honest</p>
+              <h1 className="text-3xl font-bold tracking-tight mb-2">What's gotten in the way before?</h1>
+              <p className="text-muted-foreground mb-6">Pick all that ring true. This is the important one.</p>
+              <div className="space-y-2.5 flex-1">
+                {PAST_FAILURES.map((f) => {
+                  const active = pastFailures.includes(f.label);
+                  return (
+                    <CardBtn key={f.label} active={active} onClick={() => toggleFailure(f.label)} className="block">
+                      <span className="pr-5 block">{f.label}</span>
+                      <span className="block text-[11px] font-semibold text-primary mt-1">→ {f.fix}</span>
+                    </CardBtn>
+                  );
+                })}
+              </div>
+              <div className="mt-4 bg-card border border-dashed border-primary/40 rounded-2xl p-4 text-sm leading-relaxed text-foreground/90">
+                None of these were your fault. They're what happens when a plan can't bend to your life. <span className="text-primary font-semibold">That's the part we fixed.</span>
+              </div>
+              <div className="flex gap-3 mt-6">
+                <Button variant="secondary" onClick={prevStep} className="rounded-full h-12 px-6">Back</Button>
+                <Button onClick={nextStep} className="flex-1 rounded-full h-12 text-lg font-medium">Next <ChevronRight className="ml-2 w-5 h-5" /></Button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* 4 — IDENTITY */}
+          {step === 4 && (
+            <motion.div key="s4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex-1 flex flex-col">
+              <p className="text-[11px] font-bold tracking-[0.16em] uppercase text-primary mb-2">Your best self</p>
+              <h1 className="text-3xl font-bold tracking-tight mb-2">When did you last feel like yourself?</h1>
+              <p className="text-muted-foreground mb-6">We'll build the path back — and past — that.</p>
+              <div className="space-y-2.5 flex-1">
+                {IDENTITY_OPTIONS.map((o) => (
+                  <CardBtn key={o} active={bestShape === o} onClick={() => setBestShape(o)} className="block"><span className="pr-5">{o}</span></CardBtn>
+                ))}
+              </div>
+              <div className="flex gap-3 mt-6">
+                <Button variant="secondary" onClick={prevStep} className="rounded-full h-12 px-6">Back</Button>
+                <Button onClick={nextStep} className="flex-1 rounded-full h-12 text-lg font-medium" disabled={!bestShape}>Next <ChevronRight className="ml-2 w-5 h-5" /></Button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* 5 — REAL WEEK */}
+          {step === 5 && (
+            <motion.div key="s5" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex-1 flex flex-col">
+              <p className="text-[11px] font-bold tracking-[0.16em] uppercase text-primary mb-2">Your real week</p>
+              <h1 className="text-3xl font-bold tracking-tight mb-2">When can you actually train?</h1>
+              <p className="text-muted-foreground mb-6">The part every other plan skipped — and why they fell apart.</p>
+              <div className="flex-1 space-y-5">
                 <div>
-                  <SectionHead icon={Wrench} title="What can you train with?" description="No barbell drills if you've only got dumbbells." />
+                  <Label className="mb-2 block">Days you can reliably train</Label>
+                  <Segmented options={["2", "3", "4", "5", "6"]} value={reliableDays} onChange={setReliableDays} />
+                </div>
+                <div>
+                  <Label className="mb-2 block">Which days usually work?</Label>
+                  <div className="grid grid-cols-7 gap-1.5">
+                    {DAYS_ABBR.map((d, i) => (
+                      <button key={i} type="button" onClick={() => toggleDay(i)} className={cn("aspect-square rounded-lg border text-xs font-bold transition-colors", trainDays.includes(i) ? "bg-primary text-primary-foreground border-transparent" : "bg-card border-border text-muted-foreground")}>{d}</button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <Label className="mb-2 block">Normal session length</Label>
+                  <Segmented options={["30 min", "45 min", "60 min", "75+"]} value={sessionLen} onChange={setSessionLen} />
+                </div>
+                <div>
+                  <Label className="mb-2 block">Busiest day, you could still give</Label>
+                  <Segmented options={["15 min", "20 min", "Skip it"]} value={busyDay} onChange={setBusyDay} />
+                </div>
+                <div>
+                  <SectionHead icon={Wrench} title="Where do you train?" />
                   <CardChips options={EQUIPMENT_LABELS} selected={profile.equipment} onToggle={toggleField("equipment")} />
-                </div>
-                <div>
-                  <SectionHead icon={ThumbsUp} title="What do you enjoy?" description="We'll bias your plan toward these so you stick with it." />
-                  <CardChips options={ENJOY_OPTIONS} selected={profile.enjoy} onToggle={toggleField("enjoy")} />
-                </div>
-                <div>
-                  <SectionHead icon={ThumbsDown} title="Anything you'd rather avoid?" description="Especially cardio you dislike." />
-                  <CardChips options={AVOID_OPTIONS} selected={profile.dislikes} onToggle={toggleField("dislikes")} />
                 </div>
               </div>
               <div className="flex gap-3 mt-6 pt-6 border-t border-border/50">
@@ -439,24 +510,20 @@ export default function Onboarding() {
             </motion.div>
           )}
 
-          {/* STEP 4 — INJURIES & DIET */}
-          {step === 4 && (
-            <motion.div key="step4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex-1 flex flex-col">
+          {/* 6 — TRAIN AROUND */}
+          {step === 6 && (
+            <motion.div key="s6" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex-1 flex flex-col">
+              <p className="text-[11px] font-bold tracking-[0.16em] uppercase text-primary mb-2">Make it yours</p>
               <h1 className="text-3xl font-bold tracking-tight mb-2">Anything to train around?</h1>
-              <p className="text-muted-foreground mb-6">We'll adjust around the limitations you report and keep nutrition within your restrictions.</p>
+              <p className="text-muted-foreground mb-6">We'll adjust around the limitations you report.</p>
               <div className="flex-1 space-y-6">
                 <div>
-                  <SectionHead icon={ShieldAlert} title="Any injuries the coach should know about?" description="We'll avoid movements that aggravate these." />
+                  <SectionHead icon={ShieldAlert} title="Injuries or limitations" description="We'll avoid movements that aggravate these." />
                   <CardChips options={INJURY_OPTIONS} selected={profile.injuries} onToggle={toggleInjury} />
-                  <Textarea
-                    value={profile.injuryNotes}
-                    onChange={(e) => setProfile((p) => ({ ...p, injuryNotes: e.target.value }))}
-                    placeholder="Anything else? e.g. left knee pain on deep squats, recovering shoulder…"
-                    className="bg-secondary/50 border-0 resize-none h-20 mt-3"
-                  />
+                  <Textarea value={profile.injuryNotes} onChange={(e) => setProfile((p) => ({ ...p, injuryNotes: e.target.value }))} placeholder="Anything else? e.g. left knee pain on deep squats…" className="bg-secondary/50 border-0 resize-none h-20 mt-3" />
                 </div>
                 <div>
-                  <SectionHead icon={Salad} title="Any dietary restrictions?" description="We'll keep meal advice within these." />
+                  <SectionHead icon={Salad} title="Dietary restrictions" description="We'll keep meal advice within these." />
                   <CardChips options={DIETARY_OPTIONS} selected={profile.dietary} onToggle={toggleDietary} />
                 </div>
               </div>
@@ -467,120 +534,110 @@ export default function Onboarding() {
             </motion.div>
           )}
 
-          {/* STEP 5 — SPORTS & CLASSES */}
-          {step === 5 && (
-            <motion.div key="step5" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex-1 flex flex-col">
-              <h1 className="text-3xl font-bold tracking-tight mb-2">Sports & classes</h1>
-              <p className="text-muted-foreground mb-6">We'll count these toward your week and offer them as fun cardio alternatives. Skip if none apply.</p>
-              <div className="flex-1 space-y-6">
-                <div>
-                  <SectionHead icon={Trophy} title="Any sports you play?" />
-                  <CardChips options={SPORTS_OPTIONS} selected={profile.sports} onToggle={toggleField("sports")} />
+          {/* 7 — CALIBRATE */}
+          {step === 7 && (
+            <motion.div key="s7" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex-1 flex flex-col">
+              <p className="text-[11px] font-bold tracking-[0.16em] uppercase text-primary mb-2">Precision</p>
+              <h1 className="text-3xl font-bold tracking-tight mb-2">Last thing — your numbers.</h1>
+              <p className="text-muted-foreground mb-6">So your plan is calibrated to you, not a template.</p>
+              <div className="space-y-4 flex-1">
+                <div className="space-y-2"><Label>Name</Label><Input value={profile.name} onChange={(e) => setProfile({ ...profile, name: e.target.value })} placeholder="John" className="bg-secondary/50 border-0" /></div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2"><Label>Age</Label><Input type="number" value={profile.age} onChange={(e) => setProfile({ ...profile, age: e.target.value })} placeholder="28" className="bg-secondary/50 border-0" /></div>
+                  <div className="space-y-2"><Label>Experience</Label>
+                    <Select value={profile.experience} onValueChange={(val: any) => setProfile({ ...profile, experience: val })}>
+                      <SelectTrigger className="bg-secondary/50 border-0"><SelectValue placeholder="Experience" /></SelectTrigger>
+                      <SelectContent><SelectItem value="Beginner">Beginner (0-1 yrs)</SelectItem><SelectItem value="Intermediate">Intermediate (1-3 yrs)</SelectItem><SelectItem value="Advanced">Advanced (3+ yrs)</SelectItem></SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <div>
-                  <SectionHead icon={Bike} title="Any classes you like?" />
-                  <CardChips options={CLASS_OPTIONS} selected={profile.classes} onToggle={toggleField("classes")} />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between min-h-6"><Label>Height</Label><UnitToggle options={[{ label: "cm", val: "cm" }, { label: "ft/in", val: "ft" }]} value={profile.heightUnit} onChange={(v) => switchHeightUnit(v as "cm" | "ft")} /></div>
+                    {profile.heightUnit === "cm" ? (
+                      <Input type="number" inputMode="numeric" value={profile.height} onChange={(e) => setHeightCm(e.target.value)} placeholder="180" className="bg-secondary/50 border-0" />
+                    ) : (
+                      <div className="flex gap-2">
+                        <div className="relative flex-1"><Input type="number" inputMode="numeric" value={parseImperial(profile.height).ft} onChange={(e) => setHeightFt(e.target.value)} placeholder="5" className="bg-secondary/50 border-0 pr-7" /><span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">ft</span></div>
+                        <div className="relative flex-1"><Input type="number" inputMode="numeric" value={parseImperial(profile.height).inch} onChange={(e) => setHeightIn(e.target.value)} placeholder="11" className="bg-secondary/50 border-0 pr-7" /><span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">in</span></div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between min-h-6"><Label>Weight</Label><UnitToggle options={[{ label: "kg", val: "kg" }, { label: "lb", val: "lb" }]} value={profile.weightUnit} onChange={(v) => setProfile({ ...profile, weightUnit: v as "kg" | "lb" })} /></div>
+                    <div className="relative"><Input type="number" inputMode="numeric" value={profile.weight} onChange={(e) => setProfile({ ...profile, weight: e.target.value })} placeholder={profile.weightUnit === "lb" ? "180" : "80"} className="bg-secondary/50 border-0 pr-9" /><span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{profile.weightUnit}</span></div>
+                  </div>
+                </div>
+                <div className="space-y-2"><Label>Activity level</Label>
+                  <Select value={profile.activityLevel} onValueChange={(val: any) => setProfile({ ...profile, activityLevel: val })}>
+                    <SelectTrigger className="bg-secondary/50 border-0"><SelectValue placeholder="How active are you?" /></SelectTrigger>
+                    <SelectContent><SelectItem value="Sedentary">Sedentary (desk job)</SelectItem><SelectItem value="Light">Light (1-2 / week)</SelectItem><SelectItem value="Moderate">Moderate (3-4 / week)</SelectItem><SelectItem value="Very Active">Very Active (5-6 / week)</SelectItem><SelectItem value="Athlete">Athlete (daily)</SelectItem></SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Used to calculate your daily calorie target.</p>
                 </div>
               </div>
-              <div className="flex gap-3 mt-6 pt-6 border-t border-border/50">
+              <div className="flex gap-3 mt-8">
                 <Button variant="secondary" onClick={prevStep} className="rounded-full h-12 px-6">Back</Button>
-                <Button onClick={nextStep} className="flex-1 rounded-full h-12 text-lg font-medium">Next <ChevronRight className="ml-2 w-5 h-5" /></Button>
+                <Button onClick={() => void generatePlan()} disabled={!profile.name || !canCalculate || generating} className="flex-1 rounded-full h-12 text-lg font-bold">
+                  {generating ? "Building…" : <>Build my plan <ArrowRight className="ml-2 w-5 h-5" /></>}
+                </Button>
               </div>
             </motion.div>
           )}
 
-          {/* STEP 6 — PROFILE → build plan → paywall */}
-          {step === 6 && (
-            <motion.div key="step6" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex-1 flex flex-col">
-              {generating ? (
+          {/* 8 — REVEAL */}
+          {step === 8 && (
+            <motion.div key="s8" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex-1 flex flex-col">
+              {generating || !built || !reveal ? (
                 <div className="flex-1 flex flex-col items-center justify-center text-center">
                   <div className="relative w-24 h-24 mb-8">
                     <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }} className="absolute inset-0 rounded-full border-4 border-primary/30 border-t-primary" />
                     <div className="absolute inset-0 flex items-center justify-center"><Zap className="w-8 h-8 text-primary" /></div>
                   </div>
                   <h2 className="text-2xl font-bold mb-2">Building your plan</h2>
-                  <p className="text-muted-foreground animate-pulse">
-                    {injuriesGuideline ? "Tailoring your plan around the guidelines you shared…" : `Building your custom ${goal} plan…`}
-                  </p>
+                  <p className="text-muted-foreground animate-pulse">Shaping it around your real week…</p>
                 </div>
               ) : (
                 <>
-                  <h1 className="text-3xl font-bold tracking-tight mb-2">Last step — your details</h1>
-                  <p className="text-muted-foreground mb-8">These calibrate your starting calories and loads.</p>
-                  <div className="space-y-4 flex-1">
-                    <div className="space-y-2">
-                      <Label>Name</Label>
-                      <Input value={profile.name} onChange={(e) => setProfile({ ...profile, name: e.target.value })} placeholder="John" className="bg-secondary/50 border-0" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Age</Label>
-                        <Input type="number" value={profile.age} onChange={(e) => setProfile({ ...profile, age: e.target.value })} placeholder="28" className="bg-secondary/50 border-0" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Experience</Label>
-                        <Select value={profile.experience} onValueChange={(val: any) => setProfile({ ...profile, experience: val })}>
-                          <SelectTrigger className="bg-secondary/50 border-0"><SelectValue placeholder="Experience" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Beginner">Beginner (0-1 yrs)</SelectItem>
-                            <SelectItem value="Intermediate">Intermediate (1-3 yrs)</SelectItem>
-                            <SelectItem value="Advanced">Advanced (3+ yrs)</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between min-h-6">
-                          <Label>Height</Label>
-                          <UnitToggle options={[{ label: "cm", val: "cm" }, { label: "ft/in", val: "ft" }]} value={profile.heightUnit} onChange={(v) => switchHeightUnit(v as "cm" | "ft")} />
-                        </div>
-                        {profile.heightUnit === "cm" ? (
-                          <Input type="number" inputMode="numeric" value={profile.height} onChange={(e) => setHeightCm(e.target.value)} placeholder="180" className="bg-secondary/50 border-0" />
-                        ) : (
-                          <div className="flex gap-2">
-                            <div className="relative flex-1">
-                              <Input type="number" inputMode="numeric" value={parseImperial(profile.height).ft} onChange={(e) => setHeightFt(e.target.value)} placeholder="5" className="bg-secondary/50 border-0 pr-7" />
-                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">ft</span>
-                            </div>
-                            <div className="relative flex-1">
-                              <Input type="number" inputMode="numeric" value={parseImperial(profile.height).inch} onChange={(e) => setHeightIn(e.target.value)} placeholder="11" className="bg-secondary/50 border-0 pr-7" />
-                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">in</span>
-                            </div>
+                  <p className="text-[11px] font-bold tracking-[0.16em] uppercase text-primary mb-2">Your plan is built</p>
+                  <h1 className="text-3xl font-bold tracking-tight mb-2">Here's what we built for you{profile.name ? `, ${profile.name}` : ""}.</h1>
+                  <p className="text-muted-foreground mb-5">Not a template. Every choice came from something you told us.</p>
+
+                  <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 mb-3">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Your first session</p>
+                    <p className="text-lg font-bold mt-0.5">{reveal.first ? reveal.first.title : "Full body"}</p>
+                    <p className="text-xs text-primary">{reveal.first ? `${reveal.first.exercises.length} movements · ~${reveal.dur} min` : ""}{reveal.shoulderSafe ? " · shoulder-safe" : ""}</p>
+                    <div className="grid grid-cols-7 gap-1.5 mt-3">
+                      {DAYS_ABBR.map((d, i) => {
+                        const t = reveal.dayTitle(i);
+                        return (
+                          <div key={i} className={cn("rounded-lg py-1.5 text-center text-[9px] font-bold border", t ? "bg-primary text-primary-foreground border-transparent" : "bg-card text-muted-foreground border-border")}>
+                            {d}<span className="block text-[10px] mt-0.5">{t ? t.slice(0, 4) : "·"}</span>
                           </div>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between min-h-6">
-                          <Label>Weight</Label>
-                          <UnitToggle options={[{ label: "kg", val: "kg" }, { label: "lb", val: "lb" }]} value={profile.weightUnit} onChange={(v) => setProfile({ ...profile, weightUnit: v as "kg" | "lb" })} />
-                        </div>
-                        <div className="relative">
-                          <Input type="number" inputMode="numeric" value={profile.weight} onChange={(e) => setProfile({ ...profile, weight: e.target.value })} placeholder={profile.weightUnit === "lb" ? "180" : "80"} className="bg-secondary/50 border-0 pr-9" />
-                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{profile.weightUnit}</span>
-                        </div>
-                      </div>
+                        );
+                      })}
                     </div>
-                    <div className="space-y-2">
-                      <Label>Activity level</Label>
-                      <Select value={profile.activityLevel} onValueChange={(val: any) => setProfile({ ...profile, activityLevel: val })}>
-                        <SelectTrigger className="bg-secondary/50 border-0"><SelectValue placeholder="How active are you?" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Sedentary">Sedentary (desk job, little exercise)</SelectItem>
-                          <SelectItem value="Light">Light (1-2 workouts / week)</SelectItem>
-                          <SelectItem value="Moderate">Moderate (3-4 workouts / week)</SelectItem>
-                          <SelectItem value="Very Active">Very Active (5-6 workouts / week)</SelectItem>
-                          <SelectItem value="Athlete">Athlete (daily training / physical job)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground">Used to calculate your daily calorie target.</p>
-                    </div>
+                    <div className="mt-3 inline-flex text-[11px] font-bold text-primary bg-primary/10 border border-primary/30 rounded-full px-2.5 py-1">◔ Busy-day {busyDay} version ready</div>
                   </div>
+
+                  <div className="rounded-2xl border border-border bg-card p-4 mb-3 space-y-2 text-sm">
+                    <div className="flex justify-between"><span className="text-muted-foreground">Daily calories</span><span className="font-bold">{built.macros.calories.toLocaleString()} kcal</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Protein</span><span className="font-bold">{built.macros.protein} g</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Adjusts from</span><span className="font-bold">your logged weight</span></div>
+                  </div>
+
+                  <div className="rounded-2xl border border-dashed border-border bg-card/50 p-4">
+                    <h4 className="text-[11px] uppercase tracking-wider text-primary font-bold mb-2.5">Why this plan</h4>
+                    <ul className="space-y-2">
+                      {reveal.why.map((w, i) => (
+                        <li key={i} className="text-[13px] text-foreground/85 leading-snug pl-4 relative"><span className="absolute left-0 text-primary font-bold">→</span>{w}</li>
+                      ))}
+                    </ul>
+                  </div>
+
                   <div className="flex gap-3 mt-8">
-                    <Button variant="secondary" onClick={prevStep} className="rounded-full h-12 px-6">Back</Button>
-                    <Button onClick={() => void generatePlan()} className="flex-1 rounded-full h-12 text-lg font-bold" disabled={!profile.name || !canCalculate}>
-                      Build my plan <ArrowRight className="ml-2 w-5 h-5" />
-                    </Button>
+                    <Button variant="secondary" onClick={() => setStep(7)} className="rounded-full h-12 px-6">Back</Button>
+                    <Button onClick={commitAndContinue} className="flex-1 rounded-full h-12 text-lg font-bold">This looks right <ArrowRight className="ml-2 w-5 h-5" /></Button>
                   </div>
                 </>
               )}
