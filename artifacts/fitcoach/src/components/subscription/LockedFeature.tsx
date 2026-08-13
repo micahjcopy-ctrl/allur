@@ -2,7 +2,7 @@ import React from "react";
 import { Lock, Loader2, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { startCheckout, PLAN_PRICES, TRIAL_DAYS } from "@/lib/subscription";
+import { startCheckout, PLAN_PRICES } from "@/lib/subscription";
 import { useFitCoach } from "@/context/FitCoachContext";
 
 interface LockedFeatureProps {
@@ -55,7 +55,7 @@ export function LockedFeature({ title, description }: LockedFeatureProps) {
         <p className="text-sm text-muted-foreground">
           {everSubscribed
             ? "Reactivate to unlock your AI coach, plan updates, and macro tracking."
-            : `Includes a ${TRIAL_DAYS}-day free trial. Cancel anytime.`}
+            : "Full access to your AI coach, plans, and tracking. Cancel anytime."}
         </p>
       </div>
 
@@ -71,7 +71,7 @@ export function LockedFeature({ title, description }: LockedFeatureProps) {
         ) : everSubscribed ? (
           "Reactivate ALLUR Base"
         ) : (
-          "Start my free trial"
+          "Get ALLUR Base"
         )}
       </Button>
     </div>
