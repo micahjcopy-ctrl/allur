@@ -346,7 +346,7 @@ const Navbar = () => {
             onClick={() => handleNav("/auth?mode=signup")}
             className="lp-cta h-11 px-6 text-sm inline-flex items-center justify-center"
           >
-            Start free trial
+            Get started
           </button>
         </div>
 
@@ -399,7 +399,7 @@ const Navbar = () => {
                 onClick={() => handleNav("/auth?mode=signup")}
                 className="lp-cta w-full py-4 text-base inline-flex items-center justify-center"
               >
-                Start free trial
+                Get started
               </button>
             </div>
           </motion.div>
@@ -720,7 +720,7 @@ export default function Landing() {
   useSeo({
     title: "ALLUR — AI Fitness Coach That Adapts Your Plan to Real Life",
     description:
-      "An AI fitness coach that builds a personalized training and nutrition plan around your body and adapts it when life changes. Photo meal macros, AI physique scans. Start free.",
+      "An AI fitness coach that builds a personalized training and nutrition plan around your body and adapts it when life changes. Photo meal macros, AI physique scans. Adapts when life changes.",
     path: "/home",
   });
 
@@ -823,7 +823,7 @@ export default function Landing() {
             </div>
 
             <p className="text-sm text-[var(--lp-muted)] mt-6 font-medium">
-              <span className="text-[var(--lp-text)]">14-day free trial</span> · Cancel anytime
+              <span className="text-[var(--lp-text)]">Monthly or annual</span> · Cancel anytime
             </p>
           </motion.div>
 
@@ -1401,10 +1401,10 @@ export default function Landing() {
               <div className="mb-8">
                 <h3 className="lp-display text-2xl font-semibold mb-2">Base</h3>
                 <div className="flex items-end gap-1 mb-2">
-                  <span className="lp-display text-5xl font-bold">$12.99</span>
+                  <span className="lp-display text-5xl font-bold">$10.99</span>
                   <span className="text-[var(--lp-muted)] mb-1">/mo</span>
                 </div>
-                <p className="font-medium" style={{ color: "var(--lp-cyan)" }}>14-day free trial included</p>
+                <p className="font-medium" style={{ color: "var(--lp-cyan)" }}>Or $69/year — save ~48%</p>
               </div>
 
               <ul className="space-y-4 mb-10 flex-1 text-[var(--lp-body)]">
@@ -1416,7 +1416,7 @@ export default function Landing() {
               </ul>
 
               <button onClick={handleSignup} className="lp-cta-ghost w-full h-14 text-lg inline-flex items-center justify-center">
-                Start 14-day free trial
+                Get started
               </button>
             </div>
 
@@ -1482,7 +1482,7 @@ export default function Landing() {
             <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
           </button>
           <p className="text-sm text-[var(--lp-muted)] mt-6 font-medium">
-            <span className="text-[var(--lp-text)]">14-day free trial</span> · Cancel anytime
+            <span className="text-[var(--lp-text)]">Monthly or annual</span> · Cancel anytime
           </p>
         </div>
       </section>
