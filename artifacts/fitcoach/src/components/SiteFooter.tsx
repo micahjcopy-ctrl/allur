@@ -76,7 +76,7 @@ export default function SiteFooter() {
             className="font-medium transition-opacity hover:opacity-80"
             style={{ color: "var(--lp-cyan)" }}
           >
-            Start free trial →
+            Get started →
           </button>
         </div>
       </div>

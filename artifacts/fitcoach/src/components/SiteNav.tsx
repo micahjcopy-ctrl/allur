@@ -12,7 +12,7 @@ const NAV_LINKS: [string, string][] = [
 
 // Global top nav — identical on EVERY page (landing included) so the whole
 // site presents one menu: logo → /home, Features · Pricing · About, then
-// Sign in + Start free trial. Transparent at the very top and frosted once
+// Sign in + Get started. Transparent at the very top and frosted once
 // scrolled, so it sits cleanly over the landing hero and normal pages alike.
 export default function SiteNav() {
   const [, setLocation] = useLocation();
@@ -77,7 +77,7 @@ export default function SiteNav() {
             onClick={() => go("/auth?mode=signup")}
             className="lp-cta h-11 px-6 text-sm inline-flex items-center justify-center"
           >
-            Start free trial
+            Get started
           </button>
         </div>
 
@@ -116,7 +116,7 @@ export default function SiteNav() {
               onClick={() => go("/auth?mode=signup")}
               className="lp-cta w-full py-4 text-base inline-flex items-center justify-center"
             >
-              Start free trial
+              Get started
             </button>
           </div>
         </div>
