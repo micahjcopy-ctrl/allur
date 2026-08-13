@@ -7,13 +7,46 @@
 const apiBase = () => import.meta.env.BASE_URL.replace(/\/+$/, "");
 
 export type PlanTag = "base" | "premium";
+export type BillingInterval = "monthly" | "annual";
 
+// Fallback display prices. The paywall fetches live amounts from Stripe via
+// fetchPlanPrices() so the shown price always matches what Stripe charges;
+// these are only used if that fetch fails.
 export const PLAN_PRICES: Record<PlanTag, string> = {
-  base: "$12.99",
+  base: "$10.99",
   premium: "$29.99",
 };
 
-export const TRIAL_DAYS = 14;
+export const ANNUAL_PRICE = "$69";
+export const ANNUAL_PER_MONTH = "$5.75";
+
+export interface PlanPrice {
+  id: string;
+  amount: number; // cents
+}
+export interface PlanPrices {
+  monthly: PlanPrice | null;
+  annual: PlanPrice | null;
+  currency: string;
+}
+
+/** Live Base pricing from Stripe (monthly + annual). Null on failure. */
+export async function fetchPlanPrices(): Promise<PlanPrices | null> {
+  try {
+    const res = await fetch(`${apiBase()}/api/stripe/plan-prices`, { credentials: "include" });
+    if (!res.ok) return null;
+    return (await res.json()) as PlanPrices;
+  } catch {
+    return null;
+  }
+}
+
+/** Format cents as a dollar string, dropping the .00 on whole amounts. */
+export function fmtPrice(cents: number, currency = "usd"): string {
+  const sym = currency.toLowerCase() === "usd" ? "$" : "";
+  const v = cents / 100;
+  return sym + (Number.isInteger(v) ? v.toString() : v.toFixed(2));
+}
 
 // Mirrors BASE_MONTHLY_CREDITS in the server's credits.ts — keep in lockstep.
 // Used only for display copy on the Account / paywall screens.
@@ -27,12 +60,12 @@ export const BASE_MONTHLY_CREDITS = {
  * Start a Stripe Checkout session for the given plan and redirect the browser
  * to it. Throws with a user-facing message on failure.
  */
-export async function startCheckout(plan: PlanTag): Promise<void> {
+export async function startCheckout(plan: PlanTag, interval: BillingInterval = "monthly"): Promise<void> {
   const res = await fetch(`${apiBase()}/api/stripe/checkout`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ plan }),
+    body: JSON.stringify({ plan, interval }),
   });
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as { error?: string } | null;
