@@ -57,7 +57,7 @@ export default function PageShell({
               <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </button>
             <p className="text-sm text-[var(--lp-muted)] mt-5 font-medium">
-              <span className="text-[var(--lp-text)]">14-day free trial</span> ·
+              <span className="text-[var(--lp-text)]">Monthly or annual</span> ·
               Cancel anytime
             </p>
           </div>

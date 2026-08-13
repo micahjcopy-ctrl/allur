@@ -34,8 +34,8 @@ export default function Terms() {
             Stripe on a recurring basis until cancelled.
           </li>
           <li>
-            The Base plan may include a free trial. If you do not cancel before the trial ends, your
-            subscription will begin and you will be charged the stated price.
+            Paid plans are billed immediately when you subscribe — there is no free trial. Base is
+            available monthly or annually and renews automatically at the stated price until cancelled.
           </li>
           <li>
             You can cancel anytime from your Account settings; access continues until the end of the

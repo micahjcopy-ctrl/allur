@@ -176,7 +176,7 @@ export default function Features() {
               onClick={() => go("/auth?mode=signup")}
               className="lp-cta h-14 px-8 text-lg inline-flex items-center justify-center gap-2 group"
             >
-              Start free trial
+              Get started
               <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </button>
             <button
@@ -252,7 +252,7 @@ export default function Features() {
           <StatRow
             stats={[
               { value: 3, label: "Free / Base / Premium tiers" },
-              { value: 14, label: "Day free trial on Base" },
+              { value: 48, label: "% saved paying yearly" },
               { value: 4, label: "AI tools in one app" },
               { value: 24, suffix: "/7", label: "Coach in your pocket" },
             ]}

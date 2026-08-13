@@ -21,12 +21,12 @@ const TIERS = [
   },
   {
     name: "Base",
-    price: "$12.99",
+    price: "$10.99",
     cadence: "/mo",
     tagline: "Your AI coach, unlocked.",
-    cta: "Start 14-day free trial",
+    cta: "Get ALLUR Base",
     highlight: false,
-    note: "14-day free trial included",
+    note: "Or $69/year — save ~48%. Cancel anytime.",
     features: [
       "Everything in Free",
       "AI Coach (50 conversations / mo)",
@@ -70,8 +70,8 @@ const FAQ = [
     a: "Yes. You can build your personalized plan and track your workouts, weight, PRs, and progress photos for free — no card required. The AI coach, photo meal logging, and body scans are part of the paid plans.",
   },
   {
-    q: "How does the free trial work?",
-    a: "Base comes with a 14-day free trial. You get full AI access for two weeks. Cancel anytime before the trial ends from your account and you won't be charged.",
+    q: "Can I pay monthly or yearly?",
+    a: "Base is $10.99/month, or $69/year — about $5.75/month, roughly 48% off. You're billed today and can cancel anytime in two taps from your account.",
   },
   {
     q: "What happens if I hit my Base limits?",
@@ -92,9 +92,9 @@ export default function Pricing() {
   const signup = () => go("/auth?mode=signup");
 
   useSeo({
-    title: "Pricing — ALLUR AI Fitness Coach ($0, $12.99, $29.99)",
+    title: "Pricing — ALLUR AI Fitness Coach ($0, $10.99, $29.99)",
     description:
-      "Simple ALLUR pricing: a free plan to build and track, Base at $12.99/mo with a 14-day free trial for full AI coaching, and Premium at $29.99/mo for unlimited everything.",
+      "Simple ALLUR pricing: a free plan to build and track, Base at $10.99/mo (or $69/yr) for full AI coaching, and Premium at $29.99/mo for unlimited everything.",
     path: "/pricing",
   });
 
@@ -123,8 +123,8 @@ export default function Pricing() {
           <StatRow
             stats={[
               { value: 0, prefix: "$", label: "Free plan, forever" },
-              { value: 12.99, prefix: "$", decimals: 2, label: "Base per month" },
-              { value: 14, label: "Day free trial on Base" },
+              { value: 10.99, prefix: "$", decimals: 2, label: "Base per month" },
+              { value: 69, prefix: "$", decimals: 0, label: "Base per year" },
               { value: 29.99, prefix: "$", decimals: 2, label: "Premium per month" },
             ]}
           />
@@ -204,7 +204,7 @@ export default function Pricing() {
             ))}
           </div>
           <p className="text-center text-sm text-[var(--lp-muted)] mt-8">
-            All plans are month-to-month. Cancel anytime. Prices in USD.
+            Monthly or annual. Cancel anytime. Prices in USD.
           </p>
         </div>
       </section>
@@ -276,7 +276,7 @@ export default function Pricing() {
               onClick={signup}
               className="lp-cta h-14 px-10 text-lg inline-flex items-center justify-center gap-2 group"
             >
-              Start your 14-day free trial
+              Get ALLUR Base
               <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </button>
           </div>
