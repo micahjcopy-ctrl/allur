@@ -13,7 +13,6 @@ import {
   startCheckout,
   cancelSubscription,
   PLAN_PRICES,
-  TRIAL_DAYS,
   BASE_MONTHLY_CREDITS,
   type PlanTag,
 } from "@/lib/subscription";
@@ -337,7 +336,7 @@ export default function Account() {
                     ) : subscription?.hasEverSubscribed ? (
                       "Reactivate Base"
                     ) : (
-                      `Start ${TRIAL_DAYS}-day free trial`
+                      "Get ALLUR Base"
                     )}
                   </Button>
                 </CardContent>
