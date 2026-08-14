@@ -173,7 +173,7 @@ export default function Features() {
           </div>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button
-              onClick={() => go("/auth?mode=signup")}
+              onClick={() => go("/onboarding")}
               className="lp-cta h-14 px-8 text-lg inline-flex items-center justify-center gap-2 group"
             >
               Get started
