@@ -72,7 +72,7 @@ export default function SiteFooter() {
         >
           <p>© {new Date().getFullYear()} ALLUR. All rights reserved.</p>
           <button
-            onClick={() => go("/auth?mode=signup")}
+            onClick={() => go("/onboarding")}
             className="font-medium transition-opacity hover:opacity-80"
             style={{ color: "var(--lp-cyan)" }}
           >

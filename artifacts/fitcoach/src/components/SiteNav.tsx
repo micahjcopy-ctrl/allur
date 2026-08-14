@@ -74,7 +74,7 @@ export default function SiteNav() {
             Sign in
           </button>
           <button
-            onClick={() => go("/auth?mode=signup")}
+            onClick={() => go("/onboarding")}
             className="lp-cta h-11 px-6 text-sm inline-flex items-center justify-center"
           >
             Get started
@@ -113,7 +113,7 @@ export default function SiteNav() {
               Sign in
             </button>
             <button
-              onClick={() => go("/auth?mode=signup")}
+              onClick={() => go("/onboarding")}
               className="lp-cta w-full py-4 text-base inline-flex items-center justify-center"
             >
               Get started
