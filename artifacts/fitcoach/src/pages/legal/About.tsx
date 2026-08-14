@@ -72,7 +72,7 @@ export default function About() {
           </p>
           <div className="mt-9 flex flex-col sm:flex-row gap-4 justify-center">
             <button
-              onClick={() => go("/auth?mode=signup")}
+              onClick={() => go("/onboarding")}
               className="lp-cta h-14 px-8 text-lg inline-flex items-center justify-center gap-2 group"
             >
               Start your transformation
