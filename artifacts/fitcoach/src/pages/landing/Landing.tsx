@@ -343,7 +343,7 @@ const Navbar = () => {
             Sign in
           </button>
           <button
-            onClick={() => handleNav("/auth?mode=signup")}
+            onClick={() => handleNav("/onboarding")}
             className="lp-cta h-11 px-6 text-sm inline-flex items-center justify-center"
           >
             Get started
@@ -396,7 +396,7 @@ const Navbar = () => {
                 Sign in
               </button>
               <button
-                onClick={() => handleNav("/auth?mode=signup")}
+                onClick={() => handleNav("/onboarding")}
                 className="lp-cta w-full py-4 text-base inline-flex items-center justify-center"
               >
                 Get started
@@ -755,7 +755,9 @@ export default function Landing() {
   const sysRightY = useTransform(sysProgress, [0, 1], [-50, 70]);
   const sysCenterY = useTransform(sysProgress, [0, 1], [30, -30]);
 
-  const handleSignup = () => setLocation("/auth?mode=signup");
+  // Send visitors into the quiz funnel first — account creation + payment come
+  // at the end of onboarding, not before it.
+  const handleSignup = () => setLocation("/onboarding");
 
   const marqueeItems = [
     "Adaptive Training",
