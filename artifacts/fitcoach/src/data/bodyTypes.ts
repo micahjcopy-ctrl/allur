@@ -35,4 +35,4 @@ export const BODY_TYPE_OPTIONS: { id: BodyTypeId; label: string }[] = [
 // public/bodytypes/{men|women}-start-{id}.png. If a photo is missing the card
 // falls back to the illustrated silhouette above, so the step never looks broken.
 export const bodyTypeImagePath = (gender: string, id: BodyTypeId): string =>
-  `${import.meta.env.BASE_URL}bodytypes/${gender === "Female" ? "women" : "men"}-start-${id}.png`;
+  `${import.meta.env.BASE_URL}bodytypes/${gender === "Female" ? "women" : "men"}-start-${id}.jpg`;
