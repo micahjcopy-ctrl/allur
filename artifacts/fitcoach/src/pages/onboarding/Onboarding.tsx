@@ -18,11 +18,11 @@ import {
 import { buildProgram } from "@/data/trainingKnowledge";
 import { EQUIPMENT_OPTIONS } from "@/data/exerciseOptimizer";
 import { physiqueOptionsFor } from "@/data/physiques";
-import { BODY_TYPE_PATHS, BODY_TYPE_OPTIONS } from "@/data/bodyTypes";
+import { BODY_TYPE_PATHS, BODY_TYPE_OPTIONS, bodyTypeImagePath, type BodyTypeId } from "@/data/bodyTypes";
 import { useAccount } from "@/context/AuthContext";
 import { useLogoutAccount } from "@workspace/api-client-react";
 import { writeOnboardingStash } from "@/lib/onboardingStash";
-import { MobileLayout } from "@/components/layout/MobileLayout";
+import { OnboardingShell } from "./OnboardingShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -80,6 +80,66 @@ function CardBtn({ active, onClick, children, className }: { active: boolean; on
     >
       {children}
       {active && <Check className="absolute top-3 right-3 w-4 h-4 text-primary" />}
+    </button>
+  );
+}
+
+/** Photographic body-type tile for the self-ID step. Falls back to the
+ *  illustrated silhouette if the photo hasn't been added yet, so the step is
+ *  never broken while imagery is being produced. */
+function BodyTypeCard({
+  gender,
+  id,
+  label,
+  active,
+  onClick,
+  wide,
+}: {
+  gender: string;
+  id: BodyTypeId;
+  label: string;
+  active: boolean;
+  onClick: () => void;
+  wide?: boolean;
+}) {
+  const [imgOk, setImgOk] = useState(true);
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "group relative overflow-hidden rounded-2xl border-2 transition-all",
+        wide ? "col-span-2 aspect-[16/10]" : "aspect-[3/4]",
+        active ? "border-primary shadow-lg shadow-primary/20" : "border-border hover:border-primary/50",
+      )}
+    >
+      {imgOk ? (
+        <img
+          src={bodyTypeImagePath(gender, id)}
+          alt={label}
+          onError={() => setImgOk(false)}
+          className={cn(
+            "absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]",
+            wide ? "object-[50%_20%]" : "object-top",
+          )}
+        />
+      ) : (
+        <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-b from-secondary/50 to-card">
+          <svg viewBox="0 0 120 150" className="h-3/4 w-auto">
+            <path d={BODY_TYPE_PATHS[gender === "Female" ? "f" : "m"][id]} className={active ? "fill-primary" : "fill-muted-foreground/70"} />
+          </svg>
+        </div>
+      )}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
+      {active && <div className="pointer-events-none absolute inset-0 rounded-2xl ring-2 ring-inset ring-primary" />}
+      <span className="absolute inset-x-3 bottom-3 text-left text-sm font-semibold leading-tight text-white drop-shadow">
+        {label}
+      </span>
+      {active && (
+        <span className="absolute right-2.5 top-2.5 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground shadow">
+          <Check className="h-3.5 w-3.5" />
+        </span>
+      )}
     </button>
   );
 }
@@ -342,8 +402,8 @@ export default function Onboarding() {
   }, [built, profile.injuries, profile.equipment, pastFailures, authUser, goal]);
 
   return (
-    <MobileLayout showNav={false}>
-      <div className="flex-1 flex flex-col pt-12 pb-6 px-6">
+    <OnboardingShell step={step} totalSteps={TOTAL_STEPS}>
+      <div className="flex-1 flex flex-col px-6 pt-10 pb-8 md:px-10 md:pt-14">
         {import.meta.env.DEV && (
           <div className="mb-4 rounded-xl border border-primary/30 bg-primary/5 p-2">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 px-1">Preview only · jump to step</p>
@@ -393,17 +453,18 @@ export default function Onboarding() {
               </div>
 
               {profile.gender ? (
-                <div className="grid grid-cols-2 gap-2.5 flex-1 content-start">
-                  {BODY_TYPE_OPTIONS.map((b, idx) => {
-                    const active = startingPoint === b.id;
-                    return (
-                      <button key={b.id} type="button" onClick={() => setStartingPoint(b.id)} className={cn("relative rounded-2xl border-2 p-3 text-center transition-all", idx === 4 && "col-span-2", active ? "border-primary bg-primary/10" : "border-border bg-card hover:border-primary/40")}>
-                        <svg viewBox="0 0 120 150" className="w-14 h-[70px] mx-auto mb-1.5"><path d={BODY_TYPE_PATHS[profile.gender === "Female" ? "f" : "m"][b.id]} className={active ? "fill-primary" : "fill-muted-foreground"} /></svg>
-                        <div className={cn("text-xs font-semibold leading-tight", active ? "text-foreground" : "text-muted-foreground")}>{b.label}</div>
-                        {active && <Check className="absolute top-2 right-2 w-4 h-4 text-primary" />}
-                      </button>
-                    );
-                  })}
+                <div className="grid grid-cols-2 gap-3 content-start">
+                  {BODY_TYPE_OPTIONS.map((b, idx) => (
+                    <BodyTypeCard
+                      key={b.id}
+                      gender={profile.gender}
+                      id={b.id}
+                      label={b.label}
+                      active={startingPoint === b.id}
+                      onClick={() => setStartingPoint(b.id)}
+                      wide={idx === 4}
+                    />
+                  ))}
                 </div>
               ) : (
                 <div className="flex-1 flex items-center justify-center text-center text-sm text-muted-foreground">Pick one above to see your starting-point options.</div>
@@ -668,6 +729,6 @@ export default function Onboarding() {
           )}
         </AnimatePresence>
       </div>
-    </MobileLayout>
+    </OnboardingShell>
   );
 }

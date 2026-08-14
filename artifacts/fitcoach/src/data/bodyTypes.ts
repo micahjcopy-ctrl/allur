@@ -29,3 +29,10 @@ export const BODY_TYPE_OPTIONS: { id: BodyTypeId; label: string }[] = [
   { id: "plateau", label: "Fit but plateaued" },
   { id: "fit", label: "In shape \u2014 want the edge" },
 ];
+
+// Photographic body-type cards for the self-ID step, shot in the same dark
+// cinematic style as the goal-physique photos. Files live under
+// public/bodytypes/{men|women}-start-{id}.png. If a photo is missing the card
+// falls back to the illustrated silhouette above, so the step never looks broken.
+export const bodyTypeImagePath = (gender: string, id: BodyTypeId): string =>
+  `${import.meta.env.BASE_URL}bodytypes/${gender === "Female" ? "women" : "men"}-start-${id}.jpg`;
