@@ -31,6 +31,7 @@ import { computeStreak, type StreakState } from "@/lib/streak";
 import { emitCelebration } from "@/lib/celebrationBus";
 import { isNewScoreHigh, crossedMilestone } from "@/lib/celebration";
 import { nutritionGoalMet, nutritionGoalMessage } from "@/lib/nutritionGoal";
+import { readOnboardingStash, clearOnboardingStash } from "@/lib/onboardingStash";
 
 export type { ProgramMeta } from "@/data/trainingKnowledge";
 
@@ -1182,6 +1183,26 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
       } else {
         resetToDefaults();
       }
+      // Anonymous-funnel hand-off: the quiz funnel now runs signed-OUT and
+      // stashes the finished plan to sessionStorage right before signup (see
+      // lib/onboardingStash). A brand-new account (no saved state) — or one that
+      // never finished onboarding — adopts that stashed profile/goal/plan and is
+      // marked onboarded. Applying it HERE, before setHydrated(true), means the
+      // account routes straight to the paywall with no onboarding-screen flash;
+      // the debounced writer below then persists it. Returning, already-onboarded
+      // accounts keep their real data and just drop the stale stash.
+      const stash = readOnboardingStash();
+      if (stash && stash.plan.length > 0 && !(saved && saved.onboardingComplete)) {
+        const stashedProfile = { ...EMPTY_PROFILE, ...stash.profile };
+        stashedProfile.targetPhysique = normalizePhysique(stashedProfile.targetPhysique);
+        setProfile(stashedProfile);
+        setGoal(stash.goal);
+        setWorkoutPlan(stash.plan);
+        setProgramMeta(stash.meta);
+        setOnboardingComplete(true);
+        setShowInstallPrompt(true);
+      }
+      if (stash) clearOnboardingStash();
       // Mark loaded so the debounced writer is now allowed to persist changes.
       hydratedUserIdRef.current = userId;
     } else {

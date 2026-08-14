@@ -142,6 +142,10 @@ function AuthGate() {
     if (location === "/about" || location === "/disclaimer") return;
     if (location === "/pricing") return;
     if (location === "/features") return;
+    // The quiz funnel runs signed-OUT: a visitor completes onboarding first and
+    // only creates an account + pays at the end. Keep /onboarding reachable when
+    // logged out so the funnel isn't bounced back to the marketing page.
+    if (location === "/onboarding") return;
     if (import.meta.env.DEV && location === "/paywall") return;
     if (isLoading) return;
     if (!authUser) {
@@ -225,6 +229,10 @@ function AuthGate() {
 
   if (!authUser) {
     if (location === "/auth") return <Auth />;
+    // The quiz funnel is public: signed-out visitors run onboarding in memory
+    // and only sign up + pay at the very end. The finished plan is stashed to
+    // sessionStorage on the last step and restored once their account hydrates.
+    if (location === "/onboarding") return <Onboarding />;
     // Installed app gets the minimal welcome screen; the website gets the full
     // marketing landing page.
     return standalone ? <AppWelcome /> : <Landing />;

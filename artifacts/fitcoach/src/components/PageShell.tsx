@@ -50,7 +50,7 @@ export default function PageShell({
               changes.
             </p>
             <button
-              onClick={() => go("/auth?mode=signup")}
+              onClick={() => go("/onboarding")}
               className="lp-cta h-14 px-10 text-lg inline-flex items-center justify-center gap-2 group"
             >
               Start your transformation

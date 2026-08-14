@@ -37,7 +37,7 @@ export default function AppWelcome() {
         <Button
           variant="outline"
           className="w-full h-12 text-base font-semibold"
-          onClick={() => setLocation("/auth?mode=signup")}
+          onClick={() => setLocation("/onboarding")}
         >
           Get Started
         </Button>

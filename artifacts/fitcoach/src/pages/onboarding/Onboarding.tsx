@@ -21,6 +21,7 @@ import { physiqueOptionsFor } from "@/data/physiques";
 import { BODY_TYPE_PATHS, BODY_TYPE_OPTIONS } from "@/data/bodyTypes";
 import { useAccount } from "@/context/AuthContext";
 import { useLogoutAccount } from "@workspace/api-client-react";
+import { writeOnboardingStash } from "@/lib/onboardingStash";
 import { MobileLayout } from "@/components/layout/MobileLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -239,7 +240,11 @@ export default function Onboarding() {
     const dayNames = trainDays.map((i) => DAYS_FULL[i]).join(", ");
 
     let finalPlan = program.days;
-    if (injuriesGuideline || reliableDays) {
+    // The coach adapt-plan endpoint is auth-gated (it's an LLM call, kept off
+    // the anonymous path so it can't be used as a free-coaching backdoor). In
+    // the signed-out funnel we show — and later deliver — the deterministic base
+    // plan as-is, so the plan the visitor approves is exactly what they get.
+    if (authUser && (injuriesGuideline || reliableDays)) {
       try {
         const content =
           `I'm just starting this plan. Reshape it to fit my real week: I can reliably train ${reliableDays} day(s) a week` +
@@ -293,6 +298,17 @@ export default function Onboarding() {
 
   const commitAndContinue = () => {
     if (!built) return;
+    // Signed-out visitor: this is the end of the anonymous funnel. Stash the
+    // finished plan (plus profile/goal) so it survives account creation, then
+    // send them to sign up. The FitCoach provider restores the stash on the new
+    // account's first hydration, marks onboarding complete, and the paywall gate
+    // takes it from there — so account creation and payment happen HERE, at the
+    // end, exactly once the visitor has seen their plan.
+    if (!authUser) {
+      writeOnboardingStash({ profile, goal, plan: built.plan, meta: built.meta });
+      setLocation("/auth?mode=signup");
+      return;
+    }
     setWorkoutPlan(built.plan);
     setProgramMeta(built.meta);
     setOnboardingComplete(true);
@@ -311,12 +327,19 @@ export default function Onboarding() {
       return w ? w.title.split(" ")[0] : null;
     };
     const why: string[] = [];
-    why.push(`${built.meta.splitName} — ${built.meta.daysPerWeek}×/week, matched to the days you gave us.`);
+    // Only claim day-matching when the coach actually reshaped the plan to the
+    // user's week (auth-only). On the signed-out funnel the deterministic base
+    // plan is shown, so we describe it honestly by goal instead.
+    why.push(
+      authUser
+        ? `${built.meta.splitName} — ${built.meta.daysPerWeek}×/week, matched to the days you gave us.`
+        : `${built.meta.splitName} — ${built.meta.daysPerWeek}×/week, built for your ${goal ?? "training"} goal.`,
+    );
     if (profile.injuries.length) why.push(`Adjusted around your ${profile.injuries.join(", ").toLowerCase()} so nothing aggravates it.`);
     if (pastFailures.some((f) => /generic/i.test(f))) why.push(`You said generic plans never stuck — this one is built only from your answers.`);
     else if (profile.equipment.length) why.push(`Only movements your setup allows: ${profile.equipment.slice(0, 2).join(", ").toLowerCase()}.`);
     return { first, dur, shoulderSafe, dayTitle, why: why.slice(0, 3) };
-  }, [built, profile.injuries, profile.equipment, pastFailures]);
+  }, [built, profile.injuries, profile.equipment, pastFailures, authUser, goal]);
 
   return (
     <MobileLayout showNav={false}>

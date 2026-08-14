@@ -259,7 +259,7 @@ export default function GetApp() {
 
         <div className="mt-8 text-center">
           <button
-            onClick={() => setLocation("/auth?mode=signup")}
+            onClick={() => setLocation("/onboarding")}
             className="text-sm font-medium underline-offset-4 hover:underline"
             style={{ color: "var(--lp-cyan)" }}
           >

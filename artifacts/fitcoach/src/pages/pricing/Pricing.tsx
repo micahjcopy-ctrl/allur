@@ -89,7 +89,7 @@ export default function Pricing() {
     setLocation(path);
     window.scrollTo({ top: 0, behavior: "auto" });
   };
-  const signup = () => go("/auth?mode=signup");
+  const signup = () => go("/onboarding");
 
   useSeo({
     title: "Pricing — ALLUR AI Fitness Coach ($0, $10.99, $29.99)",
