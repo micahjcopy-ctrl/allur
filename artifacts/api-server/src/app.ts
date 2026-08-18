@@ -63,8 +63,21 @@ const STATIC_ALLOWED_ORIGINS = new Set(
   ].filter((o): o is string => !!o),
 );
 
+// Origins the Capacitor native shell serves its bundled assets from. These are
+// fixed, local-only scheme/host pairs that no remote attacker can occupy — an
+// app has to be installed on the device to present them. Native requests carry
+// a bearer token rather than the session cookie (sameSite=lax means the cookie
+// is never sent cross-site), so allowing them here does not widen cookie
+// exposure; it only lets the app read its own API responses.
+const NATIVE_ORIGINS = new Set([
+  "capacitor://localhost", // iOS
+  "https://localhost", // Android (androidScheme: "https")
+  "ionic://localhost", // legacy iOS scheme
+]);
+
 function isAllowedOrigin(origin: string): boolean {
   if (STATIC_ALLOWED_ORIGINS.has(origin)) return true;
+  if (NATIVE_ORIGINS.has(origin)) return true;
   try {
     const host = new URL(origin).hostname;
     // This project's production + preview deployments on Vercel.
