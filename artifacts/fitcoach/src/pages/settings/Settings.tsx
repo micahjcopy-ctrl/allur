@@ -22,7 +22,9 @@ import { Switch } from "@/components/ui/switch";
 import { TOGGLEABLE_FEATURES, isEnabled } from "@/lib/features";
 import { useToast } from "@/hooks/use-toast";
 import { WelcomeTour } from "@/components/WelcomeTour";
-import { ChevronLeft, Loader2, PlayCircle, ChevronRight } from "lucide-react";
+import { BugReportForm } from "@/components/BugReportForm";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { ChevronLeft, Loader2, PlayCircle, ChevronRight, Bug } from "lucide-react";
 
 const GOALS: Exclude<Goal, null>[] = ["Weight Loss", "Muscle Gain", "Strength", "Athleticism"];
 
@@ -63,6 +65,7 @@ export default function Settings() {
   const [draftGoal, setDraftGoal] = useState<Goal>(goal);
   const [saving, setSaving] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
 
   const physiqueOptions = useMemo(() => physiqueOptionsFor(draft.gender), [draft.gender]);
   const previewMacros = useMemo(
@@ -336,7 +339,34 @@ export default function Settings() {
             </div>
             <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
           </button>
+
+          <button
+            type="button"
+            onClick={() => setReportOpen(true)}
+            className="w-full flex items-center gap-3 rounded-2xl border border-border bg-secondary/40 px-4 py-3.5 text-left hover:bg-secondary/60 transition-colors"
+          >
+            <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+              <Bug className="w-5 h-5 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-sm">Report a problem</p>
+              <p className="text-xs text-muted-foreground">Something broken or not working right? Tell us and we'll fix it.</p>
+            </div>
+            <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
+          </button>
         </section>
+
+        <Dialog open={reportOpen} onOpenChange={setReportOpen}>
+          <DialogContent className="allur-app max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Report a problem</DialogTitle>
+              <DialogDescription>
+                Tell us what's going wrong. It goes straight to the team.
+              </DialogDescription>
+            </DialogHeader>
+            <BugReportForm kind="feedback" onSent={() => setTimeout(() => setReportOpen(false), 1500)} />
+          </DialogContent>
+        </Dialog>
 
         <WelcomeTour open={tourOpen} onClose={() => setTourOpen(false)} />
       </div>
