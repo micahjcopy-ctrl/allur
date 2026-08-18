@@ -4,7 +4,7 @@
 // spec), so they're called with raw fetch here. Plan reads (credits +
 // subscription summary) go through the generated hooks in FitCoachContext.
 
-const apiBase = () => import.meta.env.BASE_URL.replace(/\/+$/, "");
+import { apiFetch } from "@/lib/apiOrigin";
 
 export type PlanTag = "base" | "premium";
 export type BillingInterval = "monthly" | "annual";
@@ -33,7 +33,7 @@ export interface PlanPrices {
 /** Live Base pricing from Stripe (monthly + annual). Null on failure. */
 export async function fetchPlanPrices(): Promise<PlanPrices | null> {
   try {
-    const res = await fetch(`${apiBase()}/api/stripe/plan-prices`, { credentials: "include" });
+    const res = await apiFetch(`/api/stripe/plan-prices`, { credentials: "include" });
     if (!res.ok) return null;
     return (await res.json()) as PlanPrices;
   } catch {
@@ -61,7 +61,7 @@ export const BASE_MONTHLY_CREDITS = {
  * to it. Throws with a user-facing message on failure.
  */
 export async function startCheckout(plan: PlanTag, interval: BillingInterval = "monthly"): Promise<void> {
-  const res = await fetch(`${apiBase()}/api/stripe/checkout`, {
+  const res = await apiFetch(`/api/stripe/checkout`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
@@ -78,7 +78,7 @@ export async function startCheckout(plan: PlanTag, interval: BillingInterval = "
 
 /** Cancel the active subscription at period end. Throws on failure. */
 export async function cancelSubscription(): Promise<void> {
-  const res = await fetch(`${apiBase()}/api/stripe/cancel`, {
+  const res = await apiFetch(`/api/stripe/cancel`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
