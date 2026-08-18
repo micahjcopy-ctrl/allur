@@ -13,7 +13,7 @@ import MealReview, { type MealAnalysisReply } from "./MealReview";
 import { Textarea } from "@/components/ui/textarea";
 import { useVoiceRecorder } from "@workspace/integrations-openai-ai-react";
 
-const apiBase = () => import.meta.env.BASE_URL.replace(/\/+$/, "");
+import { apiFetch } from "@/lib/apiOrigin";
 
 // Read a recorded audio Blob as RAW base64 (data-URL prefix stripped — the
 // transcribe endpoint decodes the string directly, and a "data:audio/...;"
@@ -113,7 +113,7 @@ export default function Macros() {
     setTranscribing(true);
     try {
       const audio = await blobToBase64(blob);
-      const res = await fetch(`${apiBase()}/api/coach/transcribe`, {
+      const res = await apiFetch(`/api/coach/transcribe`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -143,7 +143,7 @@ export default function Macros() {
     }
     setAnalyzingText(true);
     try {
-      const res = await fetch(`${apiBase()}/api/coach/analyze-meal-text`, {
+      const res = await apiFetch(`/api/coach/analyze-meal-text`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -246,7 +246,7 @@ export default function Macros() {
   const analyzeMeal = async (url: string, mealNote?: string) => {
     try {
       const photo = await downscaleImage(url);
-      const res = await fetch(`${apiBase()}/api/coach/analyze-meal`, {
+      const res = await apiFetch(`/api/coach/analyze-meal`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
