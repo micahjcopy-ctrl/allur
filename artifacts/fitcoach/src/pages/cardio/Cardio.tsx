@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { awardReps } from "@/lib/reps";
 import { cn } from "@/lib/utils";
 import { startLocationWatch, getLocationOnce, type GeoWatch } from "@/lib/native";
+import { apiFetch } from "@/lib/apiOrigin";
 import {
   ACTIVITY_LABELS,
   activityCaloriesOn,
@@ -309,7 +310,6 @@ export default function Cardio() {
 
   // Scenic loop ideas from the server-side route provider (Phase 2 — ORS).
   // A 501 means no provider key is configured yet: hide the button quietly.
-  const apiBase = () => import.meta.env.BASE_URL.replace(/\/+$/, "");
   const suggestRoutes = async () => {
     if (suggestBusy) return;
     setSuggestBusy(true);
@@ -324,7 +324,7 @@ export default function Cardio() {
     }
     try {
       const target = { run: 5000, walk: 3000, hike: 8000, cycle: 20000 }[type];
-      const res = await fetch(`${apiBase()}/api/cardio/route-suggestions`, {
+      const res = await apiFetch(`/api/cardio/route-suggestions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
