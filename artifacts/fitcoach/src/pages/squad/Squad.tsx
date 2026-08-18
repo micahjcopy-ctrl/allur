@@ -20,7 +20,7 @@ import {
   UserPlus,
 } from "lucide-react";
 
-const apiBase = () => import.meta.env.BASE_URL.replace(/\/+$/, "");
+import { apiFetch } from "@/lib/apiOrigin";
 
 interface SquadFriend {
   id: string;
@@ -112,7 +112,7 @@ export default function Squad() {
     void (async () => {
       if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) return;
       try {
-        const res = await fetch(`${apiBase()}/api/squad/push/public-key`, { credentials: "include" });
+        const res = await apiFetch(`/api/squad/push/public-key`, { credentials: "include" });
         const { enabled } = (await res.json()) as { enabled: boolean };
         if (!enabled) {
           setPushState("unavailable");
@@ -143,7 +143,7 @@ export default function Squad() {
         setPushState(permission === "denied" ? "blocked" : "off");
         return;
       }
-      const res = await fetch(`${apiBase()}/api/squad/push/public-key`, { credentials: "include" });
+      const res = await apiFetch(`/api/squad/push/public-key`, { credentials: "include" });
       const { key } = (await res.json()) as { key: string | null };
       if (!key) {
         setPushState("unavailable");
@@ -154,7 +154,7 @@ export default function Squad() {
       const reg = await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: appKey });
       const json = sub.toJSON();
-      await fetch(`${apiBase()}/api/squad/push/subscribe`, {
+      await apiFetch(`/api/squad/push/subscribe`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -171,7 +171,7 @@ export default function Squad() {
 
   const load = async () => {
     try {
-      const res = await fetch(`${apiBase()}/api/squad/overview?day=${localDay()}`, { credentials: "include" });
+      const res = await apiFetch(`/api/squad/overview?day=${localDay()}`, { credentials: "include" });
       if (res.ok) {
         const ov = (await res.json()) as Overview;
         setData(ov);
@@ -194,7 +194,7 @@ export default function Squad() {
 
   const post = async (path: string, body: Record<string, unknown>): Promise<{ ok: boolean; error?: string }> => {
     try {
-      const res = await fetch(`${apiBase()}/api${path}`, {
+      const res = await apiFetch(`/api${path}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
