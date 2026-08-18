@@ -18,7 +18,7 @@ import {
 } from "@/lib/subscription";
 import { Check, Star, Zap, User, Users, LogOut, Loader2, Scale, AlertTriangle, Trash2 } from "lucide-react";
 
-const apiBase = () => import.meta.env.BASE_URL.replace(/\/+$/, "");
+import { apiFetch, setAuthToken } from "@/lib/apiOrigin";
 
 function formatDate(iso: string | null): string | null {
   if (!iso) return null;
@@ -56,7 +56,13 @@ export default function Account() {
       });
     }
     // Strip the query param so a reload doesn't re-trigger the toast.
-    window.history.replaceState({}, "", apiBase() + "/account");
+    // NOTE: this is the app's ROUTE base (Vite's BASE_URL), not the API origin —
+    // they were the same helper before native, and must not be conflated now.
+    window.history.replaceState(
+      {},
+      "",
+      `${import.meta.env.BASE_URL.replace(/\/+$/, "")}/account`,
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -109,6 +115,9 @@ export default function Account() {
   const handleLogout = async () => {
     try {
       await logoutMut.mutateAsync();
+      // Native's credential is the stored bearer token, not a cookie the
+      // server can clear — drop it locally or the device stays signed in.
+      setAuthToken(null);
       await refreshAuth();
     } catch {
       toast({ title: "Logout failed", description: "Please try again.", variant: "destructive" });
@@ -123,7 +132,7 @@ export default function Account() {
     if (deleting) return;
     setDeleting(true);
     try {
-      const res = await fetch("/api/auth/delete-account", {
+      const res = await apiFetch("/api/auth/delete-account", {
         method: "POST",
         credentials: "include",
       });
