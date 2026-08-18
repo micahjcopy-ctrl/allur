@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-const apiBase = () => import.meta.env.BASE_URL.replace(/\/+$/, "");
+import { apiFetch } from "@/lib/apiOrigin";
 
 /**
  * Push-notification state machine, shared by onboarding, the dashboard bell,
@@ -30,7 +30,7 @@ export function usePush() {
     if (!supported) return;
     void (async () => {
       try {
-        const res = await fetch(`${apiBase()}/api/squad/push/public-key`, { credentials: "include" });
+        const res = await apiFetch(`/api/squad/push/public-key`, { credentials: "include" });
         const { enabled } = (await res.json()) as { enabled: boolean };
         if (!enabled) {
           setState("unavailable");
@@ -61,7 +61,7 @@ export function usePush() {
         setState(next);
         return next;
       }
-      const res = await fetch(`${apiBase()}/api/squad/push/public-key`, { credentials: "include" });
+      const res = await apiFetch(`/api/squad/push/public-key`, { credentials: "include" });
       const { key } = (await res.json()) as { key: string | null };
       if (!key) {
         setState("unavailable");
@@ -72,7 +72,7 @@ export function usePush() {
       const reg = await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: appKey });
       const json = sub.toJSON();
-      await fetch(`${apiBase()}/api/squad/push/subscribe`, {
+      await apiFetch(`/api/squad/push/subscribe`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
