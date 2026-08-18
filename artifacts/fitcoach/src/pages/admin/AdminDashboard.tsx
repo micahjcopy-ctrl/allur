@@ -45,6 +45,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { apiFetch } from "@/lib/apiOrigin";
 
 const GOALS = ["Weight Loss", "Muscle Gain", "Strength", "Athleticism"] as const;
 const NO_GOAL = "__none__";
@@ -113,7 +114,7 @@ export default function AdminDashboard() {
       return;
     }
     let cancelled = false;
-    fetch("/api/admin/status", { credentials: "include" })
+    apiFetch("/api/admin/status", { credentials: "include" })
       .then((res) => res.json() as Promise<{ isAdmin: boolean }>)
       .then((data) => {
         if (!cancelled && !data.isAdmin) setLocation("/admin");

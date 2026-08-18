@@ -5,6 +5,7 @@ import { ShieldCheck, Lock, Loader2, LogOut, Users, Eye } from "lucide-react";
 import { useAuth } from "@workspace/replit-auth-web";
 import { Button } from "@/components/ui/button";
 import { useFitCoach } from "@/context/FitCoachContext";
+import { apiFetch } from "@/lib/apiOrigin";
 
 type AdminCheck = "idle" | "checking" | "granted" | "denied";
 
@@ -28,7 +29,7 @@ export default function Admin() {
 
     let cancelled = false;
     setStatus("checking");
-    fetch("/api/admin/status", { credentials: "include" })
+    apiFetch("/api/admin/status", { credentials: "include" })
       .then((res) => res.json() as Promise<{ isAdmin: boolean }>)
       .then((data) => {
         if (cancelled) return;
