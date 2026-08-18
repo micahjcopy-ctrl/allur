@@ -93,6 +93,31 @@ function setSessionCookie(res: Response, sid: string) {
   });
 }
 
+/**
+ * True when the caller is the Capacitor native shell.
+ *
+ * Native can't use the session cookie: it's `sameSite: "lax"`, and every native
+ * request is cross-site (the webview origin is capacitor://localhost). So the
+ * app authenticates with `Authorization: Bearer <sid>` instead — which
+ * getSessionId() already accepts and the OpenAPI spec already documents. The
+ * only missing piece was handing the token to the client at sign-in, since it
+ * can't read the httpOnly cookie. That's what this gate is for.
+ */
+function isNativeClient(req: Request): boolean {
+  return req.headers["x-allur-client"] === "native";
+}
+
+/**
+ * Add the session token to an auth response for native callers only.
+ *
+ * The documented response shape is validated first and left untouched, so web
+ * clients see exactly what they saw before and the token never appears in a
+ * browser response (where it would be strictly worse than the httpOnly cookie).
+ */
+function withNativeToken<T extends object>(req: Request, body: T, sid: string): T | (T & { token: string }) {
+  return isNativeClient(req) ? { ...body, token: sid } : body;
+}
+
 function setOidcCookie(res: Response, name: string, value: string) {
   res.cookie(name, value, {
     httpOnly: true,
@@ -223,7 +248,7 @@ router.post("/auth/register", authRateLimit, async (req: Request, res: Response)
 
   const sid = await createSession(sessionData);
   setSessionCookie(res, sid);
-  res.json(RegisterAccountResponse.parse({ user: sessionData.user }));
+  res.json(withNativeToken(req, RegisterAccountResponse.parse({ user: sessionData.user }), sid));
 });
 
 router.post("/auth/login", authRateLimit, async (req: Request, res: Response) => {
@@ -285,7 +310,7 @@ router.post("/auth/login", authRateLimit, async (req: Request, res: Response) =>
 
   const sid = await createSession(sessionData);
   setSessionCookie(res, sid);
-  res.json(LoginAccountResponse.parse({ user: sessionData.user }));
+  res.json(withNativeToken(req, LoginAccountResponse.parse({ user: sessionData.user }), sid));
 });
 
 router.post("/auth/logout", async (req: Request, res: Response) => {
