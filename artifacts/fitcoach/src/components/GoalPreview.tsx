@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { OUT_OF_CREDITS_STATUS, outOfCreditsToast, needsSubscriptionToast } from "@/lib/credits";
 import { ArrowRight, Camera, Sparkles, Loader2, RefreshCw } from "lucide-react";
 
-const apiBase = () => import.meta.env.BASE_URL.replace(/\/+$/, "");
+import { apiFetch } from "@/lib/apiOrigin";
 
 // "Where you're headed" — pairs the athlete's most recent progress photo (their
 // "now") with an AI-enhanced goal version of THAT SAME PHOTO (their "goal"), so
@@ -58,7 +58,7 @@ export function GoalPreview({ className }: { className?: string }) {
     setGenerating(true);
     try {
       const photo = await downscaleImage(latestPhoto.url, 1024, 0.85).catch(() => latestPhoto.url);
-      const res = await fetch(`${apiBase()}/api/coach/enhance-goal-photo`, {
+      const res = await apiFetch(`/api/coach/enhance-goal-photo`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

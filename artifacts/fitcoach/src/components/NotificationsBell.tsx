@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { isStandalone } from "@/hooks/usePwaInstall";
 import { Bell, BellRing, Dumbbell, UtensilsCrossed, Camera, Users, Loader2, Check } from "lucide-react";
 
-const apiBase = () => import.meta.env.BASE_URL.replace(/\/+$/, "");
+import { apiFetch } from "@/lib/apiOrigin";
 
 interface FeedNotification {
   id: string;
@@ -84,14 +84,14 @@ export function NotificationsBell() {
   const loadFeed = async (markRead: boolean) => {
     setLoading(true);
     try {
-      const res = await fetch(`${apiBase()}/api/squad/overview`, { credentials: "include" });
+      const res = await apiFetch(`/api/squad/overview`, { credentials: "include" });
       if (!res.ok) throw new Error(`status ${res.status}`);
       const data = (await res.json()) as { notifications: FeedNotification[]; unreadCount: number };
       setItems(data.notifications);
       setUnread(data.unreadCount);
       if (markRead && data.unreadCount > 0) {
         setUnread(0);
-        void fetch(`${apiBase()}/api/squad/notifications/read`, {
+        void apiFetch(`/api/squad/notifications/read`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",

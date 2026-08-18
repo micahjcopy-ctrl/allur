@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { CheckCircle2, Circle, UtensilsCrossed, Dumbbell, Camera, Users, Compass, ChevronRight, Trophy } from "lucide-react";
 
-const apiBase = () => import.meta.env.BASE_URL.replace(/\/+$/, "");
+import { apiFetch } from "@/lib/apiOrigin";
 
 // key must match the server QUEST_CATALOG keys.
 const QUESTS = [
@@ -24,7 +24,7 @@ export function GettingStarted() {
   useEffect(() => {
     void (async () => {
       try {
-        const res = await fetch(`${apiBase()}/api/squad/overview`, { credentials: "include" });
+        const res = await apiFetch(`/api/squad/overview`, { credentials: "include" });
         if (res.ok) {
           const data = (await res.json()) as { quests?: string[] };
           setDone(new Set(data.quests ?? []));

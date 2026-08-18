@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Loader2, Check, Send } from "lucide-react";
+import { apiFetch } from "@/lib/apiOrigin";
 
 // Deliberately dependency-light: this renders inside the crash ErrorBoundary,
 // so it uses plain elements + design tokens rather than shadcn components (a bug
@@ -36,7 +37,7 @@ export function BugReportForm({
     if (message.trim().length < 3 || status === "sending") return;
     setStatus("sending");
     try {
-      const res = await fetch(`${apiBase()}/api/support/bug-report`, {
+      const res = await apiFetch(`/api/support/bug-report`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
