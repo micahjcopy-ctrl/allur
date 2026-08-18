@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Gift, Copy, Share2, Check, ChevronLeft, Sparkles, Users, Loader2 } from "lucide-react";
 
-const apiBase = () => import.meta.env.BASE_URL.replace(/\/+$/, "");
+import { apiFetch } from "@/lib/apiOrigin";
 const APP_URL = "https://allur-mauve.vercel.app";
 
 interface ReferralStatus {
@@ -30,7 +30,7 @@ export default function Refer() {
     setLoading(true);
     setLoadFailed(false);
     try {
-      const res = await fetch(`${apiBase()}/api/referral/status`, { credentials: "include" });
+      const res = await apiFetch(`/api/referral/status`, { credentials: "include" });
       if (!res.ok) throw new Error(`status ${res.status}`);
       setData((await res.json()) as ReferralStatus);
     } catch {
