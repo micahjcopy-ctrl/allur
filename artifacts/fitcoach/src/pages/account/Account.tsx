@@ -19,6 +19,7 @@ import {
 import { Check, Star, Zap, User, Users, LogOut, Loader2, Scale, AlertTriangle, Trash2 } from "lucide-react";
 
 import { apiFetch, setAuthToken } from "@/lib/apiOrigin";
+import { iapAvailable, openStoreSubscriptionSettings, restorePurchases } from "@/lib/iap";
 
 function formatDate(iso: string | null): string | null {
   if (!iso) return null;
@@ -159,6 +160,63 @@ export default function Account() {
   const isTrialing = subscription?.status === "trialing";
   const cancelAtPeriodEnd = subscription?.cancelAtPeriodEnd ?? false;
 
+  // Subscriptions bought through Apple or Google cannot be cancelled by us —
+  // only the user can, from their store account. Showing our Stripe cancel
+  // button to a store subscriber would hit an endpoint that knows nothing
+  // about them and fail. Send them to the right place instead.
+  const storeManaged =
+    subscription?.status === "app_store" || subscription?.status === "play_store";
+
+  const cancelControl = cancelAtPeriodEnd ? (
+    <p className="text-sm text-muted-foreground">
+      Cancels on {periodEnd ?? "your billing date"}. You keep access until then.
+    </p>
+  ) : storeManaged ? (
+    <div className="space-y-1">
+      <Button
+        onClick={() => void openStoreSubscriptionSettings()}
+        variant="ghost"
+        className="w-full"
+      >
+        Manage subscription
+      </Button>
+      <p className="text-xs text-muted-foreground text-center">
+        Billed through your Apple ID. Cancel anytime in your Apple ID settings.
+      </p>
+    </div>
+  ) : (
+    <Button
+      onClick={handleCancel}
+      disabled={canceling}
+      variant="ghost"
+      className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+    >
+      {canceling ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+      Cancel subscription
+    </Button>
+  );
+
+  // Apple requires Restore Purchases to be reachable in any app selling
+  // auto-renewing subscriptions. Account is where users look for it after
+  // reinstalling or switching phones.
+  const [restoring, setRestoring] = React.useState(false);
+  const handleRestore = async () => {
+    setRestoring(true);
+    const outcome = await restorePurchases();
+    if (outcome.ok) {
+      await refreshSubscription();
+      refreshCredits();
+      toast({ title: "Purchases restored" });
+    } else {
+      toast({
+        title: "Nothing to restore",
+        description: outcome.cancelled ? "Cancelled." : outcome.message,
+        variant: "destructive",
+      });
+    }
+    setRestoring(false);
+  };
+
   const baseFeatures = [
     `${BASE_MONTHLY_CREDITS.coaching} AI coaching requests / mo`,
     `${BASE_MONTHLY_CREDITS.photo} meal photo logs / mo`,
@@ -207,21 +265,7 @@ export default function Account() {
                   <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Unlimited meal logs & physique scans</li>
                   <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Everything in Base</li>
                 </ul>
-                {cancelAtPeriodEnd ? (
-                  <p className="text-sm text-muted-foreground">
-                    Cancels on {periodEnd ?? "your billing date"}. You keep access until then.
-                  </p>
-                ) : (
-                  <Button
-                    onClick={handleCancel}
-                    disabled={canceling}
-                    variant="ghost"
-                    className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
-                  >
-                    {canceling ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                    Cancel subscription
-                  </Button>
-                )}
+                {cancelControl}
               </CardContent>
             </Card>
           )}
@@ -251,21 +295,7 @@ export default function Account() {
                       <li key={f} className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> {f}</li>
                     ))}
                   </ul>
-                  {cancelAtPeriodEnd ? (
-                    <p className="text-sm text-muted-foreground">
-                      Cancels on {periodEnd ?? "your billing date"}. You keep access until then.
-                    </p>
-                  ) : (
-                    <Button
-                      onClick={handleCancel}
-                      disabled={canceling}
-                      variant="ghost"
-                      className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
-                    >
-                      {canceling ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                      Cancel subscription
-                    </Button>
-                  )}
+                  {cancelControl}
                 </CardContent>
               </Card>
 
@@ -352,6 +382,17 @@ export default function Account() {
               </Card>
             </>
           )}
+
+          {iapAvailable() && (
+            <button
+              type="button"
+              onClick={handleRestore}
+              disabled={restoring}
+              className="w-full text-center text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground disabled:opacity-50 pt-1"
+            >
+              {restoring ? "Restoring…" : "Restore purchases"}
+            </button>
+          )}
         </section>
 
         <section className="space-y-2">
@@ -421,8 +462,32 @@ export default function Account() {
               <p className="text-sm text-muted-foreground">
                 Permanently delete your account and all your data — workouts,
                 meals, photos, scores and progress. This can't be undone
-                {isPremium ? ", and your subscription will be cancelled" : ""}.
+                {isPremium && !storeManaged
+                  ? ", and your subscription will be cancelled"
+                  : ""}
+                .
               </p>
+              {/*
+                Apple subscriptions live on the Apple ID, not in our database —
+                deleting the account here does NOT stop the billing, and Apple
+                requires us to say so rather than let someone delete their
+                account and keep getting charged.
+              */}
+              {storeManaged && (
+                <p className="text-sm text-destructive">
+                  Your subscription is billed through your Apple ID and will
+                  <span className="font-semibold"> not </span>
+                  be cancelled by deleting your account. Cancel it first in your
+                  Apple ID settings, or you'll keep being charged.
+                  <button
+                    type="button"
+                    onClick={() => void openStoreSubscriptionSettings()}
+                    className="block underline underline-offset-2 mt-1"
+                  >
+                    Open subscription settings
+                  </button>
+                </p>
+              )}
               {!confirmingDelete ? (
                 <Button variant="destructive" onClick={() => setConfirmingDelete(true)}>
                   <Trash2 className="w-4 h-4 mr-2" /> Delete account
