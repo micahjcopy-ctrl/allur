@@ -3,6 +3,7 @@ import { eq, sql } from "drizzle-orm";
 import type { UserPlan } from "../credits";
 import { isAdminUserId } from "../admin";
 import { isCompedUserId } from "../comped";
+import { getIapEntitlement } from "../iap/entitlement";
 
 // Stripe subscription statuses that grant access (trialing counts — the 14-day
 // Base trial is full access).
@@ -133,6 +134,29 @@ export async function getSubscriptionSummary(
     };
   }
 
+  // App Store / Play Store subscribers. Checked BEFORE Stripe because a user
+  // who bought in the iOS app has no Stripe customer at all — the Stripe branch
+  // below would return `empty` and hard-paywall a paying customer.
+  //
+  // This block is the entire iOS payment integration as far as the rest of the
+  // app is concerned. Every downstream consumer — the post-onboarding paywall
+  // gate, the credit guard, the Account screen, every feature lock — reads this
+  // same SubscriptionSummary and cannot tell which store paid for it. Nothing
+  // else needed changing, and nothing about the web experience did.
+  const iap = await getIapEntitlement(userId);
+  if (iap?.isActive) {
+    return {
+      plan: iap.plan,
+      // Surfaced verbatim so the Account screen can say "manage this in the App
+      // Store" rather than offering a Stripe cancel button that would 404.
+      status: iap.store === "play_store" ? "play_store" : "app_store",
+      trialEnd: null,
+      currentPeriodEnd: iap.expiresAt ? iap.expiresAt.toISOString() : null,
+      cancelAtPeriodEnd: !iap.willRenew,
+      hasEverSubscribed: true,
+    };
+  }
+
   try {
     const [user] = await db
       .select({ stripeCustomerId: usersTable.stripeCustomerId })
@@ -140,10 +164,20 @@ export async function getSubscriptionSummary(
       .where(eq(usersTable.id, userId));
 
     const customerId = user?.stripeCustomerId;
-    if (!customerId) return empty;
+    // A lapsed store subscriber still counts as "has ever subscribed", so the
+    // post-onboarding gate does not re-trap them (same rule as lapsed Stripe).
+    if (!customerId) {
+      return iap?.hasEverSubscribed
+        ? { ...empty, hasEverSubscribed: true }
+        : empty;
+    }
 
     const subs = await loadSubscriptions(customerId);
-    if (subs.length === 0) return empty;
+    if (subs.length === 0) {
+      return iap?.hasEverSubscribed
+        ? { ...empty, hasEverSubscribed: true }
+        : empty;
+    }
 
     const hasEverSubscribed = true;
     const active = subs.filter((s) =>
@@ -168,6 +202,10 @@ export async function getSubscriptionSummary(
       hasEverSubscribed,
     };
   } catch {
-    return empty;
+    // Stripe unreachable. Preserve the store subscriber's history so a Stripe
+    // outage cannot hard-paywall an App Store customer who has never touched it.
+    return iap?.hasEverSubscribed
+      ? { ...empty, hasEverSubscribed: true }
+      : empty;
   }
 }

@@ -8,6 +8,7 @@ import stripeRouter from "./stripe";
 import socialRouter from "./social";
 import cardioRouter from "./cardio";
 import supportRouter from "./support";
+import iapRouter from "./iap";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(stripeRouter);
 router.use(socialRouter);
 router.use(cardioRouter);
 router.use(supportRouter);
+router.use(iapRouter);
 
 export default router;
