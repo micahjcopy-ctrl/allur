@@ -10,6 +10,7 @@ import { LockedFeature } from "@/components/subscription/LockedFeature";
 import { Send, Cpu, Sparkles, CheckCircle2, Mic, Square, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useVoiceRecorder } from "@workspace/integrations-openai-ai-react";
+import { apiFetch } from "@/lib/apiOrigin";
 
 interface CoachReply {
   reply: string;
@@ -114,7 +115,6 @@ export default function Coach() {
     "How should I increase weight next week?",
   ];
 
-  const apiBase = () => import.meta.env.BASE_URL.replace(/\/+$/, "");
 
   const contextPayload = () => ({
     goal,
@@ -175,7 +175,7 @@ export default function Coach() {
 
     setIsTyping(true);
     try {
-      const res = await fetch(`${apiBase()}/api/coach/chat`, {
+      const res = await apiFetch(`/api/coach/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -237,7 +237,7 @@ export default function Coach() {
     try {
       const audio = await blobToBase64(blob);
       const history = chatMessages.map((m) => ({ role: m.role, content: m.content }));
-      const res = await fetch(`${apiBase()}/api/coach/voice`, {
+      const res = await apiFetch(`/api/coach/voice`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

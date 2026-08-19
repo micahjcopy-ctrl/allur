@@ -1,7 +1,20 @@
 import { createRoot } from "react-dom/client";
 import * as Sentry from "@sentry/react";
+import { setBaseUrl, setAuthTokenGetter } from "@workspace/api-client-react";
 import App from "./App";
 import "./index.css";
+import { isNative } from "./lib/native";
+import { apiOrigin, getAuthToken } from "./lib/apiOrigin";
+
+// Point the generated API client at the right origin and credential BEFORE the
+// app renders. On web both are no-ops (relative URLs + session cookie); on
+// native the client must call an absolute origin and carry a bearer token,
+// because the webview origin is capacitor://localhost and the sameSite=lax
+// session cookie is never sent cross-site. See lib/apiOrigin.ts.
+if (isNative()) {
+  setBaseUrl(apiOrigin());
+  setAuthTokenGetter(() => getAuthToken());
+}
 
 // Error monitoring (opt-in): only initializes when VITE_SENTRY_DSN is set in the
 // build env, so it's a no-op until you create a Sentry project and add the DSN
@@ -30,7 +43,10 @@ createRoot(document.getElementById("root")!).render(<App />);
 //     immediately; `controllerchange` then refreshes the page ONCE — but only for
 //     a genuine update (a page that was already controlled), never on first
 //     install, so users are never caught in a reload loop.
-if ("serviceWorker" in navigator) {
+// Web only. Under Capacitor the app shell is already local, so a service worker
+// buys nothing — and it actively hurts: it caches the bundled shell and can
+// serve a stale or blank screen after an app update, which looks like a crash.
+if (!isNative() && "serviceWorker" in navigator) {
   let refreshing = false;
   // Only auto-reload on a controller change if this page was already controlled
   // by a SW at startup. On the very first install the new SW claims this page

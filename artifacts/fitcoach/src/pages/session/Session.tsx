@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import type { WeightAnalysisReply } from "@workspace/api-client-react";
 
-const apiBase = () => import.meta.env.BASE_URL.replace(/\/+$/, "");
+import { apiFetch } from "@/lib/apiOrigin";
 
 // Downscale a captured photo before sending it to the vision endpoint.
 const downscaleImage = (src: string, maxDim = 1024, quality = 0.82): Promise<string> =>
@@ -244,7 +244,7 @@ export default function Session() {
   const analyzeWeight = async (exerciseName: string, url: string) => {
     try {
       const photo = await downscaleImage(url);
-      const res = await fetch(`${apiBase()}/api/coach/analyze-weight`, {
+      const res = await apiFetch(`/api/coach/analyze-weight`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

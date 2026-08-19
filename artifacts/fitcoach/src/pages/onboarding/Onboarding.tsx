@@ -33,7 +33,7 @@ import { ChevronRight, Activity, Zap, Shield, ArrowRight, Check, Dumbbell, Salad
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 
-const apiBase = () => import.meta.env.BASE_URL.replace(/\/+$/, "");
+import { apiFetch, setAuthToken } from "@/lib/apiOrigin";
 
 const TOTAL_STEPS = 8;
 const DAYS_FULL = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -248,6 +248,9 @@ export default function Onboarding() {
     setSwitchingAccount(true);
     try {
       await logoutMut.mutateAsync();
+      // Native's credential is the stored bearer token, not a cookie the
+      // server can clear — drop it locally or the device stays signed in.
+      setAuthToken(null);
       await refreshAuth();
     } catch {
       toast({ variant: "destructive", title: "Couldn't sign out", description: "Please try again." });
@@ -314,7 +317,7 @@ export default function Onboarding() {
           (injuriesGuideline ? ` Keep it safe for these injuries/limitations: ${injuriesGuideline} — swap or modify any movement that could aggravate them and add a short note on each change.` : "") +
           (pastFailures.length ? ` In the past I've struggled with: ${pastFailures.join("; ")} — keep it simple and sustainable so it actually sticks.` : "") +
           ` Apply the update now.`;
-        const res = await fetch(`${apiBase()}/api/coach/adapt-plan`, {
+        const res = await apiFetch(`/api/coach/adapt-plan`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",

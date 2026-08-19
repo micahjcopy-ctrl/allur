@@ -253,7 +253,7 @@ function WorkoutCard({
   );
 }
 
-const apiBase = () => import.meta.env.BASE_URL.replace(/\/+$/, "");
+import { apiFetch } from "@/lib/apiOrigin";
 
 export default function Plan() {
   const { workoutPlan, programMeta, hasCredit, refreshCredits, isSubscribed, profile, goal, setWorkoutPlan, physiqueAnalysis, workoutSessions, startWorkoutSession, restDaysCompleted, toggleRestDayComplete } = useFitCoach();
@@ -306,7 +306,7 @@ export default function Plan() {
     setTranscribing(true);
     try {
       const audio = await blobToBase64(blob);
-      const res = await fetch(`${apiBase()}/api/coach/transcribe`, {
+      const res = await apiFetch(`/api/coach/transcribe`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -366,7 +366,7 @@ export default function Plan() {
 
     setSending(true);
     try {
-      const res = await fetch(`${apiBase()}/api/coach/chat`, {
+      const res = await apiFetch(`/api/coach/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

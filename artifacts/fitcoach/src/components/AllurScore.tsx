@@ -13,12 +13,12 @@ import { Link } from "wouter";
 // buttons that turn scans and PRs into watermarked cards (the growth loop).
 // ---------------------------------------------------------------------------
 
-const apiBase = () => import.meta.env.BASE_URL.replace(/\/+$/, "");
+import { apiFetch } from "@/lib/apiOrigin";
 
 /** Best-effort referral code so shared cards double as invites. */
 async function fetchReferralCode(): Promise<string | null> {
   try {
-    const res = await fetch(`${apiBase()}/api/referral/status`, { credentials: "include" });
+    const res = await apiFetch(`/api/referral/status`, { credentials: "include" });
     if (!res.ok) return null;
     const data = (await res.json()) as { code?: string };
     return data.code ?? null;

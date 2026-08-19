@@ -12,6 +12,18 @@ import { useAccount } from "@/context/AuthContext";
 import { useLocation } from "wouter";
 import { Loader2, ArrowLeft, MailCheck } from "lucide-react";
 import { offerToSaveCredential } from "@/lib/credentials";
+import { nativeClientHeaders, setAuthToken } from "@/lib/apiOrigin";
+
+/**
+ * On native, sign-in responses carry a `token` the app must persist — the
+ * session cookie is sameSite=lax and never sent from the capacitor:// origin,
+ * so the bearer token is the only credential that works. Both are no-ops on
+ * web, where the httpOnly cookie remains the credential.
+ */
+function captureNativeToken(envelope: unknown): void {
+  const token = (envelope as { token?: unknown } | null)?.token;
+  if (typeof token === "string" && token) setAuthToken(token);
+}
 
 const ALLUR_LOGO = `${import.meta.env.BASE_URL}allur-logo.png`;
 
@@ -45,8 +57,9 @@ export default function Auth() {
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotSent, setForgotSent] = useState(false);
 
-  const registerMut = useRegisterAccount();
-  const loginMut = useLoginAccount();
+  const nativeRequest = { request: { headers: nativeClientHeaders() } };
+  const registerMut = useRegisterAccount(nativeRequest);
+  const loginMut = useLoginAccount(nativeRequest);
   const forgotMut = useRequestPasswordReset();
   const busy = registerMut.isPending || loginMut.isPending;
 
@@ -78,6 +91,7 @@ export default function Auth() {
       const envelope = await registerMut.mutateAsync({
         data: { email: email.trim(), username: username.trim(), password },
       });
+      captureNativeToken(envelope);
       // Seed the auth cache synchronously so `authUser` is non-null before we
       // navigate — otherwise the signed-out guard can bounce the brand-new user
       // to the marketing page before the auth query refetch lands.
@@ -100,6 +114,7 @@ export default function Auth() {
       const envelope = await loginMut.mutateAsync({
         data: { identifier: identifier.trim(), password: loginPassword },
       });
+      captureNativeToken(envelope);
       // Seed the auth cache synchronously (see signup) so the RouteGuard can
       // route to dashboard/onboarding without a marketing-page bounce.
       setAuthUser(envelope);

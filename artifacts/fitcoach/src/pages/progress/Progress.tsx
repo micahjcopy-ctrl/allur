@@ -77,7 +77,7 @@ function StatRow({ label, from, to, suffix = "", goodWhenUp = true }: { label: s
   );
 }
 
-const apiBase = () => import.meta.env.BASE_URL.replace(/\/+$/, "");
+import { apiFetch } from "@/lib/apiOrigin";
 
 // Resolve a week's photos into fixed Front/Side/Back slots. Photos with a
 // recognized `view` claim their slot; any without one (e.g. legacy single-photo
@@ -321,7 +321,7 @@ export default function Progress() {
     setAnalyzing(true);
     try {
       const photos = await Promise.all(photosForWeek.map((p) => downscaleImage(p.url)));
-      const res = await fetch(`${apiBase()}/api/coach/analyze-physique`, {
+      const res = await apiFetch(`/api/coach/analyze-physique`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -402,7 +402,7 @@ export default function Progress() {
 
     setPersonalizing(true);
     try {
-      const res = await fetch(`${apiBase()}/api/coach/personalize-plan`, {
+      const res = await apiFetch(`/api/coach/personalize-plan`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

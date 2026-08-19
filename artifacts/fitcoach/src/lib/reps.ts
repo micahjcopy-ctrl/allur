@@ -12,7 +12,7 @@ export type RepEventType =
   | "cardio"
   | "scan";
 
-const apiBase = () => import.meta.env.BASE_URL.replace(/\/+$/, "");
+import { apiFetch } from "@/lib/apiOrigin";
 
 export const localDay = (): string => {
   const d = new Date();
@@ -22,7 +22,7 @@ export const localDay = (): string => {
 
 export async function awardReps(type: RepEventType): Promise<{ awarded: number; bonus?: number } | null> {
   try {
-    const res = await fetch(`${apiBase()}/api/squad/points-event`, {
+    const res = await apiFetch(`/api/squad/points-event`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -40,7 +40,7 @@ export type QuestKey = "tour_complete" | "first_meal" | "first_workout" | "first
 // Award a one-time activation-quest bonus. Silent + idempotent server-side.
 export async function completeQuest(key: QuestKey): Promise<{ awarded: number; alreadyDone: boolean } | null> {
   try {
-    const res = await fetch(`${apiBase()}/api/squad/quest`, {
+    const res = await apiFetch(`/api/squad/quest`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -71,7 +71,7 @@ export async function claimStoredReferral(): Promise<void> {
   try {
     const code = localStorage.getItem(REF_KEY);
     if (!code) return;
-    await fetch(`${apiBase()}/api/referral/claim`, {
+    await apiFetch(`/api/referral/claim`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
