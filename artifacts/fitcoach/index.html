@@ -2,7 +2,11 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <!-- viewport-fit=cover is REQUIRED for env(safe-area-inset-*) to return real
+         values on iOS. Without it every `pt-safe` / `pb-safe` utility in
+         index.css silently resolves to 0px and app content sits under the
+         notch and the home indicator in the native shell. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover" />
     <title>ALLUR — AI Fitness Coach That Adapts Your Plan to Real Life</title>
     <meta name="description" content="An AI fitness coach that builds a personalized training and nutrition plan around your body and adapts it when life changes. Photo meal macros, AI physique scans, and a coach that updates your plan. Start free." />
     <meta name="robots" content="index, follow" />
