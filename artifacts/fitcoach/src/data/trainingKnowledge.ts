@@ -451,7 +451,73 @@ const EXPERIENCES: Experience[] = ["Beginner", "Intermediate", "Advanced"];
 const resolveExperience = (value: UserProfile["experience"]): Experience =>
   EXPERIENCES.includes(value as Experience) ? (value as Experience) : "Beginner";
 
-export function buildProgram(profile: UserProfile, goal: Goal): GeneratedProgram {
+/** 0 = Monday … 6 = Sunday. Matches the day picker in onboarding. */
+const WEEKDAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+/** What the athlete told us their real week looks like. */
+export interface WeekPreference {
+  /** Days per week they can reliably train. */
+  count?: number;
+  /** Which weekdays, 0 = Monday. Ordered or not; we sort. */
+  dayIndexes?: number[];
+}
+
+/** Conditioning sessions are the first thing to drop when the week is short. */
+function isCardioDay(w: Workout): boolean {
+  return /cardio|interval|steps|conditioning|walk/i.test(w.title);
+}
+
+/**
+ * Reshape a canned split to the week the athlete actually has.
+ *
+ * The stock splits are written against fixed weekdays (Monday, Tuesday, …) and
+ * assume 5-6 training days. Onboarding asks "when can you actually train?" and
+ * calls it the part every other plan skipped — so a plan that ignores the
+ * answer is worse than not asking. This is deterministic on purpose: it needs
+ * to run identically for a signed-out visitor on the funnel and a paying user,
+ * with no API call, so the plan someone approves is the plan they get.
+ *
+ * When the week is shorter than the split, strength sessions are kept first
+ * (they carry the goal) and conditioning is dropped, preserving the original
+ * order so the sequencing still makes sense.
+ */
+export function fitProgramToWeek(days: Workout[], pref?: WeekPreference): Workout[] {
+  if (!pref || !days.length) return days;
+
+  const slots = [...new Set((pref.dayIndexes ?? []).filter((i) => Number.isInteger(i) && i >= 0 && i < 7))].sort(
+    (a, b) => a - b,
+  );
+  const requested = pref.count && pref.count > 0 ? pref.count : slots.length || days.length;
+  const target = Math.max(1, Math.min(requested, slots.length || requested, 7));
+
+  let kept: Workout[];
+  if (target >= days.length) {
+    kept = days;
+  } else {
+    // Trim proportionally rather than strength-first. Taking only strength left
+    // a 3-day week as three identical "Full Body Strength" sessions with the
+    // conditioning stripped out — repetitive to look at, worse training for a
+    // fat-loss goal, and it made the split name ("... + Cardio") a lie.
+    // Strength still gets the larger share and always at least one slot.
+    const strength = days.filter((d) => !isCardioDay(d));
+    const conditioning = days.filter(isCardioDay);
+    const strengthSlots = conditioning.length
+      ? Math.max(1, Math.min(strength.length, Math.ceil((strength.length / days.length) * target)))
+      : target;
+    const cardioSlots = Math.max(0, Math.min(conditioning.length, target - strengthSlots));
+    const priority = [...strength.slice(0, strengthSlots), ...conditioning.slice(0, cardioSlots)];
+    // Restore calendar order so we don't stack two hard sessions back to back.
+    kept = days.filter((d) => priority.includes(d));
+  }
+
+  // Re-label onto their chosen weekdays when we know them. If they picked fewer
+  // days than sessions we keep the split's own day for the overflow rather than
+  // silently doubling up.
+  if (!slots.length) return kept;
+  return kept.map((d, i) => (i < slots.length ? { ...d, dayName: WEEKDAY_NAMES[slots[i]] } : d));
+}
+
+export function buildProgram(profile: UserProfile, goal: Goal, week?: WeekPreference): GeneratedProgram {
   const experience = resolveExperience(profile.experience);
   const g: NonNullable<Goal> = goal ?? "Muscle Gain";
   const spec = GOAL_SPECS[g];
@@ -464,7 +530,10 @@ export function buildProgram(profile: UserProfile, goal: Goal): GeneratedProgram
   // Optimize the deterministic program to the athlete's actual training setup:
   // never prescribe a movement they can't do with their equipment, or a workout
   // they dislike. Applies to every experience level, not just beginners.
-  const days = adaptPlanToEquipment(baseDays, profile);
+  // Equipment first (never prescribe what they can't do), then reshape to the
+  // week they actually have. Order matters: trimming to 3 days and *then*
+  // swapping movements can leave a day with nothing usable in it.
+  const days = fitProgramToWeek(adaptPlanToEquipment(baseDays, profile), week);
 
   const kg = parseWeightKg(profile);
   const proteinTargetG = kg ? Math.round(spec.proteinPerKg * kg) : null;
