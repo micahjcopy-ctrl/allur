@@ -74,7 +74,11 @@ function CardBtn({ active, onClick, children, className }: { active: boolean; on
       onClick={onClick}
       className={cn(
         "relative text-left rounded-2xl border-2 px-4 py-3.5 text-sm font-medium transition-all",
-        active ? "border-primary bg-primary/10 text-foreground" : "border-border bg-card text-muted-foreground hover:border-primary/40",
+        // An option the user hasn't picked yet is still available, so its label
+        // stays full-strength. Dimming it read as "disabled" — on a step where
+        // nothing is selected, every option was grey and the whole screen
+        // looked inert. Selection is carried by the border + tint + tick.
+        active ? "border-primary bg-primary/10 text-foreground" : "border-border bg-card text-foreground hover:border-primary/40",
         className,
       )}
     >
@@ -141,6 +145,78 @@ function BodyTypeCard({
         </span>
       )}
     </button>
+  );
+}
+
+/**
+ * The one forward CTA for every onboarding step.
+ *
+ * Always enabled — see `guardedNext`. When the step isn't complete the tap is
+ * intercepted and `error` explains what's missing, instead of the button
+ * silently doing nothing. Having this in one place is also what stops the six
+ * `Next` buttons drifting apart again.
+ */
+function StepCta({
+  onClick,
+  error,
+  label = "Next",
+  icon,
+  className,
+}: {
+  onClick: () => void;
+  error?: string | null;
+  label?: string;
+  icon?: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("w-full", className)}>
+      <Button onClick={onClick} className="w-full rounded-full h-12 text-lg font-medium">
+        {label} {icon ?? <ChevronRight className="ml-2 w-5 h-5" />}
+      </Button>
+      {error && (
+        <p role="alert" className="mt-2 text-center text-sm text-destructive">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Back + forward row for steps 2-7, with the same validate-on-tap contract. */
+function StepNav({
+  onBack,
+  onNext,
+  error,
+  label = "Next",
+  icon,
+  busy,
+  className,
+}: {
+  onBack: () => void;
+  onNext: () => void;
+  error?: string | null;
+  label?: string;
+  icon?: React.ReactNode;
+  busy?: boolean;
+  className?: string;
+}) {
+  return (
+    <div className={cn("mt-8", className)}>
+      <div className="flex gap-3">
+        <Button variant="secondary" onClick={onBack} className="rounded-full h-12 px-6">
+          Back
+        </Button>
+        <Button onClick={onNext} disabled={busy} className="flex-1 rounded-full h-12 text-lg font-medium">
+          {label} {icon ?? <ChevronRight className="ml-2 w-5 h-5" />}
+        </Button>
+      </div>
+      {error && (
+        <p role="alert" className="mt-2 text-center text-sm text-destructive">
+          {error}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -262,6 +338,30 @@ export default function Onboarding() {
   const nextStep = () => setStep((s) => Math.min(s + 1, TOTAL_STEPS));
   const prevStep = () => setStep((s) => Math.max(s - 1, 1));
 
+  /**
+   * Onboarding CTAs stay enabled and validate on tap.
+   *
+   * They used to be `disabled` until the step was complete, but a disabled
+   * button here is just the primary colour at 50% opacity — on a dark screen
+   * that still reads as a perfectly good button, so a user who tapped it got
+   * silence and no explanation. Worse, on a step where nothing is selected yet
+   * the whole screen (options + CTA) looked inert.
+   *
+   * Enabled-plus-explain is the friendlier contract: the button always looks
+   * pressable, and pressing it early tells you exactly what is missing.
+   */
+  const [stepError, setStepError] = useState<string | null>(null);
+  const guardedNext = (ok: boolean, message: string) => () => {
+    if (!ok) {
+      setStepError(message);
+      return;
+    }
+    setStepError(null);
+    nextStep();
+  };
+  // Any change of step clears a stale message.
+  useEffect(() => setStepError(null), [step]);
+
   const physiqueOptions = physiqueOptionsFor(profile.gender);
   const physiqueSelected = physiqueOptions.some((p) => p.id === profile.targetPhysique);
 
@@ -296,7 +396,15 @@ export default function Onboarding() {
   const generatePlan = async () => {
     if (!goal) return;
     setGenerating(true);
-    const program = buildProgram(profile, goal);
+    // Pass the real week in. Step 5 calls this "the part every other plan
+    // skipped" — before this, the answer was only ever used for the signed-in
+    // LLM pass, so every anonymous visitor saw a stock 5-6 day split no matter
+    // what they said. The reveal then claimed "every choice came from something
+    // you told us" over a plan that ignored the loudest choice they made.
+    const program = buildProgram(profile, goal, {
+      count: Number(reliableDays) || undefined,
+      dayIndexes: trainDays,
+    });
     const macros = computeMacroTarget(profile, goal);
     const injuriesGuideline = composeGuideline(profile.injuries, profile.injuryNotes);
     const dietaryGuideline = composeGuideline(profile.dietary, profile.dietaryNotes);
@@ -389,6 +497,18 @@ export default function Onboarding() {
       const w = built.plan.find((d) => d.dayName === DAYS_FULL[i]);
       return w ? w.title.split(" ")[0] : null;
     };
+    // The week as a readable list, in calendar order. The old 7-across pill
+    // grid truncated titles to four characters ("Zone", "Athl", "Long"), which
+    // told the user nothing — and hid whether the plan had actually used the
+    // days they gave us.
+    const sessions = DAYS_FULL.map((name) => built.plan.find((d) => d.dayName === name))
+      .filter((w): w is NonNullable<typeof w> => !!w)
+      .map((w) => ({
+        day: w.dayName,
+        short: w.dayName.slice(0, 3),
+        title: w.title,
+        movements: w.exercises.length,
+      }));
     const why: string[] = [];
     // Only claim day-matching when the coach actually reshaped the plan to the
     // user's week (auth-only). On the signed-out funnel the deterministic base
@@ -401,7 +521,7 @@ export default function Onboarding() {
     if (profile.injuries.length) why.push(`Adjusted around your ${profile.injuries.join(", ").toLowerCase()} so nothing aggravates it.`);
     if (pastFailures.some((f) => /generic/i.test(f))) why.push(`You said generic plans never stuck — this one is built only from your answers.`);
     else if (profile.equipment.length) why.push(`Only movements your setup allows: ${profile.equipment.slice(0, 2).join(", ").toLowerCase()}.`);
-    return { first, dur, shoulderSafe, dayTitle, why: why.slice(0, 3) };
+    return { first, dur, shoulderSafe, dayTitle, sessions, why: why.slice(0, 3) };
   }, [built, profile.injuries, profile.equipment, pastFailures, authUser, goal]);
 
   return (
@@ -449,18 +569,41 @@ export default function Onboarding() {
               <h1 className="text-3xl font-bold tracking-tight mb-2">Where are you starting from?</h1>
               <p className="text-muted-foreground mb-6">No judgment — just where we're starting. This is day one.</p>
 
+              {/* Uses the shared CardBtn so gender selection looks identical to
+                  every other single-select in onboarding. It previously
+                  reimplemented the same classes inline, which is how the two
+                  drifted apart. */}
               <div className="flex gap-3 mb-6">
                 {(["Male", "Female"] as const).map((g) => (
-                  <button key={g} type="button" onClick={() => setProfile({ ...profile, gender: g })} className={cn("flex-1 rounded-2xl border-2 py-3 text-sm font-semibold transition-all", profile.gender === g ? "border-primary bg-primary/10 text-foreground" : "border-border bg-card text-muted-foreground hover:border-primary/40")}>{g}</button>
+                  <CardBtn
+                    key={g}
+                    active={profile.gender === g}
+                    onClick={() => setProfile({ ...profile, gender: g })}
+                    className="flex-1 text-center font-semibold"
+                  >
+                    {g}
+                  </CardBtn>
                 ))}
               </div>
 
-              {profile.gender ? (
-                <div className="grid grid-cols-2 gap-3 content-start">
+              {/* The grid is always rendered. Before a gender is chosen it sits
+                  dimmed and untappable, so the step shows what it's asking for
+                  instead of opening on ~400px of empty black — this is the
+                  first screen of the product. Nothing is preselected, so no
+                  assumption is made about the user; picking a gender simply
+                  brings the grid to full strength and swaps the imagery. */}
+              <div className="relative">
+                <div
+                  aria-hidden={!profile.gender}
+                  className={cn(
+                    "grid grid-cols-2 gap-3 content-start transition-opacity duration-300",
+                    profile.gender ? "opacity-100" : "pointer-events-none opacity-35",
+                  )}
+                >
                   {BODY_TYPE_OPTIONS.map((b, idx) => (
                     <BodyTypeCard
                       key={b.id}
-                      gender={profile.gender}
+                      gender={profile.gender || "Male"}
                       id={b.id}
                       label={b.label}
                       active={startingPoint === b.id}
@@ -469,11 +612,23 @@ export default function Onboarding() {
                     />
                   ))}
                 </div>
-              ) : (
-                <div className="flex-1 flex items-center justify-center text-center text-sm text-muted-foreground">Pick one above to see your starting-point options.</div>
-              )}
+                {!profile.gender && (
+                  <div className="pointer-events-none absolute inset-x-0 top-24 flex justify-center px-6">
+                    <p className="rounded-full border border-border bg-background/90 px-4 py-2 text-center text-sm font-medium text-foreground backdrop-blur-sm">
+                      Pick one above to see your starting-point options.
+                    </p>
+                  </div>
+                )}
+              </div>
 
-              <Button onClick={nextStep} className="w-full mt-8 rounded-full h-12 text-lg font-medium" disabled={!profile.gender || !startingPoint}>Next <ChevronRight className="ml-2 w-5 h-5" /></Button>
+              <StepCta
+                onClick={guardedNext(
+                  !!profile.gender && !!startingPoint,
+                  !profile.gender ? "Pick Male or Female first." : "Choose the body type closest to you now.",
+                )}
+                error={stepError}
+                className="mt-8"
+              />
             </motion.div>
           )}
 
@@ -493,23 +648,49 @@ export default function Onboarding() {
               </div>
               <Label className="mb-2 block">And the look you want</Label>
               <div className="space-y-3 flex-1">
-                {physiqueOptions.map((p) => (
-                  <div key={p.id} onClick={() => setProfile({ ...profile, targetPhysique: p.id as TargetPhysique })} className={cn("rounded-2xl border-2 transition-all cursor-pointer flex items-stretch gap-4 overflow-hidden", profile.targetPhysique === p.id ? "border-primary bg-primary/10" : "border-border bg-card hover:border-primary/50")}>
-                    <div className="w-20 shrink-0 bg-black/40 relative">
-                      <img src={`${import.meta.env.BASE_URL}physiques/${p.img}`} alt={p.label} className="w-full h-full object-cover object-top" />
-                      {profile.targetPhysique === p.id && <div className="absolute top-2 left-2 bg-primary text-primary-foreground rounded-full p-1"><Check className="w-3 h-3" /></div>}
-                    </div>
-                    <div className="flex-1 py-3 pr-4 flex flex-col justify-center">
-                      <h3 className="font-semibold">{p.label}</h3>
-                      <p className="text-xs text-muted-foreground">{p.desc}</p>
-                    </div>
-                  </div>
-                ))}
+                {/* A real <button> with aria-pressed, not a clickable <div>.
+                    As a div these were invisible to keyboard focus and were
+                    not announced as controls by VoiceOver — every other
+                    selectable card in onboarding is a button, so this was also
+                    the odd one out. The image column is widened to w-28 so the
+                    physique is actually legible rather than a narrow sliver. */}
+                {physiqueOptions.map((p) => {
+                  const selected = profile.targetPhysique === p.id;
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() => setProfile({ ...profile, targetPhysique: p.id as TargetPhysique })}
+                      className={cn(
+                        "w-full text-left rounded-2xl border-2 transition-all flex items-stretch gap-4 overflow-hidden",
+                        selected ? "border-primary bg-primary/10" : "border-border bg-card hover:border-primary/50",
+                      )}
+                    >
+                      <div className="w-28 shrink-0 bg-black/40 relative">
+                        <img src={`${import.meta.env.BASE_URL}physiques/${p.img}`} alt="" className="w-full h-full object-cover object-top" />
+                        {selected && (
+                          <div className="absolute top-2 left-2 bg-primary text-primary-foreground rounded-full p-1">
+                            <Check className="w-3 h-3" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 py-3 pr-4 flex flex-col justify-center">
+                        <h3 className="font-semibold">{p.label}</h3>
+                        <p className="text-xs text-muted-foreground">{p.desc}</p>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
-              <div className="flex gap-3 mt-8">
-                <Button variant="secondary" onClick={prevStep} className="rounded-full h-12 px-6">Back</Button>
-                <Button onClick={nextStep} className="flex-1 rounded-full h-12 text-lg font-medium" disabled={!goal || !physiqueSelected}>Next <ChevronRight className="ml-2 w-5 h-5" /></Button>
-              </div>
+              <StepNav
+                onBack={prevStep}
+                onNext={guardedNext(
+                  !!goal && physiqueSelected,
+                  !goal ? "Pick what you're chasing first." : "Choose the look you're aiming for.",
+                )}
+                error={stepError}
+              />
             </motion.div>
           )}
 
@@ -533,10 +714,7 @@ export default function Onboarding() {
               <div className="mt-4 bg-card border border-dashed border-primary/40 rounded-2xl p-4 text-sm leading-relaxed text-foreground/90">
                 None of these were your fault. They're what happens when a plan can't bend to your life. <span className="text-primary font-semibold">That's the part we fixed.</span>
               </div>
-              <div className="flex gap-3 mt-6">
-                <Button variant="secondary" onClick={prevStep} className="rounded-full h-12 px-6">Back</Button>
-                <Button onClick={nextStep} className="flex-1 rounded-full h-12 text-lg font-medium">Next <ChevronRight className="ml-2 w-5 h-5" /></Button>
-              </div>
+              <StepNav onBack={prevStep} onNext={nextStep} />
             </motion.div>
           )}
 
@@ -551,10 +729,11 @@ export default function Onboarding() {
                   <CardBtn key={o} active={bestShape === o} onClick={() => setBestShape(o)} className="block"><span className="pr-5">{o}</span></CardBtn>
                 ))}
               </div>
-              <div className="flex gap-3 mt-6">
-                <Button variant="secondary" onClick={prevStep} className="rounded-full h-12 px-6">Back</Button>
-                <Button onClick={nextStep} className="flex-1 rounded-full h-12 text-lg font-medium" disabled={!bestShape}>Next <ChevronRight className="ml-2 w-5 h-5" /></Button>
-              </div>
+              <StepNav
+                onBack={prevStep}
+                onNext={guardedNext(!!bestShape, "Pick the one that fits best — you can change it later.")}
+                error={stepError}
+              />
             </motion.div>
           )}
 
@@ -590,10 +769,7 @@ export default function Onboarding() {
                   <CardChips options={EQUIPMENT_LABELS} selected={profile.equipment} onToggle={toggleField("equipment")} />
                 </div>
               </div>
-              <div className="flex gap-3 mt-6 pt-6 border-t border-border/50">
-                <Button variant="secondary" onClick={prevStep} className="rounded-full h-12 px-6">Back</Button>
-                <Button onClick={nextStep} className="flex-1 rounded-full h-12 text-lg font-medium">Next <ChevronRight className="ml-2 w-5 h-5" /></Button>
-              </div>
+              <StepNav onBack={prevStep} onNext={nextStep} className="pt-6 border-t border-border/50" />
             </motion.div>
           )}
 
@@ -614,10 +790,7 @@ export default function Onboarding() {
                   <CardChips options={DIETARY_OPTIONS} selected={profile.dietary} onToggle={toggleDietary} />
                 </div>
               </div>
-              <div className="flex gap-3 mt-6 pt-6 border-t border-border/50">
-                <Button variant="secondary" onClick={prevStep} className="rounded-full h-12 px-6">Back</Button>
-                <Button onClick={nextStep} className="flex-1 rounded-full h-12 text-lg font-medium">Next <ChevronRight className="ml-2 w-5 h-5" /></Button>
-              </div>
+              <StepNav onBack={prevStep} onNext={nextStep} className="pt-6 border-t border-border/50" />
             </motion.div>
           )}
 
@@ -663,12 +836,22 @@ export default function Onboarding() {
                   <p className="text-xs text-muted-foreground">Used to calculate your daily calorie target.</p>
                 </div>
               </div>
-              <div className="flex gap-3 mt-8">
-                <Button variant="secondary" onClick={prevStep} className="rounded-full h-12 px-6">Back</Button>
-                <Button onClick={() => void generatePlan()} disabled={!profile.name || !canCalculate || generating} className="flex-1 rounded-full h-12 text-lg font-bold">
-                  {generating ? "Building…" : <>Build my plan <ArrowRight className="ml-2 w-5 h-5" /></>}
-                </Button>
-              </div>
+              {/* `busy` still disables during generation — that's a real
+                  in-flight state, not a validation gate. Missing fields are
+                  explained instead of silently blocking. */}
+              <StepNav
+                onBack={prevStep}
+                busy={generating}
+                label={generating ? "Building…" : "Build my plan"}
+                icon={generating ? <span /> : <ArrowRight className="ml-2 w-5 h-5" />}
+                error={stepError}
+                onNext={() => {
+                  if (!profile.name) return setStepError("Add your name so the coach can talk to you.");
+                  if (!canCalculate) return setStepError("Fill in age, height, weight, experience and activity level.");
+                  setStepError(null);
+                  void generatePlan();
+                }}
+              />
             </motion.div>
           )}
 
@@ -694,16 +877,15 @@ export default function Onboarding() {
                     <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Your first session</p>
                     <p className="text-lg font-bold mt-0.5">{reveal.first ? reveal.first.title : "Full body"}</p>
                     <p className="text-xs text-primary">{reveal.first ? `${reveal.first.exercises.length} movements · ~${reveal.dur} min` : ""}{reveal.shoulderSafe ? " · shoulder-safe" : ""}</p>
-                    <div className="grid grid-cols-7 gap-1.5 mt-3">
-                      {DAYS_ABBR.map((d, i) => {
-                        const t = reveal.dayTitle(i);
-                        return (
-                          <div key={i} className={cn("rounded-lg py-1.5 text-center text-[9px] font-bold border", t ? "bg-primary text-primary-foreground border-transparent" : "bg-card text-muted-foreground border-border")}>
-                            {d}<span className="block text-[10px] mt-0.5">{t ? t.slice(0, 4) : "·"}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
+                    <ul className="mt-3 space-y-1.5">
+                      {reveal.sessions.map((s) => (
+                        <li key={s.day} className="flex items-baseline gap-3 text-sm">
+                          <span className="w-9 shrink-0 font-bold text-primary">{s.short}</span>
+                          <span className="flex-1 font-medium leading-snug">{s.title}</span>
+                          <span className="shrink-0 text-xs text-muted-foreground">{s.movements}</span>
+                        </li>
+                      ))}
+                    </ul>
                     <div className="mt-3 inline-flex text-[11px] font-bold text-primary bg-primary/10 border border-primary/30 rounded-full px-2.5 py-1">◔ Busy-day {busyDay} version ready</div>
                   </div>
 
