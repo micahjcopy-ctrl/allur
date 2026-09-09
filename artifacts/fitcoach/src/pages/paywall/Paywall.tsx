@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { useFitCoach } from "@/context/FitCoachContext";
 import {
   startCheckout,
   fetchPlanPrices,
@@ -13,48 +14,149 @@ import {
   type BillingInterval,
   type PlanPrices,
 } from "@/lib/subscription";
+import { isNative } from "@/lib/native";
+import {
+  iapAvailable,
+  loadOfferings,
+  purchasePackage,
+  restorePurchases,
+  type IapOfferings,
+} from "@/lib/iap";
 
 /**
  * Mandatory payment screen shown immediately after onboarding for brand-new
- * users (no Stripe subscription history). Hard paywall: pay now, no free trial.
- * Two options — annual (best value) and monthly. Prices are fetched live from
- * Stripe so what we show always matches what we charge.
+ * users (no subscription history). Hard paywall: pay now, no free trial.
+ * Two options — annual (best value) and monthly.
+ *
+ * Two purchase paths, one screen:
+ *
+ *   WEB  — Stripe Checkout. Prices fetched live from Stripe. Unchanged.
+ *   NATIVE — Apple In-App Purchase, because Guideline 3.1.1 requires it for
+ *            digital content unlocked inside the app. Prices come from the
+ *            store (already localised), never from our own strings.
+ *
+ * The gate itself is identical either way: this screen is shown by the same
+ * check in App.tsx, and access is granted by the same server-side subscription
+ * summary. Only the button's behaviour differs.
  */
 export default function Paywall() {
   const { toast } = useToast();
+  const { refreshSubscription } = useFitCoach();
   const [loading, setLoading] = React.useState(false);
+  const [restoring, setRestoring] = React.useState(false);
   const [interval, setInterval] = React.useState<BillingInterval>("annual");
   const [prices, setPrices] = React.useState<PlanPrices | null>(null);
+  const [offerings, setOfferings] = React.useState<IapOfferings | null>(null);
+
+  // `onDevice` gates the STRIPE path and is a runtime check, deliberately.
+  // `native` (which also requires a build-time key) gates the IAP path.
+  //
+  // They are separate so that a native binary built without a RevenueCat key
+  // — where the IAP code has been compiled away — still cannot fall through to
+  // Stripe Checkout. On device, Stripe is never an option, working IAP or not.
+  const onDevice = isNative();
+  const native = iapAvailable();
+  const misconfigured = onDevice && !native;
 
   React.useEffect(() => {
     let alive = true;
-    fetchPlanPrices().then((p) => {
-      if (alive) setPrices(p);
-    });
+    if (native) {
+      // Store products carry their own localised price strings, so we never
+      // show a US dollar amount to someone who will be charged in euros.
+      loadOfferings().then((o) => {
+        if (alive) setOfferings(o);
+      });
+    } else {
+      fetchPlanPrices().then((p) => {
+        if (alive) setPrices(p);
+      });
+    }
     return () => {
       alive = false;
     };
-  }, []);
+  }, [native]);
 
   const currency = prices?.currency ?? "usd";
-  const monthlyStr = prices?.monthly ? fmtPrice(prices.monthly.amount, currency) : PLAN_PRICES.base;
-  const annualStr = prices?.annual ? fmtPrice(prices.annual.amount, currency) : ANNUAL_PRICE;
-  const annualPerMonth = prices?.annual
-    ? fmtPrice(Math.round(prices.annual.amount / 12), currency)
-    : ANNUAL_PER_MONTH;
-  const hasAnnual = prices ? !!prices.annual : true;
-  const savePct =
-    prices?.annual && prices?.monthly
+  const monthlyStr = native
+    ? (offerings?.monthly?.priceString ?? PLAN_PRICES.base)
+    : prices?.monthly
+      ? fmtPrice(prices.monthly.amount, currency)
+      : PLAN_PRICES.base;
+  const annualStr = native
+    ? (offerings?.annual?.priceString ?? ANNUAL_PRICE)
+    : prices?.annual
+      ? fmtPrice(prices.annual.amount, currency)
+      : ANNUAL_PRICE;
+  const annualPerMonth = native
+    ? offerings?.annual
+      ? fmtPrice(Math.round((offerings.annual.price * 100) / 12), offerings.annual.currencyCode)
+      : ANNUAL_PER_MONTH
+    : prices?.annual
+      ? fmtPrice(Math.round(prices.annual.amount / 12), currency)
+      : ANNUAL_PER_MONTH;
+  const hasAnnual = native ? (offerings ? !!offerings.annual : true) : prices ? !!prices.annual : true;
+  const savePct = native
+    ? offerings?.annual && offerings?.monthly
+      ? Math.round((1 - offerings.annual.price / (offerings.monthly.price * 12)) * 100)
+      : 48
+    : prices?.annual && prices?.monthly
       ? Math.round((1 - prices.annual.amount / (prices.monthly.amount * 12)) * 100)
       : 48;
 
   // If annual isn't available, force monthly.
   React.useEffect(() => {
+    if (native) {
+      if (offerings && !offerings.annual && interval === "annual") setInterval("monthly");
+      return;
+    }
     if (prices && !prices.annual && interval === "annual") setInterval("monthly");
-  }, [prices, interval]);
+  }, [native, offerings, prices, interval]);
 
   const onStart = async () => {
+    // A native build with no purchase path must fail loudly, never silently
+    // hand the user to a web checkout Apple does not permit.
+    if (misconfigured) {
+      toast({
+        variant: "destructive",
+        title: "Purchases unavailable",
+        description: "Please update to the latest version of ALLUR.",
+      });
+      return;
+    }
+
     setLoading(true);
+
+    if (native) {
+      const pkg = interval === "annual" ? offerings?.annual : offerings?.monthly;
+      if (!pkg) {
+        toast({
+          variant: "destructive",
+          title: "Store unavailable",
+          description: "Couldn't reach the App Store. Check your connection and try again.",
+        });
+        setLoading(false);
+        return;
+      }
+      const outcome = await purchasePackage(pkg);
+      if (outcome.ok) {
+        // The server has already confirmed the entitlement; re-reading the
+        // summary is what drops the gate and lets the user through.
+        await refreshSubscription();
+        toast({ title: "You're in", description: "Welcome to ALLUR." });
+        return;
+      }
+      // A dismissed Apple sheet is not an error — say nothing.
+      if (!outcome.cancelled) {
+        toast({
+          variant: "destructive",
+          title: "Purchase didn't complete",
+          description: outcome.message,
+        });
+      }
+      setLoading(false);
+      return;
+    }
+
     try {
       await startCheckout("base", interval);
     } catch (err) {
@@ -65,6 +167,27 @@ export default function Paywall() {
       });
       setLoading(false);
     }
+  };
+
+  /**
+   * Apple requires a Restore Purchases control on any screen selling an
+   * auto-renewing subscription (3.1.1). It is also the fix for the real case:
+   * same Apple ID, new phone.
+   */
+  const onRestore = async () => {
+    setRestoring(true);
+    const outcome = await restorePurchases();
+    if (outcome.ok) {
+      await refreshSubscription();
+      toast({ title: "Purchases restored" });
+      return;
+    }
+    toast({
+      variant: "destructive",
+      title: "Nothing to restore",
+      description: outcome.cancelled ? "Cancelled." : outcome.message,
+    });
+    setRestoring(false);
   };
 
   const ctaLabel =
@@ -155,15 +278,52 @@ export default function Paywall() {
           >
             {loading ? (
               <>
-                <Loader2 className="w-5 h-5 mr-2 animate-spin" /> Starting checkout…
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />{" "}
+                {native ? "Contacting the App Store…" : "Starting checkout…"}
               </>
             ) : (
               ctaLabel
             )}
           </Button>
-          <p className="text-center text-xs text-muted-foreground">
-            Billed today. Cancel anytime in two taps from Account settings.
-          </p>
+
+          {native ? (
+            <>
+              {/*
+                Apple requires an auto-renewing subscription paywall to state
+                the length, the price per period, that it auto-renews, and how
+                to cancel — and to link Terms and Privacy from the same screen.
+                Missing any of these is a metadata rejection.
+              */}
+              <p className="text-center text-[11px] leading-relaxed text-muted-foreground">
+                {interval === "annual"
+                  ? `${annualStr} per year`
+                  : `${monthlyStr} per month`}
+                , billed through your Apple ID. Renews automatically unless
+                turned off at least 24 hours before the period ends. Manage or
+                cancel anytime in your Apple ID settings.
+              </p>
+              <div className="flex items-center justify-center gap-4 text-[11px] text-muted-foreground">
+                <button
+                  type="button"
+                  onClick={onRestore}
+                  disabled={restoring}
+                  className="underline underline-offset-2 hover:text-foreground disabled:opacity-50"
+                >
+                  {restoring ? "Restoring…" : "Restore purchases"}
+                </button>
+                <a href="/terms" className="underline underline-offset-2 hover:text-foreground">
+                  Terms
+                </a>
+                <a href="/privacy" className="underline underline-offset-2 hover:text-foreground">
+                  Privacy
+                </a>
+              </div>
+            </>
+          ) : (
+            <p className="text-center text-xs text-muted-foreground">
+              Billed today. Cancel anytime in two taps from Account settings.
+            </p>
+          )}
         </div>
       </motion.div>
     </div>

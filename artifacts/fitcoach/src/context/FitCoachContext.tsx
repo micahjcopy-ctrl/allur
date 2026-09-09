@@ -657,7 +657,7 @@ interface FitCoachState {
   isSubscribed: boolean; // base OR premium → full feature access (free = locked)
   subscription: SubscriptionInfo | null;
   subscriptionLoading: boolean;
-  refreshSubscription: () => void;
+  refreshSubscription: () => Promise<void>;
   creditsLoading: boolean;
   workoutPlan: Workout[];
   programMeta: ProgramMeta | null;
@@ -1034,10 +1034,16 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
         hasEverSubscribed: !!subscriptionQuery.data.hasEverSubscribed,
       }
     : null;
-  const refreshSubscription = () => {
-    queryClient.invalidateQueries({ queryKey: subscriptionQueryKey });
-    queryClient.invalidateQueries({ queryKey: creditsQueryKey });
-  };
+  // Returns a promise so callers that must not proceed until the new state has
+  // actually landed can await it — the native purchase flow drops the paywall
+  // the moment this resolves, and resolving early would flash the gate back at
+  // a user who has just been charged. Existing web callers ignore the return
+  // value and are unaffected.
+  const refreshSubscription = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: subscriptionQueryKey }),
+      queryClient.invalidateQueries({ queryKey: creditsQueryKey }),
+    ]).then(() => undefined);
 
   // Access tier. The subscription summary is read straight from Stripe-sync data
   // (active/trialing/past_due → base|premium) and is the authoritative source of

@@ -1,10 +1,11 @@
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useGetCurrentAuthUser,
   getGetCurrentAuthUserQueryKey,
   type AuthUser,
 } from "@workspace/api-client-react";
+import { initIap, resetIap } from "@/lib/iap";
 
 interface AuthContextValue {
   authUser: AuthUser | null;
@@ -41,6 +42,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const setAuthUser = (envelope: { user: AuthUser | null }) => {
     queryClient.setQueryData(getGetCurrentAuthUserQueryKey(), envelope);
   };
+
+  // Bind the App Store purchase identity to the signed-in account.
+  //
+  // Doing it here rather than at the login call site covers every way a session
+  // begins — sign-up, sign-in, and a cold app launch restoring an existing
+  // session — with one code path. The store's "app user id" is set to our own
+  // user id, which is what lets Apple's receipt webhook map a purchase back to
+  // an account with no extra lookup.
+  //
+  // No-op on web: initIap/resetIap return immediately when not running inside
+  // the native shell, and the purchases SDK is never even imported there.
+  const boundUserId = useRef<string | null>(null);
+  const userId = data?.user?.id ?? null;
+  useEffect(() => {
+    if (userId === boundUserId.current) return;
+    boundUserId.current = userId;
+    if (userId) void initIap(userId);
+    else void resetIap();
+  }, [userId]);
 
   return (
     <AuthContext.Provider
