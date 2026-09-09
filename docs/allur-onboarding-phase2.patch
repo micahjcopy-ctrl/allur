@@ -1,0 +1,1702 @@
+From 695f4a5779b72c91facaad0c5425698508742fe3 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 29 Aug 2026 15:33:51 +0000
+Subject: [PATCH 1/2] Onboarding: drive the flow from a screens config array
+
+The flow was 8 hardcoded {step === N && ...} blocks. Going to 22 screens
+that way means renumbering every block each time one is inserted, which is
+the exact drift the redesign is removing.
+
+Now: one screens: ScreenDef[] array. Each entry owns its id, jumper label
+and render. Screen count is derived from it in all four places that used
+to read TOTAL_STEPS - the nextStep clamp, OnboardingShell, the progress
+bar, and the DEV jumper (which had its own hardcoded 8-label array and
+would have silently gone stale). TOTAL_STEPS is gone; there is nothing
+left to forget to update.
+
+WeekAct now contributes five flat entries via weekScreens() instead of
+being one nested sub-flow, so the progress bar counts real screens rather
+than reporting five as one.
+
+Verified: 12 jumper entries, 12 progress segments, every screen renders at
+390px, Back walks in reverse across the week-act boundary.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01Scm7SUW7vqCiNscvTtGQQR
+---
+ .../src/pages/onboarding/Onboarding.tsx       | 715 +++++++++---------
+ .../fitcoach/src/pages/onboarding/WeekAct.tsx | 137 ++--
+ .../fitcoach/src/pages/onboarding/kit.tsx     |  17 +
+ 3 files changed, 452 insertions(+), 417 deletions(-)
+
+diff --git a/artifacts/fitcoach/src/pages/onboarding/Onboarding.tsx b/artifacts/fitcoach/src/pages/onboarding/Onboarding.tsx
+index 6a3ab16..017fe9c 100644
+--- a/artifacts/fitcoach/src/pages/onboarding/Onboarding.tsx
++++ b/artifacts/fitcoach/src/pages/onboarding/Onboarding.tsx
+@@ -25,8 +25,8 @@ import { writeOnboardingStash } from "@/lib/onboardingStash";
+ import { OnboardingShell } from "./OnboardingShell";
+ // The onboarding design system. Everything structural lives here so the screens
+ // can't drift apart again — see kit.tsx for why each piece exists.
+-import { StepCta, StepNav } from "./kit";
+-import { WeekAct } from "./WeekAct";
++import { StepCta, StepNav, type ScreenDef } from "./kit";
++import { weekScreens } from "./WeekAct";
+ import { Button } from "@/components/ui/button";
+ import { Input } from "@/components/ui/input";
+ import { Label } from "@/components/ui/label";
+@@ -39,7 +39,9 @@ import { cn } from "@/lib/utils";
+ 
+ import { apiFetch, setAuthToken } from "@/lib/apiOrigin";
+ 
+-const TOTAL_STEPS = 8;
++// Screen count is derived from the `screens` array below — there is no separate
++// constant to forget to update. Adding a screen changes the clamp, the progress
++// bar and the DEV jumper at once.
+ const DAYS_FULL = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+ const DAYS_ABBR = ["M", "T", "W", "T", "F", "S", "S"];
+ 
+@@ -267,7 +269,7 @@ export default function Onboarding() {
+     }
+   };
+ 
+-  const nextStep = () => setStep((s) => Math.min(s + 1, TOTAL_STEPS));
++  const nextStep = () => setStep((s) => Math.min(s + 1, screens.length));
+   const prevStep = () => setStep((s) => Math.max(s - 1, 1));
+ 
+   /**
+@@ -456,15 +458,369 @@ export default function Onboarding() {
+     return { first, dur, shoulderSafe, dayTitle, sessions, why: why.slice(0, 3) };
+   }, [built, profile.injuries, profile.equipment, pastFailures, authUser, goal]);
+ 
++  // ---- the flow -------------------------------------------------------
++  // The whole onboarding is this list. Adding, cutting or reordering a screen
++  // is an edit here rather than a renumbering exercise across the file, which
++  // is what the jump from 8 screens to 22 needs. Each `render` closes over the
++  // state above, so screens read and write the same answers with no plumbing.
++  const screens: ScreenDef[] = [
++    {
++      id: "self-id",
++      label: "Start",
++      render: () => (
++        <>
++          <p className="text-[11px] font-bold tracking-[0.16em] uppercase text-primary mb-2">Let's build your plan</p>
++          <h1 className="text-3xl font-bold tracking-tight mb-2">Where are you starting from?</h1>
++          <p className="text-muted-foreground mb-6">No judgment — just where we're starting. This is day one.</p>
++
++          {/* Uses the shared CardBtn so gender selection looks identical to
++              every other single-select in onboarding. It previously
++              reimplemented the same classes inline, which is how the two
++              drifted apart. */}
++          <div className="flex gap-3 mb-6">
++            {(["Male", "Female"] as const).map((g) => (
++              <CardBtn
++                key={g}
++                active={profile.gender === g}
++                onClick={() => setProfile({ ...profile, gender: g })}
++                className="flex-1 text-center font-semibold"
++              >
++                {g}
++              </CardBtn>
++            ))}
++          </div>
++
++          {/* The grid is always rendered. Before a gender is chosen it sits
++              dimmed and untappable, so the step shows what it's asking for
++              instead of opening on ~400px of empty black — this is the
++              first screen of the product. Nothing is preselected, so no
++              assumption is made about the user; picking a gender simply
++              brings the grid to full strength and swaps the imagery. */}
++          <div className="relative">
++            <div
++              aria-hidden={!profile.gender}
++              className={cn(
++                "grid grid-cols-2 gap-3 content-start transition-opacity duration-300",
++                profile.gender ? "opacity-100" : "pointer-events-none opacity-35",
++              )}
++            >
++              {BODY_TYPE_OPTIONS.map((b, idx) => (
++                <BodyTypeCard
++                  key={b.id}
++                  gender={profile.gender || "Male"}
++                  id={b.id}
++                  label={b.label}
++                  active={startingPoint === b.id}
++                  onClick={() => setStartingPoint(b.id)}
++                  wide={idx === 4}
++                />
++              ))}
++            </div>
++            {!profile.gender && (
++              <div className="pointer-events-none absolute inset-x-0 top-24 flex justify-center px-6">
++                <p className="rounded-full border border-border bg-background/90 px-4 py-2 text-center text-sm font-medium text-foreground backdrop-blur-sm">
++                  Pick one above to see your starting-point options.
++                </p>
++              </div>
++            )}
++          </div>
++
++          <StepCta
++            onClick={guardedNext(
++              !!profile.gender && !!startingPoint,
++              !profile.gender ? "Pick Male or Female first." : "Choose the body type closest to you now.",
++            )}
++            error={stepError}
++            className="mt-8"
++          />
++        </>
++      ),
++    },
++    {
++      id: "goal",
++      label: "Goal",
++      render: () => (
++        <>
++          <h1 className="text-3xl font-bold tracking-tight mb-2">What are you chasing?</h1>
++          <p className="text-muted-foreground mb-5">We'll build your training and nutrition around this.</p>
++          <div className="grid grid-cols-2 gap-2.5 mb-6">
++            {GOAL_OPTIONS.map((g) => (
++              <CardBtn key={g.id} active={goal === g.id} onClick={() => setGoal(g.id)}>
++                <g.icon className="w-5 h-5 mb-1.5 text-primary" />
++                <div className="font-semibold text-foreground">{g.id}</div>
++                <div className="text-xs text-muted-foreground">{g.desc}</div>
++              </CardBtn>
++            ))}
++          </div>
++          <Label className="mb-2 block">And the look you want</Label>
++          <div className="space-y-3 flex-1">
++            {/* A real <button> with aria-pressed, not a clickable <div>.
++                As a div these were invisible to keyboard focus and were
++                not announced as controls by VoiceOver — every other
++                selectable card in onboarding is a button, so this was also
++                the odd one out. The image column is widened to w-28 so the
++                physique is actually legible rather than a narrow sliver. */}
++            {physiqueOptions.map((p) => {
++              const selected = profile.targetPhysique === p.id;
++              return (
++                <button
++                  key={p.id}
++                  type="button"
++                  aria-pressed={selected}
++                  onClick={() => setProfile({ ...profile, targetPhysique: p.id as TargetPhysique })}
++                  className={cn(
++                    "w-full text-left rounded-2xl border-2 transition-all flex items-stretch gap-4 overflow-hidden",
++                    selected ? "border-primary bg-primary/10" : "border-border bg-card hover:border-primary/50",
++                  )}
++                >
++                  <div className="w-28 shrink-0 bg-black/40 relative">
++                    <img src={`${import.meta.env.BASE_URL}physiques/${p.img}`} alt="" className="w-full h-full object-cover object-top" />
++                    {selected && (
++                      <div className="absolute top-2 left-2 bg-primary text-primary-foreground rounded-full p-1">
++                        <Check className="w-3 h-3" />
++                      </div>
++                    )}
++                  </div>
++                  <div className="flex-1 py-3 pr-4 flex flex-col justify-center">
++                    <h3 className="font-semibold">{p.label}</h3>
++                    <p className="text-xs text-muted-foreground">{p.desc}</p>
++                  </div>
++                </button>
++              );
++            })}
++          </div>
++          <StepNav
++            onBack={prevStep}
++            onNext={guardedNext(
++              !!goal && physiqueSelected,
++              !goal ? "Pick what you're chasing first." : "Choose the look you're aiming for.",
++            )}
++            error={stepError}
++          />
++        </>
++      ),
++    },
++    {
++      id: "why",
++      label: "Why",
++      render: () => (
++        <>
++          <p className="text-[11px] font-bold tracking-[0.16em] uppercase text-primary mb-2">Be honest</p>
++          <h1 className="text-3xl font-bold tracking-tight mb-2">What's gotten in the way before?</h1>
++          <p className="text-muted-foreground mb-6">Pick all that ring true. This is the important one.</p>
++          <div className="space-y-2.5 flex-1">
++            {PAST_FAILURES.map((f) => {
++              const active = pastFailures.includes(f.label);
++              return (
++                <CardBtn key={f.label} active={active} onClick={() => toggleFailure(f.label)} className="block">
++                  <span className="pr-5 block">{f.label}</span>
++                  <span className="block text-[11px] font-semibold text-primary mt-1">→ {f.fix}</span>
++                </CardBtn>
++              );
++            })}
++          </div>
++          <div className="mt-4 bg-card border border-dashed border-primary/40 rounded-2xl p-4 text-sm leading-relaxed text-foreground/90">
++            None of these were your fault. They're what happens when a plan can't bend to your life. <span className="text-primary font-semibold">That's the part we fixed.</span>
++          </div>
++          <StepNav onBack={prevStep} onNext={nextStep} />
++        </>
++      ),
++    },
++    {
++      id: "best-self",
++      label: "You",
++      render: () => (
++        <>
++          <p className="text-[11px] font-bold tracking-[0.16em] uppercase text-primary mb-2">Your best self</p>
++          <h1 className="text-3xl font-bold tracking-tight mb-2">When did you last feel like yourself?</h1>
++          <p className="text-muted-foreground mb-6">We'll build the path back — and past — that.</p>
++          <div className="space-y-2.5 flex-1">
++            {IDENTITY_OPTIONS.map((o) => (
++              <CardBtn key={o} active={bestShape === o} onClick={() => setBestShape(o)} className="block"><span className="pr-5">{o}</span></CardBtn>
++            ))}
++          </div>
++          <StepNav
++            onBack={prevStep}
++            onNext={guardedNext(!!bestShape, "Pick the one that fits best — you can change it later.")}
++            error={stepError}
++          />
++        </>
++      ),
++    },
++    ...weekScreens({
++      answers: { reliableDays, trainDays, sessionLen, busyDay, equipment: profile.equipment },
++      onChange: (patch) => {
++        if (patch.reliableDays !== undefined) setReliableDays(patch.reliableDays);
++        if (patch.trainDays !== undefined) setTrainDays(patch.trainDays);
++        if (patch.sessionLen !== undefined) setSessionLen(patch.sessionLen);
++        if (patch.busyDay !== undefined) setBusyDay(patch.busyDay);
++        if (patch.equipment !== undefined) setProfile({ ...profile, equipment: patch.equipment });
++      },
++      equipmentOptions: EQUIPMENT_LABELS,
++      onBack: prevStep,
++      guardedNext,
++      next: nextStep,
++      error: stepError,
++    }),
++    {
++      id: "around",
++      label: "Around",
++      render: () => (
++        <>
++          <p className="text-[11px] font-bold tracking-[0.16em] uppercase text-primary mb-2">Make it yours</p>
++          <h1 className="text-3xl font-bold tracking-tight mb-2">Anything to train around?</h1>
++          <p className="text-muted-foreground mb-6">We'll adjust around the limitations you report.</p>
++          <div className="flex-1 space-y-6">
++            <div>
++              <SectionHead icon={ShieldAlert} title="Injuries or limitations" description="We'll avoid movements that aggravate these." />
++              <CardChips options={INJURY_OPTIONS} selected={profile.injuries} onToggle={toggleInjury} />
++              <Textarea value={profile.injuryNotes} onChange={(e) => setProfile((p) => ({ ...p, injuryNotes: e.target.value }))} placeholder="Anything else? e.g. left knee pain on deep squats…" className="bg-secondary/50 border-0 resize-none h-20 mt-3" />
++            </div>
++            <div>
++              <SectionHead icon={Salad} title="Dietary restrictions" description="We'll keep meal advice within these." />
++              <CardChips options={DIETARY_OPTIONS} selected={profile.dietary} onToggle={toggleDietary} />
++            </div>
++          </div>
++          <StepNav onBack={prevStep} onNext={nextStep} className="pt-6 border-t border-border/50" />
++        </>
++      ),
++    },
++    {
++      id: "numbers",
++      label: "Numbers",
++      render: () => (
++        <>
++          <p className="text-[11px] font-bold tracking-[0.16em] uppercase text-primary mb-2">Precision</p>
++          <h1 className="text-3xl font-bold tracking-tight mb-2">Last thing — your numbers.</h1>
++          <p className="text-muted-foreground mb-6">So your plan is calibrated to you, not a template.</p>
++          <div className="space-y-4 flex-1">
++            <div className="space-y-2"><Label>Name</Label><Input value={profile.name} onChange={(e) => setProfile({ ...profile, name: e.target.value })} placeholder="John" className="bg-secondary/50 border-0" /></div>
++            <div className="grid grid-cols-2 gap-4">
++              <div className="space-y-2"><Label>Age</Label><Input type="number" value={profile.age} onChange={(e) => setProfile({ ...profile, age: e.target.value })} placeholder="28" className="bg-secondary/50 border-0" /></div>
++              <div className="space-y-2"><Label>Experience</Label>
++                <Select value={profile.experience} onValueChange={(val: any) => setProfile({ ...profile, experience: val })}>
++                  <SelectTrigger className="bg-secondary/50 border-0"><SelectValue placeholder="Experience" /></SelectTrigger>
++                  <SelectContent><SelectItem value="Beginner">Beginner (0-1 yrs)</SelectItem><SelectItem value="Intermediate">Intermediate (1-3 yrs)</SelectItem><SelectItem value="Advanced">Advanced (3+ yrs)</SelectItem></SelectContent>
++                </Select>
++              </div>
++            </div>
++            <div className="grid grid-cols-2 gap-4">
++              <div className="space-y-2">
++                <div className="flex items-center justify-between min-h-6"><Label>Height</Label><UnitToggle options={[{ label: "cm", val: "cm" }, { label: "ft/in", val: "ft" }]} value={profile.heightUnit} onChange={(v) => switchHeightUnit(v as "cm" | "ft")} /></div>
++                {profile.heightUnit === "cm" ? (
++                  <Input type="number" inputMode="numeric" value={profile.height} onChange={(e) => setHeightCm(e.target.value)} placeholder="180" className="bg-secondary/50 border-0" />
++                ) : (
++                  <div className="flex gap-2">
++                    <div className="relative flex-1"><Input type="number" inputMode="numeric" value={parseImperial(profile.height).ft} onChange={(e) => setHeightFt(e.target.value)} placeholder="5" className="bg-secondary/50 border-0 pr-7" /><span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">ft</span></div>
++                    <div className="relative flex-1"><Input type="number" inputMode="numeric" value={parseImperial(profile.height).inch} onChange={(e) => setHeightIn(e.target.value)} placeholder="11" className="bg-secondary/50 border-0 pr-7" /><span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">in</span></div>
++                  </div>
++                )}
++              </div>
++              <div className="space-y-2">
++                <div className="flex items-center justify-between min-h-6"><Label>Weight</Label><UnitToggle options={[{ label: "kg", val: "kg" }, { label: "lb", val: "lb" }]} value={profile.weightUnit} onChange={(v) => setProfile({ ...profile, weightUnit: v as "kg" | "lb" })} /></div>
++                <div className="relative"><Input type="number" inputMode="numeric" value={profile.weight} onChange={(e) => setProfile({ ...profile, weight: e.target.value })} placeholder={profile.weightUnit === "lb" ? "180" : "80"} className="bg-secondary/50 border-0 pr-9" /><span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{profile.weightUnit}</span></div>
++              </div>
++            </div>
++            <div className="space-y-2"><Label>Activity level</Label>
++              <Select value={profile.activityLevel} onValueChange={(val: any) => setProfile({ ...profile, activityLevel: val })}>
++                <SelectTrigger className="bg-secondary/50 border-0"><SelectValue placeholder="How active are you?" /></SelectTrigger>
++                <SelectContent><SelectItem value="Sedentary">Sedentary (desk job)</SelectItem><SelectItem value="Light">Light (1-2 / week)</SelectItem><SelectItem value="Moderate">Moderate (3-4 / week)</SelectItem><SelectItem value="Very Active">Very Active (5-6 / week)</SelectItem><SelectItem value="Athlete">Athlete (daily)</SelectItem></SelectContent>
++              </Select>
++              <p className="text-xs text-muted-foreground">Used to calculate your daily calorie target.</p>
++            </div>
++          </div>
++          {/* `busy` still disables during generation — that's a real
++              in-flight state, not a validation gate. Missing fields are
++              explained instead of silently blocking. */}
++          <StepNav
++            onBack={prevStep}
++            busy={generating}
++            label={generating ? "Building…" : "Build my plan"}
++            icon={generating ? <span /> : <ArrowRight className="ml-2 w-5 h-5" />}
++            error={stepError}
++            onNext={() => {
++              if (!profile.name) return setStepError("Add your name so the coach can talk to you.");
++              if (!canCalculate) return setStepError("Fill in age, height, weight, experience and activity level.");
++              setStepError(null);
++              void generatePlan();
++            }}
++          />
++        </>
++      ),
++    },
++    {
++      id: "reveal",
++      label: "Plan",
++      render: () => (
++        <>
++          {generating || !built || !reveal ? (
++            <div className="flex-1 flex flex-col items-center justify-center text-center">
++              <div className="relative w-24 h-24 mb-8">
++                <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }} className="absolute inset-0 rounded-full border-4 border-primary/30 border-t-primary" />
++                <div className="absolute inset-0 flex items-center justify-center"><Zap className="w-8 h-8 text-primary" /></div>
++              </div>
++              <h2 className="text-2xl font-bold mb-2">Building your plan</h2>
++              <p className="text-muted-foreground animate-pulse">Shaping it around your real week…</p>
++            </div>
++          ) : (
++            <>
++              <p className="text-[11px] font-bold tracking-[0.16em] uppercase text-primary mb-2">Your plan is built</p>
++              <h1 className="text-3xl font-bold tracking-tight mb-2">Here's what we built for you{profile.name ? `, ${profile.name}` : ""}.</h1>
++              <p className="text-muted-foreground mb-5">Not a template. Every choice came from something you told us.</p>
++
++              <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 mb-3">
++                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Your first session</p>
++                <p className="text-lg font-bold mt-0.5">{reveal.first ? reveal.first.title : "Full body"}</p>
++                <p className="text-xs text-primary">{reveal.first ? `${reveal.first.exercises.length} movements · ~${reveal.dur} min` : ""}{reveal.shoulderSafe ? " · shoulder-safe" : ""}</p>
++                <ul className="mt-3 space-y-1.5">
++                  {reveal.sessions.map((s) => (
++                    <li key={s.day} className="flex items-baseline gap-3 text-sm">
++                      <span className="w-9 shrink-0 font-bold text-primary">{s.short}</span>
++                      <span className="flex-1 font-medium leading-snug">{s.title}</span>
++                      <span className="shrink-0 text-xs text-muted-foreground">{s.movements}</span>
++                    </li>
++                  ))}
++                </ul>
++                <div className="mt-3 inline-flex text-[11px] font-bold text-primary bg-primary/10 border border-primary/30 rounded-full px-2.5 py-1">◔ Busy-day {busyDay} version ready</div>
++              </div>
++
++              <div className="rounded-2xl border border-border bg-card p-4 mb-3 space-y-2 text-sm">
++                <div className="flex justify-between"><span className="text-muted-foreground">Daily calories</span><span className="font-bold">{built.macros.calories.toLocaleString()} kcal</span></div>
++                <div className="flex justify-between"><span className="text-muted-foreground">Protein</span><span className="font-bold">{built.macros.protein} g</span></div>
++                <div className="flex justify-between"><span className="text-muted-foreground">Adjusts from</span><span className="font-bold">your logged weight</span></div>
++              </div>
++
++              <div className="rounded-2xl border border-dashed border-border bg-card/50 p-4">
++                <h4 className="text-[11px] uppercase tracking-wider text-primary font-bold mb-2.5">Why this plan</h4>
++                <ul className="space-y-2">
++                  {reveal.why.map((w, i) => (
++                    <li key={i} className="text-[13px] text-foreground/85 leading-snug pl-4 relative"><span className="absolute left-0 text-primary font-bold">→</span>{w}</li>
++                  ))}
++                </ul>
++              </div>
++
++              <div className="flex gap-3 mt-8">
++                <Button variant="secondary" onClick={() => setStep(7)} className="rounded-full h-12 px-6">Back</Button>
++                <Button onClick={commitAndContinue} className="flex-1 rounded-full h-12 text-lg font-bold">This looks right <ArrowRight className="ml-2 w-5 h-5" /></Button>
++              </div>
++            </>
++          )}
++        </>
++      ),
++    },
++  ];
++  const current = screens[step - 1];
++
+   return (
+-    <OnboardingShell step={step} totalSteps={TOTAL_STEPS}>
++    <OnboardingShell step={step} totalSteps={screens.length}>
+       <div className="flex-1 flex flex-col px-6 pt-10 pb-8 md:px-10 md:pt-14">
+         {import.meta.env.DEV && (
+           <div className="mb-4 rounded-xl border border-primary/30 bg-primary/5 p-2">
+             <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 px-1">Preview only · jump to step</p>
+             <div className="flex flex-wrap gap-1.5">
+-              {["Start", "Goal", "Why", "You", "Week", "Around", "Numbers", "Plan"].map((label, i) => {
++              {screens.map((sc, i) => {
+                 const n = i + 1;
++                const label = sc.label;
+                 return (
+                   <button key={n} type="button" onClick={() => setStep(n)} className={cn("text-xs font-medium rounded-full px-3 py-1 border transition-colors", step === n ? "bg-primary text-primary-foreground border-primary" : "bg-card text-muted-foreground border-border hover:border-primary/50")}>
+                     {n}. {label}
+@@ -486,346 +842,23 @@ export default function Onboarding() {
+         )}
+ 
+         <div className="w-full flex gap-1 mb-8">
+-          {Array.from({ length: TOTAL_STEPS }, (_, idx) => idx + 1).map((i) => (
+-            <div key={i} className="h-1 flex-1 bg-secondary rounded-full overflow-hidden">
+-              <div className="h-full bg-primary transition-all duration-300" style={{ width: i <= step ? "100%" : "0%" }} />
++          {screens.map((sc, idx) => (
++            <div key={sc.id} className="h-1 flex-1 bg-secondary rounded-full overflow-hidden">
++              <div className="h-full bg-primary transition-all duration-300" style={{ width: idx + 1 <= step ? "100%" : "0%" }} />
+             </div>
+           ))}
+         </div>
+ 
+         <AnimatePresence mode="wait">
+-          {/* 1 — SELF-ID */}
+-          {step === 1 && (
+-            <motion.div key="s1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex-1 flex flex-col">
+-              <p className="text-[11px] font-bold tracking-[0.16em] uppercase text-primary mb-2">Let's build your plan</p>
+-              <h1 className="text-3xl font-bold tracking-tight mb-2">Where are you starting from?</h1>
+-              <p className="text-muted-foreground mb-6">No judgment — just where we're starting. This is day one.</p>
+-
+-              {/* Uses the shared CardBtn so gender selection looks identical to
+-                  every other single-select in onboarding. It previously
+-                  reimplemented the same classes inline, which is how the two
+-                  drifted apart. */}
+-              <div className="flex gap-3 mb-6">
+-                {(["Male", "Female"] as const).map((g) => (
+-                  <CardBtn
+-                    key={g}
+-                    active={profile.gender === g}
+-                    onClick={() => setProfile({ ...profile, gender: g })}
+-                    className="flex-1 text-center font-semibold"
+-                  >
+-                    {g}
+-                  </CardBtn>
+-                ))}
+-              </div>
+-
+-              {/* The grid is always rendered. Before a gender is chosen it sits
+-                  dimmed and untappable, so the step shows what it's asking for
+-                  instead of opening on ~400px of empty black — this is the
+-                  first screen of the product. Nothing is preselected, so no
+-                  assumption is made about the user; picking a gender simply
+-                  brings the grid to full strength and swaps the imagery. */}
+-              <div className="relative">
+-                <div
+-                  aria-hidden={!profile.gender}
+-                  className={cn(
+-                    "grid grid-cols-2 gap-3 content-start transition-opacity duration-300",
+-                    profile.gender ? "opacity-100" : "pointer-events-none opacity-35",
+-                  )}
+-                >
+-                  {BODY_TYPE_OPTIONS.map((b, idx) => (
+-                    <BodyTypeCard
+-                      key={b.id}
+-                      gender={profile.gender || "Male"}
+-                      id={b.id}
+-                      label={b.label}
+-                      active={startingPoint === b.id}
+-                      onClick={() => setStartingPoint(b.id)}
+-                      wide={idx === 4}
+-                    />
+-                  ))}
+-                </div>
+-                {!profile.gender && (
+-                  <div className="pointer-events-none absolute inset-x-0 top-24 flex justify-center px-6">
+-                    <p className="rounded-full border border-border bg-background/90 px-4 py-2 text-center text-sm font-medium text-foreground backdrop-blur-sm">
+-                      Pick one above to see your starting-point options.
+-                    </p>
+-                  </div>
+-                )}
+-              </div>
+-
+-              <StepCta
+-                onClick={guardedNext(
+-                  !!profile.gender && !!startingPoint,
+-                  !profile.gender ? "Pick Male or Female first." : "Choose the body type closest to you now.",
+-                )}
+-                error={stepError}
+-                className="mt-8"
+-              />
+-            </motion.div>
+-          )}
+-
+-          {/* 2 — DESIRE (goal + physique) */}
+-          {step === 2 && (
+-            <motion.div key="s2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex-1 flex flex-col">
+-              <h1 className="text-3xl font-bold tracking-tight mb-2">What are you chasing?</h1>
+-              <p className="text-muted-foreground mb-5">We'll build your training and nutrition around this.</p>
+-              <div className="grid grid-cols-2 gap-2.5 mb-6">
+-                {GOAL_OPTIONS.map((g) => (
+-                  <CardBtn key={g.id} active={goal === g.id} onClick={() => setGoal(g.id)}>
+-                    <g.icon className="w-5 h-5 mb-1.5 text-primary" />
+-                    <div className="font-semibold text-foreground">{g.id}</div>
+-                    <div className="text-xs text-muted-foreground">{g.desc}</div>
+-                  </CardBtn>
+-                ))}
+-              </div>
+-              <Label className="mb-2 block">And the look you want</Label>
+-              <div className="space-y-3 flex-1">
+-                {/* A real <button> with aria-pressed, not a clickable <div>.
+-                    As a div these were invisible to keyboard focus and were
+-                    not announced as controls by VoiceOver — every other
+-                    selectable card in onboarding is a button, so this was also
+-                    the odd one out. The image column is widened to w-28 so the
+-                    physique is actually legible rather than a narrow sliver. */}
+-                {physiqueOptions.map((p) => {
+-                  const selected = profile.targetPhysique === p.id;
+-                  return (
+-                    <button
+-                      key={p.id}
+-                      type="button"
+-                      aria-pressed={selected}
+-                      onClick={() => setProfile({ ...profile, targetPhysique: p.id as TargetPhysique })}
+-                      className={cn(
+-                        "w-full text-left rounded-2xl border-2 transition-all flex items-stretch gap-4 overflow-hidden",
+-                        selected ? "border-primary bg-primary/10" : "border-border bg-card hover:border-primary/50",
+-                      )}
+-                    >
+-                      <div className="w-28 shrink-0 bg-black/40 relative">
+-                        <img src={`${import.meta.env.BASE_URL}physiques/${p.img}`} alt="" className="w-full h-full object-cover object-top" />
+-                        {selected && (
+-                          <div className="absolute top-2 left-2 bg-primary text-primary-foreground rounded-full p-1">
+-                            <Check className="w-3 h-3" />
+-                          </div>
+-                        )}
+-                      </div>
+-                      <div className="flex-1 py-3 pr-4 flex flex-col justify-center">
+-                        <h3 className="font-semibold">{p.label}</h3>
+-                        <p className="text-xs text-muted-foreground">{p.desc}</p>
+-                      </div>
+-                    </button>
+-                  );
+-                })}
+-              </div>
+-              <StepNav
+-                onBack={prevStep}
+-                onNext={guardedNext(
+-                  !!goal && physiqueSelected,
+-                  !goal ? "Pick what you're chasing first." : "Choose the look you're aiming for.",
+-                )}
+-                error={stepError}
+-              />
+-            </motion.div>
+-          )}
+-
+-          {/* 3 — PAST FAILURE */}
+-          {step === 3 && (
+-            <motion.div key="s3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex-1 flex flex-col">
+-              <p className="text-[11px] font-bold tracking-[0.16em] uppercase text-primary mb-2">Be honest</p>
+-              <h1 className="text-3xl font-bold tracking-tight mb-2">What's gotten in the way before?</h1>
+-              <p className="text-muted-foreground mb-6">Pick all that ring true. This is the important one.</p>
+-              <div className="space-y-2.5 flex-1">
+-                {PAST_FAILURES.map((f) => {
+-                  const active = pastFailures.includes(f.label);
+-                  return (
+-                    <CardBtn key={f.label} active={active} onClick={() => toggleFailure(f.label)} className="block">
+-                      <span className="pr-5 block">{f.label}</span>
+-                      <span className="block text-[11px] font-semibold text-primary mt-1">→ {f.fix}</span>
+-                    </CardBtn>
+-                  );
+-                })}
+-              </div>
+-              <div className="mt-4 bg-card border border-dashed border-primary/40 rounded-2xl p-4 text-sm leading-relaxed text-foreground/90">
+-                None of these were your fault. They're what happens when a plan can't bend to your life. <span className="text-primary font-semibold">That's the part we fixed.</span>
+-              </div>
+-              <StepNav onBack={prevStep} onNext={nextStep} />
+-            </motion.div>
+-          )}
+-
+-          {/* 4 — IDENTITY */}
+-          {step === 4 && (
+-            <motion.div key="s4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex-1 flex flex-col">
+-              <p className="text-[11px] font-bold tracking-[0.16em] uppercase text-primary mb-2">Your best self</p>
+-              <h1 className="text-3xl font-bold tracking-tight mb-2">When did you last feel like yourself?</h1>
+-              <p className="text-muted-foreground mb-6">We'll build the path back — and past — that.</p>
+-              <div className="space-y-2.5 flex-1">
+-                {IDENTITY_OPTIONS.map((o) => (
+-                  <CardBtn key={o} active={bestShape === o} onClick={() => setBestShape(o)} className="block"><span className="pr-5">{o}</span></CardBtn>
+-                ))}
+-              </div>
+-              <StepNav
+-                onBack={prevStep}
+-                onNext={guardedNext(!!bestShape, "Pick the one that fits best — you can change it later.")}
+-                error={stepError}
+-              />
+-            </motion.div>
+-          )}
+-
+-          {/* 5 — REAL WEEK */}
+-          {step === 5 && (
+-            <motion.div key="s5" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex-1 flex flex-col">
+-              {/* Five questions that used to share one screen. See WeekAct.tsx. */}
+-              <WeekAct
+-                answers={{ reliableDays, trainDays, sessionLen, busyDay, equipment: profile.equipment }}
+-                onChange={(patch) => {
+-                  if (patch.reliableDays !== undefined) setReliableDays(patch.reliableDays);
+-                  if (patch.trainDays !== undefined) setTrainDays(patch.trainDays);
+-                  if (patch.sessionLen !== undefined) setSessionLen(patch.sessionLen);
+-                  if (patch.busyDay !== undefined) setBusyDay(patch.busyDay);
+-                  if (patch.equipment !== undefined) setProfile({ ...profile, equipment: patch.equipment });
+-                }}
+-                onBack={prevStep}
+-                onDone={nextStep}
+-                equipmentOptions={EQUIPMENT_LABELS}
+-              />
+-            </motion.div>
+-          )}
+-
+-
+-          {step === 6 && (
+-            <motion.div key="s6" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex-1 flex flex-col">
+-              <p className="text-[11px] font-bold tracking-[0.16em] uppercase text-primary mb-2">Make it yours</p>
+-              <h1 className="text-3xl font-bold tracking-tight mb-2">Anything to train around?</h1>
+-              <p className="text-muted-foreground mb-6">We'll adjust around the limitations you report.</p>
+-              <div className="flex-1 space-y-6">
+-                <div>
+-                  <SectionHead icon={ShieldAlert} title="Injuries or limitations" description="We'll avoid movements that aggravate these." />
+-                  <CardChips options={INJURY_OPTIONS} selected={profile.injuries} onToggle={toggleInjury} />
+-                  <Textarea value={profile.injuryNotes} onChange={(e) => setProfile((p) => ({ ...p, injuryNotes: e.target.value }))} placeholder="Anything else? e.g. left knee pain on deep squats…" className="bg-secondary/50 border-0 resize-none h-20 mt-3" />
+-                </div>
+-                <div>
+-                  <SectionHead icon={Salad} title="Dietary restrictions" description="We'll keep meal advice within these." />
+-                  <CardChips options={DIETARY_OPTIONS} selected={profile.dietary} onToggle={toggleDietary} />
+-                </div>
+-              </div>
+-              <StepNav onBack={prevStep} onNext={nextStep} className="pt-6 border-t border-border/50" />
+-            </motion.div>
+-          )}
+-
+-          {/* 7 — CALIBRATE */}
+-          {step === 7 && (
+-            <motion.div key="s7" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex-1 flex flex-col">
+-              <p className="text-[11px] font-bold tracking-[0.16em] uppercase text-primary mb-2">Precision</p>
+-              <h1 className="text-3xl font-bold tracking-tight mb-2">Last thing — your numbers.</h1>
+-              <p className="text-muted-foreground mb-6">So your plan is calibrated to you, not a template.</p>
+-              <div className="space-y-4 flex-1">
+-                <div className="space-y-2"><Label>Name</Label><Input value={profile.name} onChange={(e) => setProfile({ ...profile, name: e.target.value })} placeholder="John" className="bg-secondary/50 border-0" /></div>
+-                <div className="grid grid-cols-2 gap-4">
+-                  <div className="space-y-2"><Label>Age</Label><Input type="number" value={profile.age} onChange={(e) => setProfile({ ...profile, age: e.target.value })} placeholder="28" className="bg-secondary/50 border-0" /></div>
+-                  <div className="space-y-2"><Label>Experience</Label>
+-                    <Select value={profile.experience} onValueChange={(val: any) => setProfile({ ...profile, experience: val })}>
+-                      <SelectTrigger className="bg-secondary/50 border-0"><SelectValue placeholder="Experience" /></SelectTrigger>
+-                      <SelectContent><SelectItem value="Beginner">Beginner (0-1 yrs)</SelectItem><SelectItem value="Intermediate">Intermediate (1-3 yrs)</SelectItem><SelectItem value="Advanced">Advanced (3+ yrs)</SelectItem></SelectContent>
+-                    </Select>
+-                  </div>
+-                </div>
+-                <div className="grid grid-cols-2 gap-4">
+-                  <div className="space-y-2">
+-                    <div className="flex items-center justify-between min-h-6"><Label>Height</Label><UnitToggle options={[{ label: "cm", val: "cm" }, { label: "ft/in", val: "ft" }]} value={profile.heightUnit} onChange={(v) => switchHeightUnit(v as "cm" | "ft")} /></div>
+-                    {profile.heightUnit === "cm" ? (
+-                      <Input type="number" inputMode="numeric" value={profile.height} onChange={(e) => setHeightCm(e.target.value)} placeholder="180" className="bg-secondary/50 border-0" />
+-                    ) : (
+-                      <div className="flex gap-2">
+-                        <div className="relative flex-1"><Input type="number" inputMode="numeric" value={parseImperial(profile.height).ft} onChange={(e) => setHeightFt(e.target.value)} placeholder="5" className="bg-secondary/50 border-0 pr-7" /><span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">ft</span></div>
+-                        <div className="relative flex-1"><Input type="number" inputMode="numeric" value={parseImperial(profile.height).inch} onChange={(e) => setHeightIn(e.target.value)} placeholder="11" className="bg-secondary/50 border-0 pr-7" /><span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">in</span></div>
+-                      </div>
+-                    )}
+-                  </div>
+-                  <div className="space-y-2">
+-                    <div className="flex items-center justify-between min-h-6"><Label>Weight</Label><UnitToggle options={[{ label: "kg", val: "kg" }, { label: "lb", val: "lb" }]} value={profile.weightUnit} onChange={(v) => setProfile({ ...profile, weightUnit: v as "kg" | "lb" })} /></div>
+-                    <div className="relative"><Input type="number" inputMode="numeric" value={profile.weight} onChange={(e) => setProfile({ ...profile, weight: e.target.value })} placeholder={profile.weightUnit === "lb" ? "180" : "80"} className="bg-secondary/50 border-0 pr-9" /><span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{profile.weightUnit}</span></div>
+-                  </div>
+-                </div>
+-                <div className="space-y-2"><Label>Activity level</Label>
+-                  <Select value={profile.activityLevel} onValueChange={(val: any) => setProfile({ ...profile, activityLevel: val })}>
+-                    <SelectTrigger className="bg-secondary/50 border-0"><SelectValue placeholder="How active are you?" /></SelectTrigger>
+-                    <SelectContent><SelectItem value="Sedentary">Sedentary (desk job)</SelectItem><SelectItem value="Light">Light (1-2 / week)</SelectItem><SelectItem value="Moderate">Moderate (3-4 / week)</SelectItem><SelectItem value="Very Active">Very Active (5-6 / week)</SelectItem><SelectItem value="Athlete">Athlete (daily)</SelectItem></SelectContent>
+-                  </Select>
+-                  <p className="text-xs text-muted-foreground">Used to calculate your daily calorie target.</p>
+-                </div>
+-              </div>
+-              {/* `busy` still disables during generation — that's a real
+-                  in-flight state, not a validation gate. Missing fields are
+-                  explained instead of silently blocking. */}
+-              <StepNav
+-                onBack={prevStep}
+-                busy={generating}
+-                label={generating ? "Building…" : "Build my plan"}
+-                icon={generating ? <span /> : <ArrowRight className="ml-2 w-5 h-5" />}
+-                error={stepError}
+-                onNext={() => {
+-                  if (!profile.name) return setStepError("Add your name so the coach can talk to you.");
+-                  if (!canCalculate) return setStepError("Fill in age, height, weight, experience and activity level.");
+-                  setStepError(null);
+-                  void generatePlan();
+-                }}
+-              />
+-            </motion.div>
+-          )}
+-
+-          {/* 8 — REVEAL */}
+-          {step === 8 && (
+-            <motion.div key="s8" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex-1 flex flex-col">
+-              {generating || !built || !reveal ? (
+-                <div className="flex-1 flex flex-col items-center justify-center text-center">
+-                  <div className="relative w-24 h-24 mb-8">
+-                    <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }} className="absolute inset-0 rounded-full border-4 border-primary/30 border-t-primary" />
+-                    <div className="absolute inset-0 flex items-center justify-center"><Zap className="w-8 h-8 text-primary" /></div>
+-                  </div>
+-                  <h2 className="text-2xl font-bold mb-2">Building your plan</h2>
+-                  <p className="text-muted-foreground animate-pulse">Shaping it around your real week…</p>
+-                </div>
+-              ) : (
+-                <>
+-                  <p className="text-[11px] font-bold tracking-[0.16em] uppercase text-primary mb-2">Your plan is built</p>
+-                  <h1 className="text-3xl font-bold tracking-tight mb-2">Here's what we built for you{profile.name ? `, ${profile.name}` : ""}.</h1>
+-                  <p className="text-muted-foreground mb-5">Not a template. Every choice came from something you told us.</p>
+-
+-                  <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 mb-3">
+-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Your first session</p>
+-                    <p className="text-lg font-bold mt-0.5">{reveal.first ? reveal.first.title : "Full body"}</p>
+-                    <p className="text-xs text-primary">{reveal.first ? `${reveal.first.exercises.length} movements · ~${reveal.dur} min` : ""}{reveal.shoulderSafe ? " · shoulder-safe" : ""}</p>
+-                    <ul className="mt-3 space-y-1.5">
+-                      {reveal.sessions.map((s) => (
+-                        <li key={s.day} className="flex items-baseline gap-3 text-sm">
+-                          <span className="w-9 shrink-0 font-bold text-primary">{s.short}</span>
+-                          <span className="flex-1 font-medium leading-snug">{s.title}</span>
+-                          <span className="shrink-0 text-xs text-muted-foreground">{s.movements}</span>
+-                        </li>
+-                      ))}
+-                    </ul>
+-                    <div className="mt-3 inline-flex text-[11px] font-bold text-primary bg-primary/10 border border-primary/30 rounded-full px-2.5 py-1">◔ Busy-day {busyDay} version ready</div>
+-                  </div>
+-
+-                  <div className="rounded-2xl border border-border bg-card p-4 mb-3 space-y-2 text-sm">
+-                    <div className="flex justify-between"><span className="text-muted-foreground">Daily calories</span><span className="font-bold">{built.macros.calories.toLocaleString()} kcal</span></div>
+-                    <div className="flex justify-between"><span className="text-muted-foreground">Protein</span><span className="font-bold">{built.macros.protein} g</span></div>
+-                    <div className="flex justify-between"><span className="text-muted-foreground">Adjusts from</span><span className="font-bold">your logged weight</span></div>
+-                  </div>
+-
+-                  <div className="rounded-2xl border border-dashed border-border bg-card/50 p-4">
+-                    <h4 className="text-[11px] uppercase tracking-wider text-primary font-bold mb-2.5">Why this plan</h4>
+-                    <ul className="space-y-2">
+-                      {reveal.why.map((w, i) => (
+-                        <li key={i} className="text-[13px] text-foreground/85 leading-snug pl-4 relative"><span className="absolute left-0 text-primary font-bold">→</span>{w}</li>
+-                      ))}
+-                    </ul>
+-                  </div>
+-
+-                  <div className="flex gap-3 mt-8">
+-                    <Button variant="secondary" onClick={() => setStep(7)} className="rounded-full h-12 px-6">Back</Button>
+-                    <Button onClick={commitAndContinue} className="flex-1 rounded-full h-12 text-lg font-bold">This looks right <ArrowRight className="ml-2 w-5 h-5" /></Button>
+-                  </div>
+-                </>
+-              )}
++          {current && (
++            <motion.div
++              key={current.id}
++              initial={{ opacity: 0, x: 20 }}
++              animate={{ opacity: 1, x: 0 }}
++              exit={{ opacity: 0, x: -20 }}
++              className="flex-1 flex flex-col"
++            >
++              {current.render()}
+             </motion.div>
+           )}
+         </AnimatePresence>
+diff --git a/artifacts/fitcoach/src/pages/onboarding/WeekAct.tsx b/artifacts/fitcoach/src/pages/onboarding/WeekAct.tsx
+index 6181ee8..fecc3ee 100644
+--- a/artifacts/fitcoach/src/pages/onboarding/WeekAct.tsx
++++ b/artifacts/fitcoach/src/pages/onboarding/WeekAct.tsx
+@@ -1,20 +1,19 @@
+ // ---------------------------------------------------------------------------
+-// WeekAct — "your real week", split into one question per screen.
++// The "your real week" act — five screens, one question each.
+ //
+ // This replaced a single step that asked five things at once: how many days,
+ // which days, session length, busiest-day floor, and equipment. It was the
+ // clearest reason onboarding read as a form rather than a conversation, and
+ // it's also the step whose answers the plan builder actually depends on.
+ //
+-// Kept as a self-contained sub-flow rather than five more `{step === N}` blocks
+-// in Onboarding.tsx, because the next change is turning the whole flow into a
+-// config array — see docs/ONBOARDING-REDESIGN-PLAN.md. Doing that refactor
+-// first, then splitting, would have meant rewriting these twice.
++// Exported as screen definitions rather than a self-contained sub-flow, so the
++// five land in the main flow list alongside every other screen. That keeps one
++// source of truth for ordering and lets the progress bar count real screens —
++// as a nested sub-flow it silently under-reported five screens as one.
+ // ---------------------------------------------------------------------------
+ 
+-import { useState } from "react";
+ import { cn } from "@/lib/utils";
+-import { StepShell, tick } from "./kit";
++import { StepShell, tick, type ScreenDef } from "./kit";
+ 
+ const DAYS_ABBR = ["M", "T", "W", "T", "F", "S", "S"];
+ const DAYS_FULL = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+@@ -60,34 +59,26 @@ function Choice({
+   );
+ }
+ 
+-export function WeekAct({
+-  answers,
+-  onChange,
+-  onBack,
+-  onDone,
+-  equipmentOptions,
+-}: {
++export interface WeekScreenArgs {
+   answers: WeekAnswers;
+   onChange: (patch: Partial<WeekAnswers>) => void;
+-  /** Leaves the act backwards, i.e. to the step before it. */
+-  onBack: () => void;
+-  /** Leaves the act forwards. */
+-  onDone: () => void;
+   equipmentOptions: string[];
+-}) {
+-  const [i, setI] = useState(0);
+-  const [error, setError] = useState<string | null>(null);
+-
+-  const next = () => {
+-    setError(null);
+-    setI((n) => n + 1);
+-  };
+-  const back = () => {
+-    setError(null);
+-    if (i === 0) onBack();
+-    else setI((n) => n - 1);
+-  };
++  onBack: () => void;
++  /** Advance, but only if `ok`; otherwise show `message`. */
++  guardedNext: (ok: boolean, message: string) => () => void;
++  next: () => void;
++  error: string | null;
++}
+ 
++export function weekScreens({
++  answers,
++  onChange,
++  equipmentOptions,
++  onBack,
++  guardedNext,
++  next,
++  error,
++}: WeekScreenArgs): ScreenDef[] {
+   const toggleDay = (d: number) =>
+     onChange({
+       trainDays: answers.trainDays.includes(d)
+@@ -104,15 +95,16 @@ export function WeekAct({
+ 
+   const wanted = Number(answers.reliableDays) || 0;
+ 
+-  switch (i) {
+-    // 1 — how many days
+-    case 0:
+-      return (
++  return [
++    {
++      id: "week-days",
++      label: "Days",
++      render: () => (
+         <StepShell
+           eyebrow="Your real week"
+           question="How many days can you actually train?"
+           sub="The part every other plan skipped — and why they fell apart."
+-          onBack={back}
++          onBack={onBack}
+           onNext={next}
+           error={error}
+         >
+@@ -133,23 +125,18 @@ export function WeekAct({
+             over-promising here is what makes a normal week feel like failure.
+           </p>
+         </StepShell>
+-      );
+-
+-    // 2 — which days
+-    case 1:
+-      return (
++      ),
++    },
++    {
++      id: "week-which",
++      label: "Which",
++      render: () => (
+         <StepShell
+           eyebrow="Your real week"
+           question="Which days usually work?"
+           sub={wanted ? `Pick about ${wanted}. We'll schedule your sessions on them.` : undefined}
+-          onBack={back}
+-          onNext={() => {
+-            if (answers.trainDays.length === 0) {
+-              setError("Pick at least one day you can train.");
+-              return;
+-            }
+-            next();
+-          }}
++          onBack={onBack}
++          onNext={guardedNext(answers.trainDays.length > 0, "Pick at least one day you can train.")}
+           error={error}
+         >
+           <div className="grid grid-cols-7 gap-1.5">
+@@ -170,15 +157,16 @@ export function WeekAct({
+             </p>
+           )}
+         </StepShell>
+-      );
+-
+-    // 3 — session length
+-    case 2:
+-      return (
++      ),
++    },
++    {
++      id: "week-length",
++      label: "Length",
++      render: () => (
+         <StepShell
+           eyebrow="Your real week"
+           question="How long is a normal session?"
+-          onBack={back}
++          onBack={onBack}
+           onNext={next}
+           error={error}
+         >
+@@ -195,16 +183,17 @@ export function WeekAct({
+             ))}
+           </div>
+         </StepShell>
+-      );
+-
+-    // 4 — the busy-day floor
+-    case 3:
+-      return (
++      ),
++    },
++    {
++      id: "week-floor",
++      label: "Floor",
++      render: () => (
+         <StepShell
+           eyebrow="Your real week"
+           question="On your busiest day, what could you still give?"
+           sub="This is the version that runs when the week goes sideways."
+-          onBack={back}
++          onBack={onBack}
+           onNext={next}
+           error={error}
+         >
+@@ -220,23 +209,18 @@ export function WeekAct({
+             the plan just reshuffles instead.
+           </p>
+         </StepShell>
+-      );
+-
+-    // 5 — equipment
+-    default:
+-      return (
++      ),
++    },
++    {
++      id: "week-where",
++      label: "Where",
++      render: () => (
+         <StepShell
+           eyebrow="Your real week"
+           question="Where do you train?"
+           sub="We'll only prescribe movements your setup allows."
+-          onBack={back}
+-          onNext={() => {
+-            if (answers.equipment.length === 0) {
+-              setError("Pick at least one — bodyweight counts.");
+-              return;
+-            }
+-            onDone();
+-          }}
++          onBack={onBack}
++          onNext={guardedNext(answers.equipment.length > 0, "Pick at least one — bodyweight counts.")}
+           error={error}
+         >
+           <div className="grid grid-cols-2 gap-2.5">
+@@ -247,6 +231,7 @@ export function WeekAct({
+             ))}
+           </div>
+         </StepShell>
+-      );
+-  }
++      ),
++    },
++  ];
+ }
+diff --git a/artifacts/fitcoach/src/pages/onboarding/kit.tsx b/artifacts/fitcoach/src/pages/onboarding/kit.tsx
+index ca8e46d..c7a0869 100644
+--- a/artifacts/fitcoach/src/pages/onboarding/kit.tsx
++++ b/artifacts/fitcoach/src/pages/onboarding/kit.tsx
+@@ -20,6 +20,23 @@ import { ChevronRight, Zap } from "lucide-react";
+ import { cn } from "@/lib/utils";
+ import { Button } from "@/components/ui/button";
+ 
++/**
++ * One screen in the onboarding flow.
++ *
++ * The flow is a list of these, not a chain of `{step === N}` blocks. That is
++ * the whole point: the plan calls for going from 8 screens to 22, and with a
++ * list that is editing an array — inserting, reordering or cutting a screen
++ * touches one entry. `render` is a closure over the page's state, so screens
++ * still read and write the same answers without any prop plumbing.
++ */
++export interface ScreenDef {
++  /** Stable key, also used for the animation key. */
++  id: string;
++  /** Short name for the DEV step-jumper. */
++  label: string;
++  render: () => React.ReactNode;
++}
++
+ /** True when the OS asks for reduced motion. Re-evaluates if the user changes it. */
+ export function useReducedMotion(): boolean {
+   const [reduced, setReduced] = useState(
+-- 
+2.43.0
+
+
+From 346f89453663914ab68132f6d74839115312c485 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 29 Aug 2026 15:38:40 +0000
+Subject: [PATCH 2/2] Onboarding: split the numbers step into six screens
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The old step 7 was the worst screen in the flow: seven inputs at once —
+name, age, experience, height, weight, activity level — three separate
+keyboard summons and two unit toggles, sitting immediately before the
+payoff. That is the last place a form should appear.
+
+Now six screens, one question each, via numberScreens() in NumbersAct.tsx.
+Age, height and weight are Dials instead of number fields; each still lets
+you tap the number and type, so nobody who prefers the keyboard is trapped.
+Experience and activity level become ChoiceCards with a line of context
+each, replacing two <Select> dropdowns.
+
+Two real bugs fixed while splitting:
+
+- Switching cm/ft or kg/lb used to CLEAR the field. Tapping the wrong unit
+  first cost you the number you had just entered. It now converts.
+- The weight question's reassurance is on the weight screen, underneath
+  the input, rather than nowhere. That is where the hesitation is.
+
+Also unified the choice button. There were three copies - Onboarding.tsx's
+CardBtn, WeekAct.tsx's Choice, and the inline gender buttons - already
+drifted on text colour, height and tick behaviour. One ChoiceCard in
+kit.tsx now, with hideCheck for the small square tiles.
+
+Verified at 390x844 with the DEV panel hidden: all six new screens render
+with the CTA anchored at the same y (812) and no page scroll; height
+round-trips 6'1" -> 185cm -> 6'1" across a unit switch; 17 jumper entries
+and 17 progress segments agree.
+
+Known, not a regression: screens 1 (Start) and 10 (Around) still scroll -
+they are the remaining un-split blocks and are next in Phase 2.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01Scm7SUW7vqCiNscvTtGQQR
+---
+ .../src/pages/onboarding/NumbersAct.tsx       | 303 ++++++++++++++++++
+ .../src/pages/onboarding/Onboarding.tsx       | 112 ++-----
+ .../fitcoach/src/pages/onboarding/WeekAct.tsx |  41 +--
+ .../fitcoach/src/pages/onboarding/kit.tsx     |  50 ++-
+ 4 files changed, 384 insertions(+), 122 deletions(-)
+ create mode 100644 artifacts/fitcoach/src/pages/onboarding/NumbersAct.tsx
+
+diff --git a/artifacts/fitcoach/src/pages/onboarding/NumbersAct.tsx b/artifacts/fitcoach/src/pages/onboarding/NumbersAct.tsx
+new file mode 100644
+index 0000000..82673dd
+--- /dev/null
++++ b/artifacts/fitcoach/src/pages/onboarding/NumbersAct.tsx
+@@ -0,0 +1,303 @@
++// ---------------------------------------------------------------------------
++// The "your numbers" act — six screens, one question each.
++//
++// This replaced the single worst screen in onboarding: seven inputs at once
++// (name, age, experience, height, weight, activity level) with three separate
++// keyboard summons and two unit toggles. It was the last screen before the
++// payoff, which is exactly where a form is most likely to lose someone.
++//
++// Age, height and weight are now Dials rather than number fields. Typing a
++// number into a box feels like paperwork; dragging feels like using an app —
++// and every Dial still lets you tap the number and type, so nobody who prefers
++// the keyboard is trapped.
++//
++// The weight screen carries its reassurance inline, underneath the input,
++// because that is where the hesitation actually happens. A privacy promise on
++// a policy page is not reassurance.
++// ---------------------------------------------------------------------------
++
++import type { ActivityLevel } from "@/context/FitCoachContext";
++import { ChoiceCard, Dial, StepShell, type ScreenDef } from "./kit";
++import { Input } from "@/components/ui/input";
++
++export interface NumbersAnswers {
++  name: string;
++  age: string;
++  /** Either a cm number ("180") or imperial ("5' 11\"") — matches heightUnit. */
++  height: string;
++  heightUnit: "cm" | "ft";
++  weight: string;
++  weightUnit: "kg" | "lb";
++  experience: Experience;
++  activityLevel: ActivityLevel;
++}
++
++export type Experience = "Beginner" | "Intermediate" | "Advanced" | "";
++
++const EXPERIENCE_OPTIONS: { val: Exclude<Experience, "">; desc: string }[] = [
++  { val: "Beginner", desc: "0–1 years — new, or starting again" },
++  { val: "Intermediate", desc: "1–3 years — I know the lifts" },
++  { val: "Advanced", desc: "3+ years — I train seriously" },
++];
++
++const ACTIVITY_OPTIONS: { val: Exclude<ActivityLevel, "">; desc: string }[] = [
++  { val: "Sedentary", desc: "Desk job, little movement" },
++  { val: "Light", desc: "1–2 sessions a week" },
++  { val: "Moderate", desc: "3–4 sessions a week" },
++  { val: "Very Active", desc: "5–6 sessions a week" },
++  { val: "Athlete", desc: "Daily training" },
++];
++
++// ---- height ---------------------------------------------------------------
++// Stored as a string so nothing downstream has to change. These convert it to
++// and from the single number a Dial drags.
++
++const IMPERIAL = /(\d+)?\s*'\s*(\d+)?/;
++
++/** Total inches from `5' 11"`. */
++export function heightToInches(h: string): number {
++  const m = h.match(IMPERIAL);
++  return (Number(m?.[1] ?? 0) || 0) * 12 + (Number(m?.[2] ?? 0) || 0);
++}
++
++/** `5' 11"` from total inches. */
++export function inchesToHeight(total: number): string {
++  return `${Math.floor(total / 12)}' ${Math.round(total % 12)}"`;
++}
++
++/**
++ * Switching cm ↔ ft converts the value instead of clearing it.
++ *
++ * The old toggle wiped the field on every switch, so tapping the wrong unit
++ * first cost you the number you had already entered. Nothing about a unit
++ * change means the user has stopped being that tall.
++ */
++export function convertHeight(h: string, from: "cm" | "ft", to: "cm" | "ft"): string {
++  if (from === to || !h) return h;
++  return to === "cm"
++    ? String(Math.round(heightToInches(h) * 2.54))
++    : inchesToHeight(Math.round((Number(h) || 0) / 2.54));
++}
++
++/** Switching kg ↔ lb converts too, for the same reason. */
++export function convertWeight(w: string, from: "kg" | "lb", to: "kg" | "lb"): string {
++  if (from === to || !w) return w;
++  const n = Number(w) || 0;
++  return String(Math.round(to === "kg" ? n / 2.20462 : n * 2.20462));
++}
++
++// ---------------------------------------------------------------------------
++
++export interface NumbersScreenArgs {
++  answers: NumbersAnswers;
++  onChange: (patch: Partial<NumbersAnswers>) => void;
++  onBack: () => void;
++  /** Advance, but only if `ok`; otherwise show `message`. */
++  guardedNext: (ok: boolean, message: string) => () => void;
++  next: () => void;
++  error: string | null;
++  /** Unit toggle, rendered top-right of the Dial. */
++  unitToggle: (options: { label: string; val: string }[], value: string, onChange: (v: string) => void) => React.ReactNode;
++  /** Final CTA on the last screen — kicks off plan generation. */
++  onBuild: () => void;
++  generating: boolean;
++}
++
++export function numberScreens({
++  answers,
++  onChange,
++  onBack,
++  guardedNext,
++  next,
++  error,
++  unitToggle,
++  onBuild,
++  generating,
++}: NumbersScreenArgs): ScreenDef[] {
++  const metric = answers.heightUnit === "cm";
++  const heightValue = metric ? Number(answers.height) || 175 : heightToInches(answers.height) || 69;
++  const weightMetric = answers.weightUnit === "kg";
++  const weightValue = Number(answers.weight) || (weightMetric ? 80 : 176);
++
++  return [
++    {
++      id: "num-name",
++      label: "Name",
++      render: () => (
++        <StepShell
++          eyebrow="Your numbers"
++          question="What should the coach call you?"
++          sub="First name is plenty."
++          onBack={onBack}
++          onNext={guardedNext(answers.name.trim().length > 0, "Add your name so the coach can talk to you.")}
++          error={error}
++        >
++          <Input
++            value={answers.name}
++            onChange={(e) => onChange({ name: e.target.value })}
++            placeholder="John"
++            autoComplete="given-name"
++            className="h-14 border-0 bg-secondary/50 text-center text-2xl font-semibold"
++          />
++        </StepShell>
++      ),
++    },
++    {
++      id: "num-age",
++      label: "Age",
++      render: () => (
++        <StepShell eyebrow="Your numbers" question="How old are you?" onBack={onBack} onNext={next} error={error}>
++          <Dial
++            label="Age"
++            value={Number(answers.age) || 30}
++            onChange={(v) => onChange({ age: String(v) })}
++            min={14}
++            max={90}
++            unit="yrs"
++          />
++          <p className="mt-6 text-xs leading-relaxed text-muted-foreground">
++            Used for your calorie target and to set sensible starting loads — not to put you in a bracket.
++          </p>
++        </StepShell>
++      ),
++    },
++    {
++      id: "num-height",
++      label: "Height",
++      render: () => (
++        <StepShell eyebrow="Your numbers" question="How tall are you?" onBack={onBack} onNext={next} error={error}>
++          <Dial
++            label="Height"
++            value={heightValue}
++            onChange={(v) => onChange({ height: metric ? String(v) : inchesToHeight(v) })}
++            min={metric ? 120 : 48}
++            max={metric ? 220 : 84}
++            unit={metric ? "cm" : undefined}
++            format={metric ? undefined : inchesToHeight}
++            aside={unitToggle(
++              [
++                { label: "cm", val: "cm" },
++                { label: "ft/in", val: "ft" },
++              ],
++              answers.heightUnit,
++              (v) =>
++                onChange({
++                  height: convertHeight(answers.height, answers.heightUnit, v as "cm" | "ft"),
++                  heightUnit: v as "cm" | "ft",
++                }),
++            )}
++          />
++        </StepShell>
++      ),
++    },
++    {
++      id: "num-weight",
++      label: "Weight",
++      render: () => (
++        <StepShell
++          eyebrow="Your numbers"
++          question="And what do you weigh right now?"
++          onBack={onBack}
++          onNext={next}
++          error={error}
++        >
++          <Dial
++            label="Weight"
++            value={weightValue}
++            onChange={(v) => onChange({ weight: String(v) })}
++            min={weightMetric ? 35 : 80}
++            max={weightMetric ? 200 : 440}
++            unit={answers.weightUnit}
++            aside={unitToggle(
++              [
++                { label: "kg", val: "kg" },
++                { label: "lb", val: "lb" },
++              ],
++              answers.weightUnit,
++              (v) =>
++                onChange({
++                  weight: convertWeight(answers.weight, answers.weightUnit, v as "kg" | "lb"),
++                  weightUnit: v as "kg" | "lb",
++                }),
++            )}
++          />
++          {/* Reassurance sits exactly where the hesitation is. This is the
++              question people stall on, and answering "why do you need this"
++              on the screen itself is what gets it answered honestly. */}
++          <div className="mt-6 rounded-2xl border border-border bg-card p-4">
++            <p className="text-sm font-semibold">Why we ask</p>
++            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
++              It sets your calorie and protein targets, and it's the baseline your progress is measured
++              against. It's stored on your account, it is never shown to anyone else, and you can change
++              it any time. There is no number here that's wrong.
++            </p>
++          </div>
++        </StepShell>
++      ),
++    },
++    {
++      id: "num-experience",
++      label: "Level",
++      render: () => (
++        <StepShell
++          eyebrow="Your numbers"
++          question="How much lifting have you done?"
++          sub="This sets where your plan starts, not how hard it gets."
++          onBack={onBack}
++          onNext={guardedNext(!!answers.experience, "Pick the one that's closest.")}
++          error={error}
++        >
++          <div className="flex flex-col gap-2.5">
++            {EXPERIENCE_OPTIONS.map((o) => (
++              <ChoiceCard
++                key={o.val}
++                active={answers.experience === o.val}
++                onClick={() => onChange({ experience: o.val })}
++              >
++                <span className="block pr-5 font-semibold">{o.val}</span>
++                <span className="mt-0.5 block text-xs text-muted-foreground">{o.desc}</span>
++              </ChoiceCard>
++            ))}
++          </div>
++        </StepShell>
++      ),
++    },
++    {
++      id: "num-activity",
++      label: "Activity",
++      render: () => (
++        <StepShell
++          eyebrow="Your numbers"
++          question="Outside training, how active is your life?"
++          sub="Used to calculate your daily calorie target."
++          onBack={onBack}
++          // Last screen of the act: this builds the plan rather than advancing.
++          // `busy` is a real in-flight state, so it still disables — unlike the
++          // old validation gates, which disabled the button and explained nothing.
++          onNext={() => {
++            if (!answers.activityLevel) return guardedNext(false, "Pick your usual week.")();
++            onBuild();
++          }}
++          error={error}
++          cta={generating ? "Building…" : "Build my plan"}
++          busy={generating}
++        >
++          <div className="flex flex-col gap-2.5">
++            {ACTIVITY_OPTIONS.map((o) => (
++              <ChoiceCard
++                key={o.val}
++                active={answers.activityLevel === o.val}
++                onClick={() => {
++                  onChange({ activityLevel: o.val });
++                }}
++              >
++                <span className="block pr-5 font-semibold">{o.val}</span>
++                <span className="mt-0.5 block text-xs text-muted-foreground">{o.desc}</span>
++              </ChoiceCard>
++            ))}
++          </div>
++        </StepShell>
++      ),
++    },
++  ];
++}
+diff --git a/artifacts/fitcoach/src/pages/onboarding/Onboarding.tsx b/artifacts/fitcoach/src/pages/onboarding/Onboarding.tsx
+index 017fe9c..379b4ce 100644
+--- a/artifacts/fitcoach/src/pages/onboarding/Onboarding.tsx
++++ b/artifacts/fitcoach/src/pages/onboarding/Onboarding.tsx
+@@ -25,8 +25,9 @@ import { writeOnboardingStash } from "@/lib/onboardingStash";
+ import { OnboardingShell } from "./OnboardingShell";
+ // The onboarding design system. Everything structural lives here so the screens
+ // can't drift apart again — see kit.tsx for why each piece exists.
+-import { StepCta, StepNav, type ScreenDef } from "./kit";
++import { ChoiceCard as CardBtn, StepCta, StepNav, type ScreenDef } from "./kit";
+ import { weekScreens } from "./WeekAct";
++import { numberScreens } from "./NumbersAct";
+ import { Button } from "@/components/ui/button";
+ import { Input } from "@/components/ui/input";
+ import { Label } from "@/components/ui/label";
+@@ -72,28 +73,6 @@ const IDENTITY_OPTIONS = [
+   "Honestly, never — this is my first real shot",
+ ];
+ 
+-/** Large tappable card for a single- or multi-select option. */
+-function CardBtn({ active, onClick, children, className }: { active: boolean; onClick: () => void; children: React.ReactNode; className?: string }) {
+-  return (
+-    <button
+-      type="button"
+-      onClick={onClick}
+-      className={cn(
+-        "relative text-left rounded-2xl border-2 px-4 py-3.5 text-sm font-medium transition-all",
+-        // An option the user hasn't picked yet is still available, so its label
+-        // stays full-strength. Dimming it read as "disabled" — on a step where
+-        // nothing is selected, every option was grey and the whole screen
+-        // looked inert. Selection is carried by the border + tint + tick.
+-        active ? "border-primary bg-primary/10 text-foreground" : "border-border bg-card text-foreground hover:border-primary/40",
+-        className,
+-      )}
+-    >
+-      {children}
+-      {active && <Check className="absolute top-3 right-3 w-4 h-4 text-primary" />}
+-    </button>
+-  );
+-}
+-
+ /** Photographic body-type tile for the self-ID step. Falls back to the
+  *  illustrated silhouette if the photo hasn't been added yet, so the step is
+  *  never broken while imagery is being produced. */
+@@ -685,69 +664,32 @@ export default function Onboarding() {
+         </>
+       ),
+     },
+-    {
+-      id: "numbers",
+-      label: "Numbers",
+-      render: () => (
+-        <>
+-          <p className="text-[11px] font-bold tracking-[0.16em] uppercase text-primary mb-2">Precision</p>
+-          <h1 className="text-3xl font-bold tracking-tight mb-2">Last thing — your numbers.</h1>
+-          <p className="text-muted-foreground mb-6">So your plan is calibrated to you, not a template.</p>
+-          <div className="space-y-4 flex-1">
+-            <div className="space-y-2"><Label>Name</Label><Input value={profile.name} onChange={(e) => setProfile({ ...profile, name: e.target.value })} placeholder="John" className="bg-secondary/50 border-0" /></div>
+-            <div className="grid grid-cols-2 gap-4">
+-              <div className="space-y-2"><Label>Age</Label><Input type="number" value={profile.age} onChange={(e) => setProfile({ ...profile, age: e.target.value })} placeholder="28" className="bg-secondary/50 border-0" /></div>
+-              <div className="space-y-2"><Label>Experience</Label>
+-                <Select value={profile.experience} onValueChange={(val: any) => setProfile({ ...profile, experience: val })}>
+-                  <SelectTrigger className="bg-secondary/50 border-0"><SelectValue placeholder="Experience" /></SelectTrigger>
+-                  <SelectContent><SelectItem value="Beginner">Beginner (0-1 yrs)</SelectItem><SelectItem value="Intermediate">Intermediate (1-3 yrs)</SelectItem><SelectItem value="Advanced">Advanced (3+ yrs)</SelectItem></SelectContent>
+-                </Select>
+-              </div>
+-            </div>
+-            <div className="grid grid-cols-2 gap-4">
+-              <div className="space-y-2">
+-                <div className="flex items-center justify-between min-h-6"><Label>Height</Label><UnitToggle options={[{ label: "cm", val: "cm" }, { label: "ft/in", val: "ft" }]} value={profile.heightUnit} onChange={(v) => switchHeightUnit(v as "cm" | "ft")} /></div>
+-                {profile.heightUnit === "cm" ? (
+-                  <Input type="number" inputMode="numeric" value={profile.height} onChange={(e) => setHeightCm(e.target.value)} placeholder="180" className="bg-secondary/50 border-0" />
+-                ) : (
+-                  <div className="flex gap-2">
+-                    <div className="relative flex-1"><Input type="number" inputMode="numeric" value={parseImperial(profile.height).ft} onChange={(e) => setHeightFt(e.target.value)} placeholder="5" className="bg-secondary/50 border-0 pr-7" /><span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">ft</span></div>
+-                    <div className="relative flex-1"><Input type="number" inputMode="numeric" value={parseImperial(profile.height).inch} onChange={(e) => setHeightIn(e.target.value)} placeholder="11" className="bg-secondary/50 border-0 pr-7" /><span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">in</span></div>
+-                  </div>
+-                )}
+-              </div>
+-              <div className="space-y-2">
+-                <div className="flex items-center justify-between min-h-6"><Label>Weight</Label><UnitToggle options={[{ label: "kg", val: "kg" }, { label: "lb", val: "lb" }]} value={profile.weightUnit} onChange={(v) => setProfile({ ...profile, weightUnit: v as "kg" | "lb" })} /></div>
+-                <div className="relative"><Input type="number" inputMode="numeric" value={profile.weight} onChange={(e) => setProfile({ ...profile, weight: e.target.value })} placeholder={profile.weightUnit === "lb" ? "180" : "80"} className="bg-secondary/50 border-0 pr-9" /><span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{profile.weightUnit}</span></div>
+-              </div>
+-            </div>
+-            <div className="space-y-2"><Label>Activity level</Label>
+-              <Select value={profile.activityLevel} onValueChange={(val: any) => setProfile({ ...profile, activityLevel: val })}>
+-                <SelectTrigger className="bg-secondary/50 border-0"><SelectValue placeholder="How active are you?" /></SelectTrigger>
+-                <SelectContent><SelectItem value="Sedentary">Sedentary (desk job)</SelectItem><SelectItem value="Light">Light (1-2 / week)</SelectItem><SelectItem value="Moderate">Moderate (3-4 / week)</SelectItem><SelectItem value="Very Active">Very Active (5-6 / week)</SelectItem><SelectItem value="Athlete">Athlete (daily)</SelectItem></SelectContent>
+-              </Select>
+-              <p className="text-xs text-muted-foreground">Used to calculate your daily calorie target.</p>
+-            </div>
+-          </div>
+-          {/* `busy` still disables during generation — that's a real
+-              in-flight state, not a validation gate. Missing fields are
+-              explained instead of silently blocking. */}
+-          <StepNav
+-            onBack={prevStep}
+-            busy={generating}
+-            label={generating ? "Building…" : "Build my plan"}
+-            icon={generating ? <span /> : <ArrowRight className="ml-2 w-5 h-5" />}
+-            error={stepError}
+-            onNext={() => {
+-              if (!profile.name) return setStepError("Add your name so the coach can talk to you.");
+-              if (!canCalculate) return setStepError("Fill in age, height, weight, experience and activity level.");
+-              setStepError(null);
+-              void generatePlan();
+-            }}
+-          />
+-        </>
++    ...numberScreens({
++      answers: {
++        name: profile.name,
++        age: profile.age,
++        height: profile.height,
++        heightUnit: profile.heightUnit as "cm" | "ft",
++        weight: profile.weight,
++        weightUnit: profile.weightUnit as "kg" | "lb",
++        experience: profile.experience,
++        activityLevel: profile.activityLevel,
++      },
++      onChange: (patch) => setProfile({ ...profile, ...patch }),
++      onBack: prevStep,
++      guardedNext,
++      next: nextStep,
++      error: stepError,
++      unitToggle: (options, value, onChange) => (
++        <UnitToggle options={options} value={value} onChange={onChange} />
+       ),
+-    },
++      generating,
++      onBuild: () => {
++        if (!canCalculate) return setStepError("Fill in age, height, weight, experience and activity level.");
++        setStepError(null);
++        void generatePlan();
++      },
++    }),
+     {
+       id: "reveal",
+       label: "Plan",
+diff --git a/artifacts/fitcoach/src/pages/onboarding/WeekAct.tsx b/artifacts/fitcoach/src/pages/onboarding/WeekAct.tsx
+index fecc3ee..d3a03d0 100644
+--- a/artifacts/fitcoach/src/pages/onboarding/WeekAct.tsx
++++ b/artifacts/fitcoach/src/pages/onboarding/WeekAct.tsx
+@@ -12,8 +12,7 @@
+ // as a nested sub-flow it silently under-reported five screens as one.
+ // ---------------------------------------------------------------------------
+ 
+-import { cn } from "@/lib/utils";
+-import { StepShell, tick, type ScreenDef } from "./kit";
++import { ChoiceCard as Choice, StepShell, type ScreenDef } from "./kit";
+ 
+ const DAYS_ABBR = ["M", "T", "W", "T", "F", "S", "S"];
+ const DAYS_FULL = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+@@ -26,39 +25,6 @@ export interface WeekAnswers {
+   equipment: string[];
+ }
+ 
+-/** Big tappable option. One rule for selection: border + tint. */
+-function Choice({
+-  active,
+-  onClick,
+-  children,
+-  className,
+-}: {
+-  active: boolean;
+-  onClick: () => void;
+-  children: React.ReactNode;
+-  className?: string;
+-}) {
+-  return (
+-    <button
+-      type="button"
+-      aria-pressed={active}
+-      onClick={() => {
+-        void tick();
+-        onClick();
+-      }}
+-      className={cn(
+-        "min-h-[52px] rounded-2xl border-2 px-4 py-3 text-sm font-medium transition-all",
+-        active
+-          ? "border-primary bg-primary/10 text-foreground"
+-          : "border-border bg-card text-foreground hover:border-primary/40",
+-        className,
+-      )}
+-    >
+-      {children}
+-    </button>
+-  );
+-}
+-
+ export interface WeekScreenArgs {
+   answers: WeekAnswers;
+   onChange: (patch: Partial<WeekAnswers>) => void;
+@@ -114,7 +80,8 @@ export function weekScreens({
+                 key={d}
+                 active={answers.reliableDays === d}
+                 onClick={() => onChange({ reliableDays: d })}
+-                className="text-center text-lg font-bold"
++                hideCheck
++                className="justify-center text-center text-lg font-bold"
+               >
+                 {d}
+               </Choice>
+@@ -145,6 +112,7 @@ export function weekScreens({
+                 key={idx}
+                 active={answers.trainDays.includes(idx)}
+                 onClick={() => toggleDay(idx)}
++                hideCheck
+                 className="aspect-square min-h-0 px-0 text-center text-sm font-bold"
+               >
+                 {d}
+@@ -176,6 +144,7 @@ export function weekScreens({
+                 key={s}
+                 active={answers.sessionLen === s}
+                 onClick={() => onChange({ sessionLen: s })}
++                hideCheck
+                 className="text-center"
+               >
+                 {s}
+diff --git a/artifacts/fitcoach/src/pages/onboarding/kit.tsx b/artifacts/fitcoach/src/pages/onboarding/kit.tsx
+index c7a0869..078c7e0 100644
+--- a/artifacts/fitcoach/src/pages/onboarding/kit.tsx
++++ b/artifacts/fitcoach/src/pages/onboarding/kit.tsx
+@@ -16,7 +16,7 @@
+ // ---------------------------------------------------------------------------
+ 
+ import React, { useCallback, useEffect, useRef, useState } from "react";
+-import { ChevronRight, Zap } from "lucide-react";
++import { Check, ChevronRight, Zap } from "lucide-react";
+ import { cn } from "@/lib/utils";
+ import { Button } from "@/components/ui/button";
+ 
+@@ -37,6 +37,54 @@ export interface ScreenDef {
+   render: () => React.ReactNode;
+ }
+ 
++/**
++ * The one selectable option in onboarding. Single- and multi-select both.
++ *
++ * There were three copies of this button — one in Onboarding.tsx, one in
++ * WeekAct.tsx, one inline in the gender step — and they had already drifted
++ * apart on text colour, height and tick behaviour. One component is the only
++ * thing that keeps "selected" looking the same on every screen.
++ *
++ * Selection is carried by border + tint + tick. An unpicked option keeps
++ * full-strength text: dimming it read as "disabled", so a step with nothing
++ * chosen yet looked entirely inert.
++ */
++export function ChoiceCard({
++  active,
++  onClick,
++  children,
++  className,
++  hideCheck,
++}: {
++  active: boolean;
++  onClick: () => void;
++  children: React.ReactNode;
++  className?: string;
++  /** For small square tiles (day letters, digits) where a tick would crowd. */
++  hideCheck?: boolean;
++}) {
++  return (
++    <button
++      type="button"
++      aria-pressed={active}
++      onClick={() => {
++        void tick();
++        onClick();
++      }}
++      className={cn(
++        "relative min-h-[52px] rounded-2xl border-2 px-4 py-3.5 text-left text-sm font-medium transition-all",
++        active
++          ? "border-primary bg-primary/10 text-foreground"
++          : "border-border bg-card text-foreground hover:border-primary/40",
++        className,
++      )}
++    >
++      {children}
++      {active && !hideCheck && <Check className="absolute right-3 top-3 h-4 w-4 text-primary" />}
++    </button>
++  );
++}
++
+ /** True when the OS asks for reduced motion. Re-evaluates if the user changes it. */
+ export function useReducedMotion(): boolean {
+   const [reduced, setReduced] = useState(
+-- 
+2.43.0
+
