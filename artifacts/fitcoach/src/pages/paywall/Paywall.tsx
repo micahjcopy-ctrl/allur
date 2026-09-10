@@ -1,4 +1,5 @@
 import React from "react";
+import { useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -41,7 +42,11 @@ import {
  */
 export default function Paywall() {
   const { toast } = useToast();
-  const { refreshSubscription } = useFitCoach();
+  const { refreshSubscription, subscription } = useFitCoach();
+  const [, navigate] = useLocation();
+  // Lapsed subscribers reach this screen from Account (they still have free
+  // access), so they need a way back. Brand-new users are gated here and do not.
+  const canDismiss = subscription?.hasEverSubscribed === true;
   const [loading, setLoading] = React.useState(false);
   const [restoring, setRestoring] = React.useState(false);
   const [interval, setInterval] = React.useState<BillingInterval>("annual");
@@ -323,6 +328,15 @@ export default function Paywall() {
             <p className="text-center text-xs text-muted-foreground">
               Billed today. Cancel anytime in two taps from Account settings.
             </p>
+          )}
+          {canDismiss && (
+            <button
+              type="button"
+              onClick={() => navigate("/account")}
+              className="mt-4 w-full text-center text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+            >
+              Not now
+            </button>
           )}
         </div>
       </motion.div>
