@@ -151,7 +151,7 @@ export function numberScreens({
             label="Age"
             value={Number(answers.age) || 30}
             onChange={(v) => onChange({ age: String(v) })}
-            min={14}
+            min={16}
             max={90}
             unit="yrs"
           />
