@@ -12,7 +12,7 @@ export default function Privacy() {
     path: "/privacy",
   });
   return (
-    <LegalLayout title="Privacy Policy" updated="June 24, 2026">
+    <LegalLayout title="Privacy Policy" updated="September 9, 2026">
       <p>
         This Privacy Policy explains how ALLUR (“ALLUR,” “we,” “us”) collects, uses, and
         protects your information when you use the ALLUR app and website. By creating an account or
@@ -36,12 +36,26 @@ export default function Privacy() {
             meals, and the progress photos you choose to upload.
           </li>
           <li>
-            <strong>Payment data:</strong> subscription status and billing are handled by Stripe. We
-            do not receive or store your full card number — Stripe processes payments on our behalf.
+            <strong>Location data:</strong> if you allow it, your precise location while you record a
+            run or walk, used to track your route, distance and pace and to suggest routes near you.
+            Location is only used while you are actively using the cardio feature.
           </li>
           <li>
-            <strong>Usage data:</strong> basic technical information (such as device type and IP
-            address) used to keep the service secure and reliable.
+            <strong>Voice notes:</strong> if you use the microphone to talk to your coach or log a
+            meal, the recording is sent to our AI provider to be transcribed and is not kept after
+            the transcription is returned.
+          </li>
+          <li>
+            <strong>Payment data:</strong> subscription status and billing are handled by Stripe on
+            the web and by Apple (via the App Store) in the iOS app. We do not receive or store your
+            full card number. For App Store subscriptions we use RevenueCat to validate purchases and
+            keep your subscription status in sync; RevenueCat receives your account ID and a device
+            identifier for that purpose.
+          </li>
+          <li>
+            <strong>Usage and diagnostic data:</strong> basic technical information (such as device
+            type, app version, IP address and crash reports) used to keep the service secure and
+            reliable. Crash reports are not linked to your identity.
           </li>
         </ul>
       </LegalSection>
@@ -67,8 +81,9 @@ export default function Privacy() {
       <LegalSection heading="How we share information">
         <p>
           We do not sell your personal information. We share data only with the service providers that
-          make ALLUR work — such as our hosting platform, Stripe (payments), OpenAI (AI features),
-          and our email provider — and only as needed to deliver the service or when required by
+          make ALLUR work — such as our hosting platform, Stripe and Apple (payments), RevenueCat
+          (App Store subscription validation), OpenAI (AI features), Sentry (crash reporting), and
+          our email provider — and only as needed to deliver the service or when required by
           law.
         </p>
       </LegalSection>
