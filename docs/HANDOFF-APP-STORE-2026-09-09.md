@@ -1,5 +1,42 @@
 # ALLUR — App Store Handoff
 
+> **Status update 2026-09-10 (chat 2).** Read this before Part 3.
+>
+> Done: PR #36 + #37 merged and live. Branch `store-prep` (from main) holds
+> everything since: privacy-policy amendments, age minimum 16, the committed
+> Xcode project at `artifacts/fitcoach/ios/`, a 3.1.1 fix (Account no longer
+> opens Stripe inside the iOS app; `/paywall` is a real route), the listing copy
+> at `docs/APP-STORE-LISTING.md`, and `docs/app-store/make_screens.py` (turns
+> phone captures into framed 6.5"/6.9" screenshots). **Merge `store-prep` into
+> main before the next build.**
+>
+> App Store Connect: app record, subscriptions ($10.99 / $69.00), group display
+> name, subtitle, categories, content rights, age rating 16+, App Privacy
+> (published), price Free, availability all countries, promo text, description,
+> keywords, URLs, copyright are all set. Still empty because they need Micah:
+> App Review contact phone, demo account credentials (the review notes are in
+> APP-STORE-LISTING.md — ASC refuses to save that section without phone +
+> credentials), sandbox tester, screenshots, build.
+>
+> RevenueCat: catalog is right, but there was **no secret API key and no
+> webhook** — Micah must create both and put `REVENUECAT_SECRET_API_KEY` and
+> `REVENUECAT_WEBHOOK_SECRET` into Vercel. Webhook still returns 503 until then.
+>
+> Build: **Xcode is not installed on the Mac** and Xcode Cloud's first workflow
+> can only be created from Xcode, so a local Xcode is required once. The Cowork
+> Linux VM on the Mac builds the web bundle fine (strip the `linux-arm64` /
+> `darwin-arm64` `'-'` overrides from `pnpm-workspace.yaml` locally first). A
+> self-contained, ready-to-archive project with the real RevenueCat public key
+> is at `~/Downloads/allur-ios` on the Mac (Package.swift points at vendored
+> `Plugins/`, no node_modules needed). Next: install Xcode, add Apple ID in
+> Xcode → Accounts, open that project, Archive, Distribute → TestFlight.
+>
+> Working notes: GitHub pushes go through Micah's Chrome only (his rule); the
+> web upload drops the +x bit, so `ci_scripts/ci_post_clone.sh` on GitHub is
+> mode 644 — irrelevant for the local-Xcode path. The Mac mount cannot delete
+> files (mv aside instead).
+
+
 **Written 9 September 2026, for the chat that takes this to the App Store.**
 Micah's goal, in his words: *get the app in the App Store as fast as possible.*
 
