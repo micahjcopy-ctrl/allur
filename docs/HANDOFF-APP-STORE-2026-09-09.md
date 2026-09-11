@@ -32,12 +32,26 @@
 > screen a long conversation pushes the composer under the bottom nav until the
 > page is scrolled (`MobileLayout` `min-h-[100dvh]` lets `main` grow).
 >
-> Still open, in order: (1) Micah says "merge" → merge `store-prep` into main
-> via GitHub in his Chrome; (2) upload screenshots + App Review info (phone
-> 805 220 8303, demo credentials, notes from APP-STORE-LISTING.md) in ASC;
-> (3) sandbox tester in ASC; (4) macOS update → Xcode → Archive → TestFlight
-> (reminder scheduled); (5) sandbox purchase tests; (6) submit only on Micah's
-> explicit go.
+> **Later on 2026-09-11:** Micah said "merge" → PR #38 merged, `main` ==
+> `store-prep`, Vercel deployed, verified live (onboarding fix in the bundle,
+> demo account lands on a populated dashboard as Premium). App Store Connect
+> version 1.0 now has: 6 screenshots in the 6.5" slot (Apple uses them for all
+> sizes), App Review sign-in (allurreview), contact (Michael Jacobi,
+> +1 805 220 8303, raiden@getallur.com), full notes, **Manual release**
+> selected, and the app is declared *not* a regulated medical device. ASC
+> text fields only accept real keystrokes (programmatic values do not save).
+> RevenueCat has the In-App Purchase key ("Valid credentials"); the Apple
+> Server Notification URL → ASC is optional and not done. A sandbox tester
+> is NOT needed for TestFlight (TestFlight uses the sandbox with the tester's
+> own Apple ID); only needed for Xcode-run dev builds.
+>
+> Still open, in order: (1) macOS update → install Xcode → add Apple ID in
+> Xcode → Accounts → rebuild the web bundle from main → open
+> `~/Downloads/allur-ios/App.xcodeproj` → Archive → Distribute → TestFlight;
+> (2) sandbox purchase tests in TestFlight (6 cases in Part 3); (3) attach the
+> build to version 1.0 in ASC and answer export compliance (uses only standard
+> encryption → exempt; `ITSAppUsesNonExemptEncryption` is already false);
+> (4) submit only on Micah's explicit go.
 
 > **Status update 2026-09-10 (chat 2).** Read this before Part 3.
 >
