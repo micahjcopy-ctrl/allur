@@ -18,6 +18,10 @@ import { eq } from "drizzle-orm";
 const HARDCODED_COMPED_EMAILS = [
   "lukerobertcolley@gmail.com",
   "thomastaylor115@gmail.com",
+  // App Store review demo account (credentials live in App Store Connect →
+  // App Review Information, never here). Comped so every feature is unlocked
+  // for the reviewer without a purchase.
+  "micahjcopy+appreview@gmail.com",
 ];
 
 export const COMPED_EMAILS: ReadonlySet<string> = new Set(
