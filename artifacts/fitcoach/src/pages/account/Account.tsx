@@ -67,7 +67,16 @@ export default function Account() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // On device the only legal purchase path is StoreKit (Guideline 3.1.1):
+  // Base is bought on the in-app paywall and Premium — a Stripe-only tier —
+  // is not offered at all. Stripe Checkout must never open inside the app.
+  const native = iapAvailable();
+
   const handleCheckout = async (target: PlanTag) => {
+    if (native) {
+      navigate("/paywall");
+      return;
+    }
     setBusyPlan(target);
     try {
       await startCheckout(target);
@@ -299,7 +308,8 @@ export default function Account() {
                 </CardContent>
               </Card>
 
-              {/* Upgrade to Premium */}
+              {/* Upgrade to Premium — Stripe-only tier, web only */}
+              {!native && (
               <Card className="border-border bg-card/50">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-xl flex items-center gap-2">
@@ -326,6 +336,7 @@ export default function Account() {
                   </Button>
                 </CardContent>
               </Card>
+              )}
             </>
           )}
 

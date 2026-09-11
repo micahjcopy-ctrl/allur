@@ -50,8 +50,11 @@ function RouteGuard() {
   const [location, setLocation] = useLocation();
   const { onboardingComplete, subscription, subscriptionLoading } = useFitCoach();
 
-  // DEV-only direct preview of the post-onboarding payment screen.
-  const isPaywallPreview = import.meta.env.DEV && location === "/paywall";
+  // /paywall renders the payment screen directly. In DEV it doubles as a
+  // preview; in production it is where Account sends a lapsed subscriber on
+  // iOS, because on device the only legal way to subscribe is StoreKit
+  // (Guideline 3.1.1) and that lives on this screen.
+  const isPaywallPreview = location === "/paywall";
 
   useEffect(() => {
     if (location.startsWith("/admin")) return;
@@ -67,9 +70,7 @@ function RouteGuard() {
     }
   }, [location, onboardingComplete, setLocation, isPaywallPreview]);
 
-  // Preview-only: render the upfront payment screen directly so it can be
-  // inspected without completing onboarding. Never reachable in production
-  // (import.meta.env.DEV is false in the published build).
+  // Render the payment screen directly (see isPaywallPreview above).
   if (isPaywallPreview) {
     return <Paywall />;
   }

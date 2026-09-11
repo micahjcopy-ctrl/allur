@@ -87,8 +87,33 @@ npx cap sync ios
 npx cap open ios
 ```
 
-`ios/` is intentionally **not** committed — it is generated toolchain output.
-Regenerating it is cheap and keeps hundreds of MB of Xcode artifacts out of git.
+**Update 2026-09-10:** the Xcode project *is* now committed at
+`artifacts/fitcoach/ios/` (generated with `npx cap add ios --packagemanager SPM`),
+because the build runs on **Xcode Cloud**, not a local Mac. What is committed is
+small: `App.xcodeproj`, `Info.plist` (with the five purpose strings from §3
+already in it, portrait-only, iPhone-only, `ITSAppUsesNonExemptEncryption=false`),
+the asset catalog (1024 icon + splash), the `CapApp-SPM` local package, and
+`ci_scripts/ci_post_clone.sh`. Build output, `App/public/` (the web bundle) and
+`capacitor.config.json` stay ignored — Xcode Cloud regenerates them every build.
+
+### Building on Xcode Cloud (no Mac needed)
+
+1. App Store Connect → ALLUR → **Xcode Cloud** → Get Started → connect the
+   `micahjcopy-ctrl/allur` GitHub repo (one-time GitHub authorization).
+2. Product: `App` (from `artifacts/fitcoach/ios/App/App.xcodeproj`). Workflow:
+   start on push to `main`, action **Archive** (TestFlight/App Store), post-action
+   **TestFlight internal testing**.
+3. Workflow → Environment → add `VITE_REVENUECAT_IOS_KEY` = the RevenueCat
+   Apple SDK key (`appl_…`). `ci_scripts/ci_post_clone.sh` installs Node + pnpm,
+   builds the web bundle with `VITE_NATIVE_BUILD=1`, and runs `npx cap sync ios`
+   before Xcode archives. The build **fails on purpose** if the key is missing.
+4. Signing is managed by Xcode Cloud (automatic, team `X3T7F56XPF`). No
+   certificates or profiles to handle by hand.
+5. Each successful build lands in TestFlight automatically. Bump
+   `CURRENT_PROJECT_VERSION` in `project.pbxproj` (or let Xcode Cloud auto-increment
+   it in the workflow settings) before every new upload.
+
+The local-Mac procedure below still works and is the fallback.
 
 ---
 

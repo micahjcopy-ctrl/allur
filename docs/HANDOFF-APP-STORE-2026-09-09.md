@@ -1,5 +1,81 @@
 # ALLUR — App Store Handoff
 
+> **Status update 2026-09-11 (chat 2, later).** Supersedes the 09-10 block below
+> where they differ.
+>
+> RevenueCat ↔ server is done: secret API key and webhook exist, both env vars
+> are in Vercel (Production + Preview) and deployed, the webhook URL is
+> `https://www.getallur.com/api/iap/webhook` (the apex URL 308-redirects and
+> RevenueCat does not follow redirects), test event returns **200**.
+>
+> **Production bug found and fixed on `store-prep` (not yet on main):** after
+> "Build my plan", new signups were sent to the "busiest day" screen instead of
+> the plan reveal, so nobody could finish onboarding (hardcoded `setStep(8)`
+> left over when the flow grew to 17 screens). Commit 5f21d3c. Until
+> `store-prep` is merged, web signups are broken. Merge needs Micah's go.
+>
+> Reviewer demo account exists on production: email
+> `micahjcopy+appreview@gmail.com`, username `allurreview`, password given to
+> Micah in chat (never in the repo). Its saved state is a complete, populated
+> profile ("Alex", Muscle Gain, 5-day plan, 3 weeks of sessions, PRs, weights,
+> photos, meals, a scan). It is comped in `api-server/src/lib/comped.ts`
+> (commit 1f0d396) so it is Premium with no purchase — live once main deploys.
+> Until then it lands on the paywall.
+>
+> Screenshots are DONE: `docs/app-store/screenshots/` (6 screens, 6.9" and
+> 6.5"), rendered offline at true iPhone resolution — see
+> `docs/app-store/README.md`. They still need uploading to App Store Connect
+> (needs Micah's Chrome).
+>
+> Small fix: the floating Coach button no longer shows on the Coach screen,
+> where it covered the send button (83787c5). Known, unfixed: on the Coach
+> screen a long conversation pushes the composer under the bottom nav until the
+> page is scrolled (`MobileLayout` `min-h-[100dvh]` lets `main` grow).
+>
+> Still open, in order: (1) Micah says "merge" → merge `store-prep` into main
+> via GitHub in his Chrome; (2) upload screenshots + App Review info (phone
+> 805 220 8303, demo credentials, notes from APP-STORE-LISTING.md) in ASC;
+> (3) sandbox tester in ASC; (4) macOS update → Xcode → Archive → TestFlight
+> (reminder scheduled); (5) sandbox purchase tests; (6) submit only on Micah's
+> explicit go.
+
+> **Status update 2026-09-10 (chat 2).** Read this before Part 3.
+>
+> Done: PR #36 + #37 merged and live. Branch `store-prep` (from main) holds
+> everything since: privacy-policy amendments, age minimum 16, the committed
+> Xcode project at `artifacts/fitcoach/ios/`, a 3.1.1 fix (Account no longer
+> opens Stripe inside the iOS app; `/paywall` is a real route), the listing copy
+> at `docs/APP-STORE-LISTING.md`, and `docs/app-store/make_screens.py` (turns
+> phone captures into framed 6.5"/6.9" screenshots). **Merge `store-prep` into
+> main before the next build.**
+>
+> App Store Connect: app record, subscriptions ($10.99 / $69.00), group display
+> name, subtitle, categories, content rights, age rating 16+, App Privacy
+> (published), price Free, availability all countries, promo text, description,
+> keywords, URLs, copyright are all set. Still empty because they need Micah:
+> App Review contact phone, demo account credentials (the review notes are in
+> APP-STORE-LISTING.md — ASC refuses to save that section without phone +
+> credentials), sandbox tester, screenshots, build.
+>
+> RevenueCat: catalog is right, but there was **no secret API key and no
+> webhook** — Micah must create both and put `REVENUECAT_SECRET_API_KEY` and
+> `REVENUECAT_WEBHOOK_SECRET` into Vercel. Webhook still returns 503 until then.
+>
+> Build: **Xcode is not installed on the Mac** and Xcode Cloud's first workflow
+> can only be created from Xcode, so a local Xcode is required once. The Cowork
+> Linux VM on the Mac builds the web bundle fine (strip the `linux-arm64` /
+> `darwin-arm64` `'-'` overrides from `pnpm-workspace.yaml` locally first). A
+> self-contained, ready-to-archive project with the real RevenueCat public key
+> is at `~/Downloads/allur-ios` on the Mac (Package.swift points at vendored
+> `Plugins/`, no node_modules needed). Next: install Xcode, add Apple ID in
+> Xcode → Accounts, open that project, Archive, Distribute → TestFlight.
+>
+> Working notes: GitHub pushes go through Micah's Chrome only (his rule); the
+> web upload drops the +x bit, so `ci_scripts/ci_post_clone.sh` on GitHub is
+> mode 644 — irrelevant for the local-Xcode path. The Mac mount cannot delete
+> files (mv aside instead).
+
+
 **Written 9 September 2026, for the chat that takes this to the App Store.**
 Micah's goal, in his words: *get the app in the App Store as fast as possible.*
 

@@ -1,6 +1,6 @@
 import React from "react";
 import { MessageCircle, ShieldCheck, X } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { BottomNav } from "./BottomNav";
 import { StreakBar } from "@/components/StreakBar";
 import { useFitCoach } from "@/context/FitCoachContext";
@@ -12,6 +12,10 @@ interface MobileLayoutProps {
 
 export function MobileLayout({ children, showNav = true }: MobileLayoutProps) {
   const { adminMode, exitAdminMode } = useFitCoach();
+  const [location] = useLocation();
+  // The floating Coach button is a shortcut TO the coach; on the coach screen
+  // itself it only sits on top of the send button.
+  const showCoachFab = showNav && location !== "/coach";
 
   return (
     <div className="allur-app min-h-[100dvh] pt-safe bg-background text-foreground flex flex-col mx-auto max-w-md w-full shadow-2xl overflow-hidden relative">
@@ -33,7 +37,7 @@ export function MobileLayout({ children, showNav = true }: MobileLayoutProps) {
         {children}
         {showNav && <div className="h-16 flex-shrink-0" />} {/* Spacer for bottom nav */}
       </main>
-      {showNav && (
+      {showCoachFab && (
         <Link
           href="/coach"
           aria-label="Coach"
