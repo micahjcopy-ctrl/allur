@@ -377,7 +377,10 @@ export default function Onboarding() {
     };
     setBuilt({ plan: finalPlan, meta, macros });
     setGenerating(false);
-    setStep(8);
+    // The reveal is always the last screen. This used to be a hardcoded 8,
+    // which broke silently when the flow grew to 17 screens — users were sent
+    // back to the "busiest day" screen after building and could never finish.
+    setStep(screens.length);
   };
 
   const commitAndContinue = () => {
@@ -742,7 +745,7 @@ export default function Onboarding() {
               </div>
 
               <div className="flex gap-3 mt-8">
-                <Button variant="secondary" onClick={() => setStep(7)} className="rounded-full h-12 px-6">Back</Button>
+                <Button variant="secondary" onClick={prevStep} className="rounded-full h-12 px-6">Back</Button>
                 <Button onClick={commitAndContinue} className="flex-1 rounded-full h-12 text-lg font-bold">This looks right <ArrowRight className="ml-2 w-5 h-5" /></Button>
               </div>
             </>
