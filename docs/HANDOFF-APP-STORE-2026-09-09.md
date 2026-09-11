@@ -1,5 +1,44 @@
 # ALLUR — App Store Handoff
 
+> **Status update 2026-09-11 (chat 2, later).** Supersedes the 09-10 block below
+> where they differ.
+>
+> RevenueCat ↔ server is done: secret API key and webhook exist, both env vars
+> are in Vercel (Production + Preview) and deployed, the webhook URL is
+> `https://www.getallur.com/api/iap/webhook` (the apex URL 308-redirects and
+> RevenueCat does not follow redirects), test event returns **200**.
+>
+> **Production bug found and fixed on `store-prep` (not yet on main):** after
+> "Build my plan", new signups were sent to the "busiest day" screen instead of
+> the plan reveal, so nobody could finish onboarding (hardcoded `setStep(8)`
+> left over when the flow grew to 17 screens). Commit 5f21d3c. Until
+> `store-prep` is merged, web signups are broken. Merge needs Micah's go.
+>
+> Reviewer demo account exists on production: email
+> `micahjcopy+appreview@gmail.com`, username `allurreview`, password given to
+> Micah in chat (never in the repo). Its saved state is a complete, populated
+> profile ("Alex", Muscle Gain, 5-day plan, 3 weeks of sessions, PRs, weights,
+> photos, meals, a scan). It is comped in `api-server/src/lib/comped.ts`
+> (commit 1f0d396) so it is Premium with no purchase — live once main deploys.
+> Until then it lands on the paywall.
+>
+> Screenshots are DONE: `docs/app-store/screenshots/` (6 screens, 6.9" and
+> 6.5"), rendered offline at true iPhone resolution — see
+> `docs/app-store/README.md`. They still need uploading to App Store Connect
+> (needs Micah's Chrome).
+>
+> Small fix: the floating Coach button no longer shows on the Coach screen,
+> where it covered the send button (83787c5). Known, unfixed: on the Coach
+> screen a long conversation pushes the composer under the bottom nav until the
+> page is scrolled (`MobileLayout` `min-h-[100dvh]` lets `main` grow).
+>
+> Still open, in order: (1) Micah says "merge" → merge `store-prep` into main
+> via GitHub in his Chrome; (2) upload screenshots + App Review info (phone
+> 805 220 8303, demo credentials, notes from APP-STORE-LISTING.md) in ASC;
+> (3) sandbox tester in ASC; (4) macOS update → Xcode → Archive → TestFlight
+> (reminder scheduled); (5) sandbox purchase tests; (6) submit only on Micah's
+> explicit go.
+
 > **Status update 2026-09-10 (chat 2).** Read this before Part 3.
 >
 > Done: PR #36 + #37 merged and live. Branch `store-prep` (from main) holds
