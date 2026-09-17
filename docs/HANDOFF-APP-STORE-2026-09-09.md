@@ -35,6 +35,32 @@
 > install from the TestFlight app on his iPhone now. Remaining before submit:
 > Micah runs the 6 sandbox purchase tests (Part 3) on TestFlight, then gives
 > the explicit go → click Add for Review → Submit.
+>
+> ~5 PM same day, two follow-ups:
+>
+> 1. **TestFlight never invited him.** His iPhone's TestFlight asked for an
+>    invitation code; ASC showed the tester as "No Builds Available" even though
+>    the group's build was "Testing", and no "You're invited to test ALLUR"
+>    email had ever arrived. Fix: remove the tester from the ALLUR Team group
+>    and re-add him (group → Testers → select → Remove; then + → tick → Add).
+>    Status flipped to **Invited** — that is the real invite going out. He then
+>    opens the email on the phone and taps "View in TestFlight"; no code. If
+>    it still fails, the phone's App Store Apple ID is not micahjcopy@gmail.com
+>    (Settings → name → Media & Purchases).
+> 2. **Apple warning ITMS-90683 on build 1** (email from no_reply@email.apple.com,
+>    "The uploaded build for ALLUR has one or more issues"): the Geolocation
+>    plugin references Always-authorization APIs, so Info.plist needs
+>    `NSLocationAlwaysAndWhenInUseUsageDescription` even though ALLUR only asks
+>    for when-in-use. Not blocking TestFlight, but App Review can reject for it.
+>    Fixed in BOTH copies of `Info.plist` (repo `artifacts/fitcoach/ios/App/App/`
+>    and Mac `~/Downloads/allur-ios/App/`) — added that key plus
+>    `NSLocationAlwaysUsageDescription`, identical purpose strings — and
+>    `CURRENT_PROJECT_VERSION` bumped 1 → 2 in both `project.pbxproj` files.
+>    **Build 1.0 (2) has not been archived yet.** Before submitting: archive
+>    again in Xcode (same keychain protocol), upload, wait for processing,
+>    then in ASC version 1.0 swap the attached build from 1.0 (1) to 1.0 (2)
+>    and Save, before Add for Review. Backups of the pre-edit files are in the
+>    Mac VM home as `Info.plist.bak-*` and `project.pbxproj.bak-build2-*`.
 
 > **Status update 2026-09-11 (chat 2, later).** Supersedes the 09-10 block below
 > where they differ.
