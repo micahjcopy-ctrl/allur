@@ -43,6 +43,7 @@ import Features from "@/pages/features/Features";
 import InstallAppPrompt from "@/components/InstallAppPrompt";
 import { LaunchSplash } from "@/components/LaunchSplash";
 import { captureRefFromUrl, claimStoredReferral } from "@/lib/reps";
+import { hideNativeSplash } from "@/lib/native";
 
 const queryClient = new QueryClient();
 
@@ -312,6 +313,12 @@ function AuthGate() {
 }
 
 function App() {
+  // The native launch splash is held (launchAutoHide: false) until the app has
+  // something on screen. First commit is that moment. Web: no-op.
+  useEffect(() => {
+    void hideNativeSplash();
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
