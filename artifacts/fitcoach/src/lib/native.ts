@@ -235,3 +235,27 @@ export async function watchNetwork(onChange: (online: boolean) => void): Promise
     },
   };
 }
+
+// --------------------------------------------------------------------------
+// Splash screen
+// --------------------------------------------------------------------------
+
+/**
+ * Dismiss the native launch splash once the React tree has rendered.
+ *
+ * capacitor.config.ts sets `launchAutoHide: false` so the splash covers the
+ * gap until first paint — which means the app MUST call this, or the user
+ * stares at the logo forever (exactly what happened on the first TestFlight
+ * build). Called from App's mount effect. The config also keeps a
+ * `launchShowDuration` safety net so a JS failure still surfaces a screen
+ * instead of a frozen logo. No-op on web; never throws.
+ */
+export async function hideNativeSplash(): Promise<void> {
+  if (!isNative()) return;
+  try {
+    const { SplashScreen } = await import("@capacitor/splash-screen");
+    await SplashScreen.hide({ fadeOutDuration: 250 });
+  } catch {
+    /* plugin missing or already hidden — nothing to do */
+  }
+}

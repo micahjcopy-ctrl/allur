@@ -36,9 +36,17 @@ import { isNative } from "./native";
  * Overridable via VITE_API_ORIGIN so a native build can be pointed at a
  * preview deployment. Falls back to production, because a native build with
  * no origin configured is useless — better a wrong host than silent 404s.
+ *
+ * MUST be the `www` host. Vercel answers the bare `getallur.com` with a 308
+ * to `www.getallur.com`, and that redirect carries no CORS headers, so from a
+ * cross-origin caller (the native webview is `capacitor://localhost`) every
+ * request to the apex dies in the browser before it reaches the API: the
+ * CORS preflight can't follow a redirect, and even a plain GET is blocked.
+ * Verified 2026-09-17: `fetch("https://getallur.com/api/healthz")` from
+ * another origin → "Failed to fetch"; the `www` URL → 200.
  */
 const NATIVE_API_ORIGIN = (
-  (import.meta.env.VITE_API_ORIGIN as string | undefined) || "https://getallur.com"
+  (import.meta.env.VITE_API_ORIGIN as string | undefined) || "https://www.getallur.com"
 ).replace(/\/+$/, "");
 
 /**
