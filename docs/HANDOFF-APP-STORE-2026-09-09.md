@@ -28,11 +28,13 @@
 > Aug 13 2027, all agreements accepted. Xcode shows the team as "Michael
 > Jacobi" (individual teams show the person's name).
 >
-> Next: wait for App Store Connect processing (~10–30 min), then in ASC →
-> version 1.0 → Build → attach 1.0 (1); export compliance = uses only standard
-> encryption (ITSAppUsesNonExemptEncryption already false). TestFlight: add
-> Micah as an internal tester so he can install on his iPhone and run the 6
-> sandbox purchase tests (Part 3). Submit only on his explicit go.
+> 4:40 PM same day: processing complete. Build 1.0 (1) is attached to version
+> 1.0 in ASC and saved; **"Add for Review" is enabled** — NOT clicked, per the
+> rule. TestFlight internal group "ALLUR Team" exists with auto-distribution and
+> Micah (micahjcopy@gmail.com) as its tester; the build is in it, so he can
+> install from the TestFlight app on his iPhone now. Remaining before submit:
+> Micah runs the 6 sandbox purchase tests (Part 3) on TestFlight, then gives
+> the explicit go → click Add for Review → Submit.
 
 > **Status update 2026-09-11 (chat 2, later).** Supersedes the 09-10 block below
 > where they differ.
