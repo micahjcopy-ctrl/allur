@@ -42,9 +42,16 @@ const config: CapacitorConfig = {
 
   plugins: {
     SplashScreen: {
-      // Held until the React app calls hide() once it has actually rendered,
-      // so users never see a white flash between the splash and first paint.
-      launchAutoHide: false,
+      // The React app calls hideNativeSplash() (lib/native.ts) from App's
+      // mount effect, so the splash normally lifts the moment there is
+      // something to show. launchAutoHide + launchShowDuration is the safety
+      // net: if the JS bundle ever fails before mounting, the splash still
+      // lifts after 4s and exposes the failure instead of freezing on the
+      // logo (build 1.0 (1) had launchAutoHide:false and no hide() call —
+      // the app never got past the logo on TestFlight).
+      launchAutoHide: true,
+      launchShowDuration: 4000,
+      launchFadeOutDuration: 250,
       backgroundColor: "#0b1120",
       androidSplashResourceName: "splash",
       showSpinner: false,
