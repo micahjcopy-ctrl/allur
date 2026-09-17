@@ -1,5 +1,39 @@
 # ALLUR — App Store Handoff
 
+> **2026-09-17 — BUILD 1.0 (1) IS UPLOADED to App Store Connect.** Archive
+> built in Xcode 26.6 from `~/Downloads/allur-ios` (web bundle from `main`
+> eca8b2b), Distribute → App Store Connect, upload complete 4:26 PM ET.
+>
+> What blocked it for a week, and the fix — so it never costs a week again:
+> Xcode's automatic signing needs a *development* provisioning profile to build
+> an archive, and a paid Individual team with **zero registered devices** cannot
+> create one ("Communication with Apple failed / Your team has no devices").
+> Setting `CODE_SIGN_IDENTITY = "Apple Distribution"` does NOT work with
+> automatic signing ("conflicting provisioning settings"). The fix that worked:
+> in Xcode set the run destination to **My Mac (Designed for iPhone)** and press
+> Run once — Xcode registers the Mac itself as a device, then "Update Signing"
+> succeeds with no issues. Switch the destination back to **Any iOS Device
+> (arm64)** and Product → Archive.
+>
+> Second gotcha: codesign asks for the **Mac login password** (keychain) several
+> times during the archive. The dialog is owned by macOS SecurityAgent and hangs
+> if Claude is holding screen control when it appears (the user's clicks are
+> swallowed and the dialog greys out; a Mac restart was needed once). Protocol:
+> start the archive, immediately release ALL computer-use control, and let Micah
+> type the password + **Always Allow** (must type the password *before*
+> clicking; "Allow" re-prompts per component, "Always Allow" doesn't).
+>
+> Account facts verified on developer.apple.com: micahjcopy@gmail.com is the
+> paid Apple Developer Program account (Individual), Team ID X3T7F56XPF, renews
+> Aug 13 2027, all agreements accepted. Xcode shows the team as "Michael
+> Jacobi" (individual teams show the person's name).
+>
+> Next: wait for App Store Connect processing (~10–30 min), then in ASC →
+> version 1.0 → Build → attach 1.0 (1); export compliance = uses only standard
+> encryption (ITSAppUsesNonExemptEncryption already false). TestFlight: add
+> Micah as an internal tester so he can install on his iPhone and run the 6
+> sandbox purchase tests (Part 3). Submit only on his explicit go.
+
 > **Status update 2026-09-11 (chat 2, later).** Supersedes the 09-10 block below
 > where they differ.
 >
