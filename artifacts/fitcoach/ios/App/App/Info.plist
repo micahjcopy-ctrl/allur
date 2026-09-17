@@ -30,6 +30,10 @@
 	<string>ALLUR saves your progress photos back to your library when you ask it to.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>ALLUR uses your location while you're running or walking to track your route, distance and pace.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>ALLUR uses your location only while you're tracking a run or walk, to record your route, distance and pace.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>ALLUR uses your location only while you're tracking a run or walk, to record your route, distance and pace.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>ALLUR uses your microphone so you can talk to your coach instead of typing.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
