@@ -90,7 +90,9 @@ export function OnboardingShell({
         <main className="relative flex min-h-[100dvh] w-full flex-col md:border-l md:border-border/60">
           {/* faint atmosphere so the panel isn't flat black on wide screens */}
           <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-gradient-to-b from-primary/[0.06] to-transparent" />
-          <div className="relative mx-auto flex w-full max-w-md flex-1 flex-col">{children}</div>
+          {/* pt-safe: on the phone the webview draws under the status bar
+              (viewport-fit=cover, contentInset "never"); 0 on desktop. */}
+          <div className="relative mx-auto flex w-full max-w-md flex-1 flex-col pt-safe">{children}</div>
         </main>
       </div>
     </div>

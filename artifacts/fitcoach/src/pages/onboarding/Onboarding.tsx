@@ -777,6 +777,21 @@ export default function Onboarding() {
           </div>
         )}
 
+        {/* Signed out: a returning user needs a way in that isn't the quiz.
+            On the phone this is the first screen they ever see (the native app
+            opens straight into onboarding), so the link lives top-right. */}
+        {!authUser && (
+          <div className="flex items-center justify-end mb-4 text-xs text-muted-foreground">
+            <button
+              type="button"
+              onClick={() => setLocation("/auth?mode=login")}
+              className="shrink-0 font-semibold text-primary hover:underline"
+            >
+              Already have an account? Log in
+            </button>
+          </div>
+        )}
+
         {authUser && (
           <div className="flex items-center justify-between gap-2 mb-4 text-xs text-muted-foreground">
             <span className="truncate">Signed in as <span className="font-medium text-foreground">{authUser.email ?? authUser.username}</span></span>
