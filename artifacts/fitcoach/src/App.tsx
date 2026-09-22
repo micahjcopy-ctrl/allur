@@ -43,7 +43,7 @@ import Features from "@/pages/features/Features";
 import InstallAppPrompt from "@/components/InstallAppPrompt";
 import { LaunchSplash } from "@/components/LaunchSplash";
 import { captureRefFromUrl, claimStoredReferral } from "@/lib/reps";
-import { hideNativeSplash } from "@/lib/native";
+import { hideNativeSplash, isNative } from "@/lib/native";
 
 const queryClient = new QueryClient();
 
@@ -123,8 +123,12 @@ function AuthGate() {
   const { authUser, isLoading } = useAccount();
   const { hydrated, hydrationFailed, hydrationRetrying, retryHydration, showInstallPrompt, setShowInstallPrompt } = useFitCoach();
   const [location, setLocation] = useLocation();
-  // Installed PWA vs. browser tab — branches the signed-out entry experience.
-  const standalone = isStandalone();
+  // Installed app vs. browser tab — branches the signed-out entry experience.
+  // The Capacitor shell is NOT `display-mode: standalone` (WKWebView reports
+  // "browser"), so isStandalone() alone sent the iOS app to the marketing
+  // website on first launch. Native counts as installed, always.
+  const native = isNative();
+  const standalone = isStandalone() || native;
 
   // Capture a ?ref= code as early as possible (works on the landing page too).
   useEffect(() => {
@@ -155,7 +159,18 @@ function AuthGate() {
       // website — it opens to a minimal app welcome screen (/welcome). The
       // browser shows the full marketing landing (/home). In both cases the auth
       // flow (/auth) and password reset (/reset-password) stay reachable.
-      if (standalone) {
+      //
+      // The native iOS/Android app skips even the welcome interstitial: a
+      // signed-out launch goes straight into the onboarding funnel, which
+      // carries its own "Log in" link for returning users.
+      if (native) {
+        if (
+          location !== "/onboarding" &&
+          location !== "/auth" &&
+          location !== "/reset-password"
+        )
+          setLocation("/onboarding");
+      } else if (standalone) {
         if (
           location !== "/welcome" &&
           location !== "/auth" &&
@@ -235,7 +250,16 @@ function AuthGate() {
     // and only sign up + pay at the very end. The finished plan is stashed to
     // sessionStorage on the last step and restored once their account hydrates.
     if (location === "/onboarding") return <Onboarding />;
-    // Installed app gets the minimal welcome screen; the website gets the full
+    // Native is being redirected to /onboarding by the effect above — hold a
+    // spinner for that one render rather than flashing the welcome screen.
+    if (native) {
+      return (
+        <div className="w-full min-h-screen flex items-center justify-center">
+          <Loader2 className="w-6 h-6 animate-spin text-primary" />
+        </div>
+      );
+    }
+    // Installed PWA gets the minimal welcome screen; the website gets the full
     // marketing landing page.
     return standalone ? <AppWelcome /> : <Landing />;
   }
