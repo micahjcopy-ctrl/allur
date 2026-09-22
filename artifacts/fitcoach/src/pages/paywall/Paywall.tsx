@@ -199,7 +199,7 @@ export default function Paywall() {
     interval === "annual" ? `Start ALLUR — ${annualStr}/year` : `Start ALLUR — ${monthlyStr}/month`;
 
   return (
-    <div className="w-full min-h-screen max-w-md mx-auto flex flex-col px-6 py-10">
+    <div className="w-full min-h-screen max-w-md mx-auto flex flex-col px-6 pb-10 pt-[calc(2.5rem_+_env(safe-area-inset-top))]">
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
