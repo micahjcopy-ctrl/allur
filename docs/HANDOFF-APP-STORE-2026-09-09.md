@@ -101,6 +101,44 @@
 > re-tests on TestFlight (the app should now load past the logo); the 6
 > sandbox purchase tests; then Add for Review only on his explicit go. ASC
 > web session had expired — Micah must sign in himself.
+>
+> Same afternoon: build 1.0 (2) attached to ASC version 1.0 and saved (Add for
+> Review enabled, untouched). Micah installed it: **it loaded — but showed the
+> marketing website hero** ("Stop guessing your way to a better body", Sign in
+> button, "ALLUR" wordmark drawn under the status bar). Cause: the signed-out
+> branch in `App.tsx` keyed on `isStandalone()` (display-mode: standalone /
+> navigator.standalone), which is FALSE inside the Capacitor WKWebView, so the
+> native app took the browser path → `/home` → `<Landing />`. Micah's spec:
+> the app must open straight into onboarding with a login option top-right,
+> and stay signed in after login.
+>
+> Fixed on main (ed8347f, cba87fc, cff6a1f, cd5e06f, 9134249; build 3 bump
+> 5d91d1e):
+> - `App.tsx`: `native = isNative()`, `standalone = isStandalone() || native`.
+>   Signed-out native → `/onboarding` (never `/home`, never `/welcome`); the
+>   one render before the redirect shows a spinner, not the welcome screen.
+> - `Onboarding.tsx`: signed-out header row with "Already have an account?
+>   Log in" → `/auth?mode=login` (top right, all steps while signed out).
+> - `Auth.tsx`: Back goes to `/onboarding` on native (was `/home`).
+> - Safe area: `OnboardingShell` column gets `pt-safe`; Auth/Paywall/AppWelcome
+>   use `pt-[calc(2.5rem_+_env(safe-area-inset-top))]` (plain `pt-safe` on the
+>   same element as `py-10` would have zeroed the web padding).
+> - Staying signed in needed no change: Auth stores the native bearer token
+>   in localStorage on login/register, the generated client attaches it to
+>   every request, and a cold start with a token restores the session.
+>   Verified in Playwright with a fake WKWebView bridge (`window.webkit.
+>   messageHandlers.bridge`) — that is what makes `Capacitor.isNativePlatform()`
+>   true; setting `window.Capacitor` yourself does NOT work, core overwrites it.
+>   Results: signed-out → `/onboarding`, Log in → `/auth?mode=login`, Back →
+>   `/onboarding`; signed-in cold start → `/dashboard` with `Authorization:
+>   Bearer` sent.
+>
+> Build 1.0 (3): bundle from main 9134249 built on the Mac VM (byte-identical
+> to the sandbox build), copied to `~/Downloads/allur-ios/App/public` (old in
+> `_stale/public-20260922-1825`), `CURRENT_PROJECT_VERSION = 3` in both
+> pbxproj copies. Archived and uploading from Xcode ~2:30 PM. Once processed:
+> swap the attached build on version 1.0 to (3), Micah re-tests, then the
+> purchase tests, then Add for Review on his go.
 
 > **Status update 2026-09-11 (chat 2, later).** Supersedes the 09-10 block below
 > where they differ.
