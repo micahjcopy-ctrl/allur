@@ -14,7 +14,7 @@ export default function AppWelcome() {
   const [, setLocation] = useLocation();
 
   return (
-    <div className="w-full max-w-md mx-auto min-h-screen flex flex-col justify-between px-6 py-12">
+    <div className="w-full max-w-md mx-auto min-h-screen flex flex-col justify-between px-6 pb-12 pt-[calc(3rem_+_env(safe-area-inset-top))]">
       <div className="flex-1 flex flex-col items-center justify-center text-center">
         <img
           src={ALLUR_LOGO}
