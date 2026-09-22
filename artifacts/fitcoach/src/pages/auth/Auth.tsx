@@ -13,6 +13,7 @@ import { useLocation } from "wouter";
 import { Loader2, ArrowLeft, MailCheck } from "lucide-react";
 import { offerToSaveCredential } from "@/lib/credentials";
 import { nativeClientHeaders, setAuthToken } from "@/lib/apiOrigin";
+import { isNative } from "@/lib/native";
 
 /**
  * On native, sign-in responses carry a `token` the app must persist — the
@@ -135,9 +136,9 @@ export default function Auth() {
   );
 
   return (
-    <div className="w-full max-w-md mx-auto min-h-screen flex flex-col justify-center px-6 py-10">
+    <div className="w-full max-w-md mx-auto min-h-screen flex flex-col justify-center px-6 pb-10 pt-[calc(2.5rem_+_env(safe-area-inset-top))]">
       <button
-        onClick={() => setLocation("/home")}
+        onClick={() => setLocation(isNative() ? "/onboarding" : "/home")}
         className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-8 self-start"
       >
         <ArrowLeft className="w-4 h-4" /> Back
