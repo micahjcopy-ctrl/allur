@@ -61,6 +61,46 @@
 >    then in ASC version 1.0 swap the attached build from 1.0 (1) to 1.0 (2)
 >    and Save, before Add for Review. Backups of the pre-edit files are in the
 >    Mac VM home as `Info.plist.bak-*` and `project.pbxproj.bak-build2-*`.
+>
+> **Later on 2026-09-17 — build 1 on the phone showed only the logo.** Micah
+> installed 1.0 (1) from TestFlight after switching his iPhone's Media &
+> Purchases account to micahjcopy@gmail.com (his phone's App Store was on an
+> Apple ID whose email he no longer has). The app never got past the launch
+> logo. Two real bugs, both in the web code, both fixed on main (a9a0272,
+> 4b45b18, 63e39bc):
+>
+> 1. `capacitor.config.ts` had `SplashScreen.launchAutoHide: false` — "held
+>    until the app calls hide()" — and nothing ever called hide(). Now
+>    `hideNativeSplash()` in `src/lib/native.ts` runs from App's mount effect,
+>    and the config uses `launchAutoHide: true, launchShowDuration: 4000` as a
+>    safety net so a broken bundle shows a screen instead of a frozen logo.
+> 2. `src/lib/apiOrigin.ts` defaulted the native API origin to the bare
+>    `https://getallur.com`. Vercel 308-redirects the apex to `www` with no
+>    CORS headers, so from `capacitor://localhost` every request dies before
+>    reaching the API (preflights cannot follow redirects). Default is now
+>    `https://www.getallur.com`. Verified from another origin in Chrome:
+>    apex fetch → "Failed to fetch", www → 200.
+>
+> The Mac VM clone at `~/allur-test` (has node_modules; pnpm is NOT on PATH,
+> run `node node_modules/vite/bin/vite.js build --config vite.config.ts` in
+> `artifacts/fitcoach` with `VITE_NATIVE_BUILD=1 VITE_REVENUECAT_IOS_KEY=…`)
+> built the new bundle from main 63e39bc; it is byte-identical to the sandbox
+> build (main chunk `index-CQGsHyqu.js`). Copied to `~/Downloads/allur-ios/
+> App/public` (old one in `_stale/public-20260917-2104`), and
+> `App/capacitor.config.json` updated by hand to the new SplashScreen block
+> (no `cap sync` on the Mac). NOT yet archived.
+>
+> **2026-09-22 — BUILD 1.0 (2) UPLOADED.** Opened the project from Xcode's
+> Welcome window (File → Open Recent works via full-screen clicks; the
+> background menu tool is refused at Xcode's click tier), Product → Archive,
+> released all control immediately — no keychain prompt appeared this time
+> ("Always Allow" stuck). Archive took <2 min; Distribute App → App Store
+> Connect → Distribute; "Waiting for App Store Connect SPI analysis response"
+> sat for ~10 min, then "App 1.0 (2) uploaded". Next: wait for processing,
+> then in ASC version 1.0 replace build 1.0 (1) with 1.0 (2) and Save; Micah
+> re-tests on TestFlight (the app should now load past the logo); the 6
+> sandbox purchase tests; then Add for Review only on his explicit go. ASC
+> web session had expired — Micah must sign in himself.
 
 > **Status update 2026-09-11 (chat 2, later).** Supersedes the 09-10 block below
 > where they differ.
