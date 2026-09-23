@@ -240,6 +240,51 @@
 > for you, Test." Build 1.0 (4) archived and uploading (`CURRENT_PROJECT_VERSION
 > = 4`, ce838d1). Once processed: swap the attached build on version 1.0 to
 > (4), Micah reruns the purchase test.
+>
+> Build 4 on the phone: onboarding works, men's photos load, women get the
+> silhouettes (no photos yet — see above). Reveal CTA renamed to **"Unlock my
+> plan and coach"** at Micah's request (092ffc4).
+>
+> **2026-09-23, evening — the sandbox purchase went through, then the app
+> showed onboarding step 1.** Micah's words: "everything worked until I
+> submitted the payment. After I submitted payment it brought me back to the
+> beginning of onboarding." The purchase itself was fine (Apple sheet,
+> `/api/iap/refresh`, entitlement honoured). Root cause was routing:
+> `Auth.handleSignup` sent every new account to `/onboarding`. In the
+> anonymous funnel the account is created AFTER the quiz, and the stashed
+> plan marks it onboarded on first hydration — so the paywall gate was being
+> rendered ON the `/onboarding` route. The moment the purchase dropped the
+> gate, `<Switch>` rendered `Onboarding` at step 1. Fixed on main
+> (0ff955e, 9369b52, 0f29769):
+>
+> - `Auth.tsx`: after signup go to `/` and let RouteGuard decide (onboarded
+>   → `/dashboard`, where the gate sits; un-onboarded → `/onboarding`).
+> - `App.tsx` RouteGuard: an onboarded user on `/onboarding` is sent to
+>   `/dashboard`. The only `setOnboardingComplete(false)` is
+>   `resetToDefaults`, so redo flows are unaffected; Admin's "Back to app"
+>   link now lands on the dashboard, which is what it meant.
+> - `Paywall.tsx`: `navigate("/dashboard")` after a successful purchase or
+>   restore, so a lapsed subscriber re-subscribing from `/paywall` lands in
+>   the app too (before, they stayed on the paywall with a "You're in" toast).
+>
+> Verified with `docs/app-store/pipeline/walk_signup.mjs` (Playwright, fake API via
+> `page.route`, native bridge shim): quiz → "Unlock my plan and coach" →
+> `/auth` → Create Account → **`/dashboard` with the paywall** (stash
+> consumed, `onboardingComplete` persisted) → flip the fake subscription to
+> `hasEverSubscribed` → reload → **`/dashboard`, "Hey, Test"**, welcome tour.
+>
+> **Build 1.0 (5) uploaded** ~11:20 AM PT (`CURRENT_PROJECT_VERSION = 5`,
+> 1014afa; bundle from main 1014afa, byte-identical to the sandbox build,
+> 158 files; old bundle in `_stale/public-20260923-*`). Xcode notes: the
+> Product menu only opens reliably when click-Product and click-Archive are
+> in ONE `computer_batch` with no screenshot between (a screenshot closes
+> the menu); the `~/allur-test` clone's fetch refspec only tracked
+> `store-prep`, so `git fetch` silently never updated `origin/main` — set
+> `remote.origin.fetch` to `+refs/heads/*:refs/remotes/origin/*` (done).
+> Next: swap the attached build on version 1.0 to (5), Micah reruns the
+> purchase test on a fresh account (expect: Apple sheet → "You're in" →
+> dashboard; then kill/reopen → still in; Account → Restore works), then Add
+> for Review only on his explicit go.
 
 > **Status update 2026-09-11 (chat 2, later).** Supersedes the 09-10 block below
 > where they differ.
