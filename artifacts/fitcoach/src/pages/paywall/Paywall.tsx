@@ -1,5 +1,5 @@
 import React from "react";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -316,12 +316,14 @@ export default function Paywall() {
                 >
                   {restoring ? "Restoring…" : "Restore purchases"}
                 </button>
-                <a href="/terms" className="underline underline-offset-2 hover:text-foreground">
+                {/* In-app navigation, not <a href>: a plain anchor reloads the
+                    whole webview on the phone and drops the app's state. */}
+                <Link href="/terms" className="underline underline-offset-2 hover:text-foreground">
                   Terms
-                </a>
-                <a href="/privacy" className="underline underline-offset-2 hover:text-foreground">
+                </Link>
+                <Link href="/privacy" className="underline underline-offset-2 hover:text-foreground">
                   Privacy
-                </a>
+                </Link>
               </div>
             </>
           ) : (
