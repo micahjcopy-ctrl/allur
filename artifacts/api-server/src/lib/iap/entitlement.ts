@@ -39,9 +39,24 @@ function planFromEntitlement(entitlement: string | null): UserPlan {
 /**
  * The user's current store entitlement, or null if they have none.
  *
- * SANDBOX rows never grant access in production: a sandbox receipt is free to
- * mint on any device with a test Apple ID, so honouring one outside of a test
- * build would be an open door to unlimited free Premium.
+ * SANDBOX rows count. They used to be ignored whenever NODE_ENV=production,
+ * on the theory that a sandbox receipt is "free Premium". That theory broke
+ * the two flows that matter most before launch:
+ *
+ *   - TestFlight builds buy in the SANDBOX environment. Every purchase test
+ *     in NATIVE_SETUP §5 hit production Vercel, was recorded, and was then
+ *     filtered out here — the paywall never dropped.
+ *   - App Review tests in-app purchases in the SANDBOX environment against
+ *     the production backend. A purchase that completes but does not unlock
+ *     the app is a Guideline 2.1 rejection.
+ *
+ * The exposure is small and bounded: only Sandbox Tester Apple IDs created
+ * in THIS team's App Store Connect (or invited TestFlight testers) can make
+ * sandbox purchases for this app at all, and sandbox subscriptions renew on
+ * an accelerated clock (a month is 5 minutes, a year is 1 hour) and stop
+ * renewing after a handful of cycles — so the `expiresAt` check below ends
+ * the access within an hour or so on its own, even if the EXPIRATION webhook
+ * is missed.
  */
 export async function getIapEntitlement(
   userId: string,
@@ -54,11 +69,7 @@ export async function getIapEntitlement(
 
     if (rows.length === 0) return null;
 
-    const allowSandbox = process.env.NODE_ENV !== "production";
-    const usable = rows.filter(
-      (r) => allowSandbox || r.environment !== "SANDBOX",
-    );
-    if (usable.length === 0) return null;
+    const usable = rows;
 
     // Prefer a currently-active row; otherwise fall back to the most recently
     // updated one so `hasEverSubscribed` still reflects a lapsed subscriber.
