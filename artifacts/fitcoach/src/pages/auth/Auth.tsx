@@ -102,8 +102,15 @@ export default function Auth() {
       await offerToSaveCredential(email.trim(), password, username.trim());
       await refreshAuth();
       toast({ title: "Welcome to ALLUR", description: "Your account is ready." });
-      // A brand-new account always needs onboarding — go straight there.
-      setLocation("/onboarding");
+      // Hand off to the RouteGuard rather than hard-coding /onboarding. In the
+      // anonymous funnel the account is created AFTER onboarding: the stashed
+      // plan marks the new account onboarded on its first hydration, and the
+      // guard then routes "/" → /dashboard, where the paywall gate sits.
+      // Sending them to /onboarding here left the paywall rendered ON the
+      // onboarding route, so the moment a purchase dropped the gate the user
+      // was shown onboarding step 1 again instead of the app. A genuinely
+      // un-onboarded account still ends up at /onboarding via the guard.
+      setLocation("/");
     } catch (err) {
       toast({ title: "Sign up failed", description: errorMessage(err, "Please try again."), variant: "destructive" });
     }
