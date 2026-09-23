@@ -181,10 +181,36 @@
 > - Tests: `lib/nutrition/src/index.test.ts` (bun test, 16 pass) including
 >   the exact meal → ~1,700 kcal / 92 g protein when decomposed.
 >
-> Not yet verified against the live model (Micah was not signed in to
-> getallur.com on the web, and the sandbox has no OpenAI key). He is
-> re-logging the same meal on the phone. If it is still low, next lever is
-> the model itself: `OPENAI_CHAT_MODEL` env on Vercel defaults to `gpt-4o`.
+> Micah re-logged the meal on the phone: "Yep that fixed it."
+>
+> **2026-09-23, later — payments readiness.** He asked whether payments are
+> ready on onboarding. Reviewed the full IAP path and found a real blocker:
+> `getIapEntitlement()` dropped every SANDBOX row when `NODE_ENV=production`.
+> TestFlight purchases and App Review purchases are both sandbox, so a
+> purchase would complete at Apple and the paywall would never drop — a
+> guaranteed 2.1 rejection. Fixed (5d2a0d7): sandbox rows count; they
+> self-expire within ~an hour and only this team's sandbox testers /
+> TestFlight testers can create them. Paywall Terms/Privacy are now wouter
+> `Link`s (c0a3c63). Full suite green (fitcoach 82, nutrition 16,
+> entitlement 13 assertions; all typechecks).
+>
+> ASC subscriptions: both were "Prepare for Submission" with pricing ($10.99
+> / $69, 175 storefronts), display names and descriptions set, but **no
+> Review Information screenshot** — required before either can be reviewed.
+> Rendered `docs/app-store/iap-review/paywall-monthly.png` (native paywall,
+> Monthly card, with the Apple disclosure + Restore) and `paywall-annual.png`
+> (both cards, Annual selected) from the production bundle at 1320×2868 and
+> uploaded them with review notes to both subscriptions; Saved (✓). They stay
+> "Prepare for Submission" until they are added to the version's review
+> submission — in the current ASC UI there is no IAP section on the version
+> page; each subscription's own "Add for Review" button (or the submission
+> page's Add Items) puts it into the same review submission as version 1.0.
+> Not clicked: that is part of the submit step and waits for Micah's go.
+>
+> Remaining before submit: Micah's purchase test on build 3 (fresh account →
+> onboarding → buy monthly in sandbox → unlocks → kill/reopen → Restore
+> purchases). Then, on his "submit": version 1.0 Add for Review → add both
+> subscriptions to the submission → Submit for Review.
 
 > **Status update 2026-09-11 (chat 2, later).** Supersedes the 09-10 block below
 > where they differ.
