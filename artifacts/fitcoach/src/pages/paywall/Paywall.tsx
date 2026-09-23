@@ -148,6 +148,10 @@ export default function Paywall() {
         // summary is what drops the gate and lets the user through.
         await refreshSubscription();
         toast({ title: "You're in", description: "Welcome to ALLUR." });
+        // Land in the app, explicitly. When this screen is the gate it is
+        // already rendered at /dashboard and this is a no-op; when a lapsed
+        // subscriber re-subscribes from /paywall it is what takes them in.
+        navigate("/dashboard");
         return;
       }
       // A dismissed Apple sheet is not an error — say nothing.
@@ -185,6 +189,7 @@ export default function Paywall() {
     if (outcome.ok) {
       await refreshSubscription();
       toast({ title: "Purchases restored" });
+      navigate("/dashboard");
       return;
     }
     toast({
