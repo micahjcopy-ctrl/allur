@@ -185,9 +185,13 @@ Test all of these on a real device:
 5. Cancel in sandbox settings → access remains until period end, then lapses
 6. Sign out, sign in as a different user → they do **not** inherit the sub
 
-> Sandbox receipts are marked `SANDBOX` and are ignored in production by
-> `getIapEntitlement()`. That is deliberate — a sandbox receipt is free to mint,
-> so honouring one in production would be unlimited free Premium for anyone.
+> Sandbox receipts are marked `SANDBOX` and **do** grant access, in production
+> too (changed 2026-09-23). TestFlight and App Review both purchase in the
+> sandbox against the production backend, so ignoring them meant the paywall
+> never dropped for testers or for the reviewer. Only this team's Sandbox
+> Tester Apple IDs and invited TestFlight testers can make sandbox purchases
+> for the app, and sandbox subscriptions expire within an hour or so, so the
+> exposure is negligible.
 
 ---
 
