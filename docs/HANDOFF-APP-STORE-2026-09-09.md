@@ -207,10 +207,39 @@
 > page's Add Items) puts it into the same review submission as version 1.0.
 > Not clicked: that is part of the submit step and waits for Micah's go.
 >
-> Remaining before submit: Micah's purchase test on build 3 (fresh account →
-> onboarding → buy monthly in sandbox → unlocks → kill/reopen → Restore
-> purchases). Then, on his "submit": version 1.0 Add for Review → add both
-> subscriptions to the submission → Submit for Review.
+> Remaining before submit: Micah's purchase test (fresh account → onboarding
+> → buy monthly in sandbox → unlocks → kill/reopen → Restore purchases).
+> Then, on his "submit": version 1.0 Add for Review → add both subscriptions
+> to the submission → Submit for Review.
+>
+> **2026-09-23, afternoon — first real signed-out run on the phone found two
+> onboarding bugs.** Micah signed out on build 3 to test the purchase and
+> hit: (1) body-type cards showing grey silhouettes for BOTH genders, (2)
+> "Fill in age, height, weight, experience and activity level." on Build my
+> plan after answering everything. Both reproduced in Playwright against the
+> build-3 bundle and fixed on main (0d21077, 05d9b44):
+>
+> - `NumbersAct.tsx`: the age/height/weight Dials render a default (30 /
+>   175 cm / 80 kg) but only wrote to the profile on drag, so accepting the
+>   default left the field "" and `hasCalculableProfile` failed at the end.
+>   Next now commits the displayed value when the field is empty
+>   (`nextFromAge/Height/Weight`). `Onboarding.tsx` `onBuild` names the
+>   missing field instead of the generic list.
+> - `BodyTypeCard`: one failed `<img>` set `imgOk=false` forever, so toggling
+>   Female (no photos exist) then Male hid the men's photos too. Now tracks
+>   the failed `src`, and `BODY_TYPE_PHOTO_GENDERS` in `data/bodyTypes.ts`
+>   (men only) skips the request for genders without photos. **There are no
+>   women's body-type photos in the repo** — only `public/bodytypes/
+>   men-start-*.jpg`. Women get the silhouettes until Micah supplies
+>   `women-start-{lean,soft,over,plateau,fit}.jpg` (720×1080); then add
+>   "women" to the set.
+>
+> Playwright walk (`scratchpad/walk_onboarding.mjs`: signed-out native, tap
+> Next through the dials without dragging): build 3 → 0/5 photos after the
+> gender toggle and the error; fixed → 5/5 photos and "Here's what we built
+> for you, Test." Build 1.0 (4) archived and uploading (`CURRENT_PROJECT_VERSION
+> = 4`, ce838d1). Once processed: swap the attached build on version 1.0 to
+> (4), Micah reruns the purchase test.
 
 > **Status update 2026-09-11 (chat 2, later).** Supersedes the 09-10 block below
 > where they differ.
