@@ -768,7 +768,10 @@ export default function Onboarding() {
 
               <div className="flex gap-3 mt-8">
                 <Button variant="secondary" onClick={prevStep} className="rounded-full h-12 px-6">Back</Button>
-                <Button onClick={commitAndContinue} className="flex-1 rounded-full h-12 text-lg font-bold">This looks right <ArrowRight className="ml-2 w-5 h-5" /></Button>
+                {/* Reveal CTA. For a signed-out visitor this leads to sign-up
+                    and then the paywall, so it says what is behind it. Micah's
+                    wording, 2026-09-23. */}
+                <Button onClick={commitAndContinue} className="flex-1 rounded-full h-12 text-lg font-bold">Unlock my plan and coach <ArrowRight className="ml-2 w-5 h-5" /></Button>
               </div>
             </>
           )}
