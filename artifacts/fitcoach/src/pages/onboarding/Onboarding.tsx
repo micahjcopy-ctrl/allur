@@ -18,7 +18,7 @@ import {
 import { buildProgram } from "@/data/trainingKnowledge";
 import { EQUIPMENT_OPTIONS } from "@/data/exerciseOptimizer";
 import { physiqueOptionsFor } from "@/data/physiques";
-import { BODY_TYPE_PATHS, BODY_TYPE_OPTIONS, bodyTypeImagePath, type BodyTypeId } from "@/data/bodyTypes";
+import { BODY_TYPE_PATHS, BODY_TYPE_OPTIONS, BODY_TYPE_PHOTO_GENDERS, bodyTypeImagePath, type BodyTypeId } from "@/data/bodyTypes";
 import { useAccount } from "@/context/AuthContext";
 import { useLogoutAccount } from "@workspace/api-client-react";
 import { writeOnboardingStash } from "@/lib/onboardingStash";
@@ -91,7 +91,14 @@ function BodyTypeCard({
   onClick: () => void;
   wide?: boolean;
 }) {
-  const [imgOk, setImgOk] = useState(true);
+  const src = bodyTypeImagePath(gender, id);
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  // Photos exist for men only (public/bodytypes/men-start-*.jpg). A gender
+  // with no photos renders the silhouette directly — no 404 round-trip, no
+  // flash. And a failure is remembered PER SOURCE: it used to latch the card
+  // into silhouette mode forever, so toggling Female (no photos) and back to
+  // Male left the men's photos hidden too.
+  const imgOk = BODY_TYPE_PHOTO_GENDERS.has(gender === "Female" ? "women" : "men") && failedSrc !== src;
   return (
     <button
       type="button"
@@ -104,9 +111,9 @@ function BodyTypeCard({
     >
       {imgOk ? (
         <img
-          src={bodyTypeImagePath(gender, id)}
+          src={src}
           alt={label}
-          onError={() => setImgOk(false)}
+          onError={() => setFailedSrc(src)}
           className={cn(
             "absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]",
             wide ? "object-[50%_20%]" : "object-top",
@@ -688,7 +695,22 @@ export default function Onboarding() {
       ),
       generating,
       onBuild: () => {
-        if (!canCalculate) return setStepError("Fill in age, height, weight, experience and activity level.");
+        if (!canCalculate) {
+          // Name the blank, and where it lives — "fill in everything" at the
+          // last step was unanswerable when every screen looked answered.
+          const missing = [
+            !profile.gender && "your starting point (first screen)",
+            !(parseInt(profile.age, 10) > 0) && "age",
+            !profile.height && "height",
+            !profile.weight && "weight",
+            !profile.activityLevel && "activity level",
+          ].filter((m): m is string => !!m);
+          return setStepError(
+            missing.length
+              ? `Still need: ${missing.join(", ")}. Tap Back to fill it in.`
+              : "Something in your numbers didn't save — tap Back and check age, height and weight.",
+          );
+        }
         setStepError(null);
         void generatePlan();
       },

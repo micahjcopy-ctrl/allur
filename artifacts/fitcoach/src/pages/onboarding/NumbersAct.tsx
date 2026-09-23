@@ -118,6 +118,23 @@ export function numberScreens({
   const heightValue = metric ? Number(answers.height) || 175 : heightToInches(answers.height) || 69;
   const weightMetric = answers.weightUnit === "kg";
   const weightValue = Number(answers.weight) || (weightMetric ? 80 : 176);
+  const ageValue = Number(answers.age) || 30;
+
+  // A Dial shows a sensible default before the user touches it, but only
+  // writes to the profile on drag/type. Someone who looks at "30 yrs" and
+  // taps Next has answered the question — so the displayed value is saved
+  // on Next if the field is still empty. Without this, three untouched dials
+  // ended in "Fill in age, height, weight…" at the very last step, with no
+  // way to tell which one was blank.
+  const commitThenNext = (patch: Partial<NumbersAnswers>) => () => {
+    onChange(patch);
+    next();
+  };
+  const nextFromAge = answers.age ? next : commitThenNext({ age: String(ageValue) });
+  const nextFromHeight = answers.height
+    ? next
+    : commitThenNext({ height: metric ? String(heightValue) : inchesToHeight(heightValue) });
+  const nextFromWeight = answers.weight ? next : commitThenNext({ weight: String(weightValue) });
 
   return [
     {
@@ -146,10 +163,10 @@ export function numberScreens({
       id: "num-age",
       label: "Age",
       render: () => (
-        <StepShell eyebrow="Your numbers" question="How old are you?" onBack={onBack} onNext={next} error={error}>
+        <StepShell eyebrow="Your numbers" question="How old are you?" onBack={onBack} onNext={nextFromAge} error={error}>
           <Dial
             label="Age"
-            value={Number(answers.age) || 30}
+            value={ageValue}
             onChange={(v) => onChange({ age: String(v) })}
             min={16}
             max={90}
@@ -165,7 +182,7 @@ export function numberScreens({
       id: "num-height",
       label: "Height",
       render: () => (
-        <StepShell eyebrow="Your numbers" question="How tall are you?" onBack={onBack} onNext={next} error={error}>
+        <StepShell eyebrow="Your numbers" question="How tall are you?" onBack={onBack} onNext={nextFromHeight} error={error}>
           <Dial
             label="Height"
             value={heightValue}
@@ -198,7 +215,7 @@ export function numberScreens({
           eyebrow="Your numbers"
           question="And what do you weigh right now?"
           onBack={onBack}
-          onNext={next}
+          onNext={nextFromWeight}
           error={error}
         >
           <Dial
