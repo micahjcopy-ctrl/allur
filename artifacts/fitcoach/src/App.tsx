@@ -68,6 +68,13 @@ function RouteGuard() {
       }
     } else if (!onboardingComplete && location !== "/onboarding") {
       setLocation("/onboarding");
+    } else if (onboardingComplete && location === "/onboarding") {
+      // Finished users have no business on the quiz. This is where a
+      // just-signed-up funnel user lands (Auth used to send them here), and
+      // it is the route the paywall gate would otherwise reveal after a
+      // purchase. Redo-onboarding flows clear onboardingComplete first, so
+      // they are unaffected.
+      setLocation("/dashboard");
     }
   }, [location, onboardingComplete, setLocation, isPaywallPreview]);
 
