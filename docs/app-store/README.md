@@ -37,3 +37,14 @@ cd .. && python3 make_screens.py captures screenshots
 
 Edit `CAPTIONS` in `make_screens.py` to change the copy; edit the JSON files to
 change what the phone shows.
+
+## IAP review screenshots (`iap-review/`)
+
+App Store Connect requires a "Review Information" screenshot on every
+subscription before it can be submitted. `paywall-monthly.png` (native
+paywall, Monthly card) and `paywall-annual.png` (both cards, Annual selected)
+were rendered from the production bundle at iPhone 15 Pro Max resolution
+(1320×2868) with the offline mock server: `node mock_server.mjs <dist/public>
+4180 demo_state_screens.json`, then Playwright at `/paywall` (native variant
+sets `window.webkit.messageHandlers.bridge` so `Capacitor.isNativePlatform()`
+is true). Uploaded to both subscriptions on 2026-09-23 with review notes.
