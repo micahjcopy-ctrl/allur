@@ -4,35 +4,153 @@ import { FOODS, type Food, type FoodMacros } from "./foods";
 const norm = (s: string): string =>
   s
     .toLowerCase()
-    .replace(/[^a-z0-9 ]/g, " ")
+    .replace(/[^a-z0-9/ ]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+
+// Words that say HOW MUCH or add nothing to WHAT the food is. Stripped from the
+// query before matching so "2 slices of ham" matches "ham" and "3 large fried
+// eggs" matches "eggs". Cooking words are kept: aliases like "fried chicken" and
+// "grilled salmon" rely on them.
+const FILLER = new Set([
+  "a", "an", "the", "of", "with", "and", "some", "my", "his", "her", "their", "our",
+  "plain", "fresh", "regular", "normal", "standard", "small", "medium", "large",
+  "little", "half", "whole", "extra", "x",
+  "piece", "pieces", "slice", "slices", "cup", "cups", "tbsp", "tsp", "tablespoon",
+  "tablespoons", "teaspoon", "teaspoons", "oz", "ounce", "ounces", "g", "gram", "grams",
+  "lb", "lbs", "pound", "pounds", "serving", "servings", "portion", "bowl", "plate",
+  "handful", "scoop", "scoops", "can", "bottle", "glass",
+]);
+// A bare number, a simple fraction (1/2, 3/4) or a number glued to a unit (8oz,
+// 250g). Ratios like "80/20" (fat blend) are NOT quantities and stay in the query.
+const isQuantity = (t: string): boolean =>
+  /^\d+(\.\d+)?$/.test(t) || /^\d\/\d$/.test(t) || /^\d+(\.\d+)?(oz|g|lb|lbs|ml|kg)$/.test(t);
+
+/** Tokens that describe the food itself (numbers, units and filler removed). */
+export function foodTokens(name: string): string[] {
+  return norm(name)
+    .split(" ")
+    .filter((t) => t && !isQuantity(t) && !FILLER.has(t));
+}
 
 // Whole-phrase containment: does `needle` appear in `hay` on word boundaries?
 const containsPhrase = (hay: string, needle: string): boolean =>
   ` ${hay} `.includes(` ${needle} `);
 
 /**
- * Best-effort match of a free-text food name (as a vision model would describe
- * it) to an internal database entry. Returns null when nothing matches well, so
- * callers can fall back to an "estimated" item instead of grounding on a guess.
+ * How well a database entry explains the query.
+ * - exact:   the query IS the alias ("3 eggs" → "eggs").
+ * - strong:  the alias covers most of the query, or is its head noun
+ *            ("grilled chicken breast" → "chicken breast"; "wagyu beef patty" → "wagyu beef patty").
+ * - partial: the alias is one word inside a longer, more specific phrase
+ *            ("ham and cheese omelette" → "cheese") — probably the wrong entry,
+ *            or the right entry on the wrong basis.
  */
-export function matchFood(name: string): Food | null {
-  const q = norm(name);
+export type MatchStrength = "exact" | "strong" | "partial";
+
+export interface FoodMatch {
+  food: Food;
+  strength: MatchStrength;
+}
+
+/**
+ * Best-effort match of a free-text food name (as a vision model or a user would
+ * describe it) to an internal database entry, with a strength rating the caller
+ * can use to decide how much to trust the grounded numbers. Returns null when
+ * nothing matches at all.
+ */
+export function matchFoodDetailed(name: string): FoodMatch | null {
+  const qTokens = foodTokens(name);
+  const q = qTokens.join(" ");
   if (!q) return null;
-  let best: { food: Food; score: number } | null = null;
+  // The head noun is the last word of the PRIMARY food, i.e. before any
+  // "with / plus / topped / served / on / in / over …" tail that names toppings
+  // or sides: "wagyu burger with cheese" is a burger, not cheese; "oatmeal with
+  // banana" is oatmeal.
+  const primary = norm(name).split(/\b(?:with|plus|topped|served|on|in|over)\b/)[0] ?? "";
+  const primaryTokens = foodTokens(primary);
+  const head = (primaryTokens.length ? primaryTokens : qTokens)[
+    (primaryTokens.length ? primaryTokens : qTokens).length - 1
+  ];
+  let best: { food: Food; score: number; strength: MatchStrength } | null = null;
   for (const food of FOODS) {
     const candidates = [food.canonicalName, ...food.aliases].map(norm);
     let score = 0;
+    let strength: MatchStrength = "partial";
     for (const c of candidates) {
       if (!c) continue;
-      if (q === c) score = Math.max(score, 1000 + c.length);
-      else if (containsPhrase(q, c)) score = Math.max(score, 500 + c.length);
-      else if (containsPhrase(c, q)) score = Math.max(score, 200 + q.length);
+      const cTokens = c.split(" ");
+      let sc = 0;
+      let st: MatchStrength = "partial";
+      if (q === c) {
+        sc = 1000 + c.length;
+        st = "exact";
+      } else if (containsPhrase(q, c)) {
+        // Alias inside the query: "grilled chicken breast" ⊃ "chicken breast".
+        const coverage = cTokens.length / qTokens.length;
+        const isHead = cTokens[cTokens.length - 1] === head;
+        sc = 500 + c.length + (isHead ? 50 : 0);
+        st = coverage >= 0.5 || isHead ? "strong" : "partial";
+      } else if (containsPhrase(c, q)) {
+        // Query inside the alias: "salmon" ⊂ "grilled salmon".
+        sc = 200 + q.length;
+        st = "strong";
+      }
+      if (sc > score) {
+        score = sc;
+        strength = st;
+      }
     }
-    if (score > 0 && (!best || score > best.score)) best = { food, score };
+    if (score > 0 && (!best || score > best.score)) best = { food, score, strength };
   }
-  return best?.food ?? null;
+  return best ? { food: best.food, strength: best.strength } : null;
+}
+
+/** Back-compatible shape: just the food. */
+export function matchFood(name: string): Food | null {
+  return matchFoodDetailed(name)?.food ?? null;
+}
+
+/**
+ * Read a portion the model reported as grams. Models occasionally send the
+ * unit along ("227g", "8 oz") or ounces as a bare number; a plain Number() on
+ * those is NaN and used to silently become a 100 g default — which is how an
+ * 8 oz burger can turn into a 100 g one. Returns null when nothing numeric is
+ * there.
+ */
+export function parseGrams(raw: unknown): number | null {
+  if (typeof raw === "number") return Number.isFinite(raw) && raw > 0 ? raw : null;
+  if (typeof raw !== "string") return null;
+  const m = raw.toLowerCase().match(/(\d+(?:[.,]\d+)?)\s*(oz|ounce|ounces|lb|lbs|pound|pounds|g|gram|grams|ml)?/);
+  if (!m) return null;
+  const n = Number(m[1].replace(",", "."));
+  if (!Number.isFinite(n) || n <= 0) return null;
+  const unit = m[2] ?? "";
+  if (unit.startsWith("oz") || unit.startsWith("ounce")) return n * 28.35;
+  if (unit.startsWith("lb") || unit.startsWith("pound")) return n * 453.6;
+  return n;
+}
+
+/**
+ * Decide between the database-grounded macros and the model's own estimate for
+ * one item. The database wins when the two broadly agree (it is the more
+ * precise source); the model wins when they are wildly apart, because that
+ * almost always means the entry was the wrong food ("ham and cheese omelette" →
+ * cheese) or the wrong basis (a whole-sandwich entry scaled by patty weight),
+ * while the model's number reflects the full description it actually read.
+ * Tolerance widens with match strength.
+ */
+export function reconcileWithEstimate(
+  grounded: FoodMacros,
+  estimate: FoodMacros | null,
+  strength: MatchStrength,
+): { macros: FoodMacros; source: "internal" | "estimated" } {
+  if (!estimate || !(estimate.calories > 0)) return { macros: grounded, source: "internal" };
+  if (!(grounded.calories > 0)) return { macros: estimate, source: "estimated" };
+  const ratio = Math.max(grounded.calories, estimate.calories) / Math.min(grounded.calories, estimate.calories);
+  const limit = strength === "exact" ? 2.5 : strength === "strong" ? 2.2 : 1.6;
+  if (ratio > limit) return { macros: estimate, source: "estimated" };
+  return { macros: grounded, source: "internal" };
 }
 
 export function foodById(id: string): Food | null {
