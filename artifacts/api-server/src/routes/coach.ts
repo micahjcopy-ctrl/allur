@@ -27,8 +27,9 @@ import {
   type PersonalizePlanRequest,
 } from "@workspace/api-zod";
 import {
-  matchFood,
-  computeMacros,
+  matchFoodDetailed,
+  parseGrams,
+  reconcileWithEstimate,
   groundedMacros,
   sumMacros,
   confidenceLevel,
@@ -806,7 +807,7 @@ const mealAnalysisTool = {
         foods: {
           type: "array",
           description:
-            "Each distinct food item visible. Identify items separately. Do not list tiny garnishes (lettuce, herbs, lemon) that barely affect macros.",
+            "Each distinct food COMPONENT, one entry each. Break composite dishes apart: a burger is patty + bun + cheese + sauce; a burrito is tortilla + each filling; a sandwich is bread + fillings; an omelette is eggs + fillings. Do not list tiny garnishes (lettuce, herbs, lemon) that barely affect macros.",
           items: {
             type: "object",
             additionalProperties: false,
@@ -815,6 +816,7 @@ const mealAnalysisTool = {
               "category",
               "alternatives",
               "confidence",
+              "portionBasis",
               "grams",
               "portionConfidence",
               "cookingMethod",
@@ -828,7 +830,8 @@ const mealAnalysisTool = {
             properties: {
               detectedName: {
                 type: "string",
-                description: "Plain food name, e.g. 'grilled chicken breast', 'white rice'.",
+                description:
+                  "Plain food name for ONE component, e.g. 'grilled chicken breast', 'white rice', 'wagyu beef patty', 'burger bun'. Keep meaningful qualifiers that change the nutrition (wagyu, 80/20, skin-on, breaded, deli); drop quantities.",
               },
               category: {
                 type: "string",
@@ -843,7 +846,16 @@ const mealAnalysisTool = {
                 type: "number",
                 description: "Identification confidence, 0 to 1.",
               },
-              grams: { type: "number", description: "Estimated portion size in grams." },
+              portionBasis: {
+                type: "string",
+                description:
+                  "Show your working for the portion BEFORE giving grams: the stated or visible amount and the conversion, e.g. '8 oz stated → 227 g', '3 large eggs × 50 g = 150 g', '2 deli slices × 28 g = 56 g', 'covers half a 26 cm plate, ~1.5 cm deep → ~180 g'.",
+              },
+              grams: {
+                type: "number",
+                description:
+                  "Portion size in GRAMS as a plain number (never ounces, never a string with a unit). Must agree with portionBasis. 1 oz = 28 g, 1 lb = 454 g.",
+              },
               portionConfidence: {
                 type: "number",
                 description: "Confidence in the portion-size estimate, 0 to 1 (separate from identification).",
@@ -915,20 +927,127 @@ const mealAnalysisTool = {
   },
 };
 
+
+// ---- Shared per-item grounding for both meal analyzers ------------------------
+//
+// One place, so the photo and the text route can't drift. The model reports WHAT
+// it saw/read and HOW MUCH; this turns that into macros:
+//   1. grams: parsed defensively (models sometimes send "227g" / "8 oz" / an
+//      ounce count; a bare Number() made those NaN → a silent 100 g default).
+//   2. database lookup with a match strength (exact / strong / partial).
+//   3. reconcile against the model's own fallback estimate: the database wins
+//      when the two broadly agree, the model wins when they are wildly apart —
+//      which is the signature of a wrong entry ("ham and cheese omelette" →
+//      cheese) or the wrong basis (a whole-burger entry scaled by patty weight).
+//      That combination is what turned a ~1,500 kcal burrito-plus-burger into
+//      645 kcal on the first TestFlight build.
+interface RawFood {
+  detectedName?: string;
+  category?: string;
+  alternatives?: unknown;
+  confidence?: number;
+  portionBasis?: string;
+  grams?: unknown;
+  portionConfidence?: number;
+  cookingMethod?: string;
+  skinOn?: boolean;
+  breaded?: boolean;
+  estCalories?: number;
+  estProtein?: number;
+  estCarbs?: number;
+  estFat?: number;
+}
+
+const ALLOWED_CATEGORIES = new Set([
+  "protein", "carb", "fat", "vegetable", "fruit", "dairy", "sauce", "drink", "dessert", "other",
+]);
+const ALLOWED_METHODS = new Set<string>([
+  "raw", "grilled", "baked", "roasted", "steamed", "boiled", "sauteed", "fried", "deep_fried", "unknown",
+]);
+const num01 = (n: unknown) => Math.min(1, Math.max(0, Number(n) || 0));
+const roundNonNeg = (n: unknown) => Math.max(0, Math.round(Number(n) || 0));
+const clampGrams = (raw: unknown) => {
+  const parsed = parseGrams(raw);
+  return Math.min(2000, Math.max(1, Math.round(parsed ?? 100)));
+};
+
+function groundReportedFoods(rawFoods: RawFood[]) {
+  return rawFoods
+    .filter((f): f is RawFood => !!f && typeof f.detectedName === "string" && f.detectedName.trim() !== "")
+    .map((f) => {
+      const detectedName = f.detectedName!.trim();
+      const grams = clampGrams(f.grams);
+      const cookingMethod: CookingMethod = ALLOWED_METHODS.has(String(f.cookingMethod))
+        ? (String(f.cookingMethod) as CookingMethod)
+        : "unknown";
+      const skinOn = f.skinOn === true;
+      const breaded = f.breaded === true;
+      const estimate: FoodMacros | null =
+        Number(f.estCalories) > 0
+          ? {
+              calories: roundNonNeg(f.estCalories),
+              protein: roundNonNeg(f.estProtein),
+              carbs: roundNonNeg(f.estCarbs),
+              fat: roundNonNeg(f.estFat),
+            }
+          : null;
+      const match = matchFoodDetailed(detectedName);
+      let macros: FoodMacros;
+      let source: "internal" | "estimated";
+      let dbMatch: string | null = null;
+      let foodId: string | null = null;
+      if (match) {
+        // Database base + cooking-method adjustment (absorbed oil, skin,
+        // breading), then sanity-checked against the model's own number.
+        const grounded = groundedMacros(match.food, grams, { method: cookingMethod, skinOn, breaded });
+        const chosen = reconcileWithEstimate(grounded, estimate, match.strength);
+        macros = chosen.macros;
+        source = chosen.source;
+        if (chosen.source === "internal") {
+          dbMatch = match.food.canonicalName;
+          foodId = match.food.id;
+        }
+      } else {
+        // The model's fallback already reflects the described cooking, so the
+        // adjustment is NOT re-applied here (it would double-count).
+        macros = estimate ?? { calories: 0, protein: 0, carbs: 0, fat: 0 };
+        source = "estimated";
+      }
+      const category = ALLOWED_CATEGORIES.has(String(f.category)) ? String(f.category) : "other";
+      return {
+        detectedName,
+        dbMatch,
+        foodId,
+        category,
+        alternatives: Array.isArray(f.alternatives)
+          ? f.alternatives.filter((a): a is string => typeof a === "string").slice(0, 5)
+          : [],
+        confidence: num01(f.confidence),
+        portionConfidence: num01(f.portionConfidence),
+        grams,
+        source,
+        cookingMethod,
+        skinOn,
+        breaded,
+        ...macros,
+      };
+    });
+}
+
 const MEAL_ANALYSIS_SYSTEM_PROMPT = [
   "You are ALLUR's food recognition assistant inside a fitness tracking app.",
   "Analyze the uploaded meal photo. Your job is to IDENTIFY each visible food and ESTIMATE its portion — NOT to determine final nutrition numbers (the app looks macros up in a database).",
   "",
   "## Rules",
-  "1. Identify each visible food item separately.",
-  "2. Estimate portion size in grams for each item. Use MULTIPLE visual signals: plate/bowl diameter (a dinner plate is ~26cm/10in), the food's size relative to the plate, its volume, depth/thickness, number of distinct pieces, density, and whether it looks cooked or raw. Anchor to common serving-size references (a deck of cards ≈ 85g meat; a fist ≈ 1 cup; a cupped hand ≈ 40g of nuts/grains).",
+  "1. Identify each visible food item separately, and break composite dishes into their components (burger → patty, bun, cheese, sauce; burrito → tortilla + fillings; sandwich → bread + fillings). One entry per component, each with its own grams.",
+  "2. Estimate portion size in grams for each item, and write the working in portionBasis first. Use MULTIPLE visual signals: plate/bowl diameter (a dinner plate is ~26cm/10in), the food's size relative to the plate, its volume, depth/thickness, number of distinct pieces, density, and whether it looks cooked or raw. Anchor to common serving-size references (a deck of cards ≈ 85g meat; a fist ≈ 1 cup; a cupped hand ≈ 40g of nuts/grains).",
   "3. Give an identification confidence (0-1) AND a separate portion confidence (0-1) for each item.",
   "4. Do not invent certainty. If unsure whether an item is chicken/salmon/pork/tofu, rice/pasta/potato, etc., list the top alternatives and lower the confidence.",
   "5. For EACH item, judge the cooking method (raw/grilled/baked/roasted/steamed/boiled/sauteed/fried/deep_fried, or 'unknown' if not visually clear), whether poultry/fish skin is left on (skinOn), and whether it has a breaded/battered/fried coating (breaded). These drive hidden cooking-oil calories — the app adds them on top of the database base, so report what you SEE rather than guessing high.",
   "6. If identification confidence is below 0.80 for a food that meaningfully affects macros (protein, carb, large fat source), add a clarification question with simple options.",
   "7. Detect likely hidden calorie sources (oil, butter, dressing, sauce, frying, cheese, cream, added sugar) and add a hidden-calorie risk to confirm.",
   "8. Do NOT ask about or over-prioritize tiny garnishes (lettuce, cucumber, tomato, herbs, lemon, spices).",
-  "9. Provide a rough fallback macro estimate per item in case the food isn't in the database. Keep it internally consistent (protein×4 + carbs×4 + fat×9 ≈ calories).",
+  "9. Provide a fallback macro estimate per item for the grams you set, using standard nutrition knowledge for that food AS DESCRIBED (a 227 g wagyu patty is ~650-750 kcal; a 55 g bun ~150 kcal; a deli slice of ham ~40 kcal). The app cross-checks its database against this number, so make it a real estimate, not a placeholder. Keep it internally consistent (protein×4 + carbs×4 + fat×9 ≈ calories).",
   "10. Set biggestUncertainty to the ONE thing that most limits this estimate's accuracy, in plain language (often the amount of cooking oil, a hidden sauce, or an obscured portion).",
   "11. Be conservative and transparent. Never claim exact precision — these are estimates. Never shame the user's food choices.",
   "12. If the photo is NOT food (a person, object, or scene), set isFood=false and return empty arrays.",
@@ -992,21 +1111,6 @@ router.post(
         return;
       }
 
-      interface RawFood {
-        detectedName?: string;
-        category?: string;
-        alternatives?: unknown;
-        confidence?: number;
-        grams?: number;
-        portionConfidence?: number;
-        cookingMethod?: string;
-        skinOn?: boolean;
-        breaded?: boolean;
-        estCalories?: number;
-        estProtein?: number;
-        estCarbs?: number;
-        estFat?: number;
-      }
       let args: {
         isFood?: boolean;
         name?: string;
@@ -1031,72 +1135,7 @@ router.post(
         return;
       }
 
-      const ALLOWED_CATEGORIES = new Set([
-        "protein", "carb", "fat", "vegetable", "fruit", "dairy", "sauce", "drink", "dessert", "other",
-      ]);
-      const ALLOWED_METHODS = new Set([
-        "raw", "grilled", "baked", "roasted", "steamed", "boiled", "sauteed", "fried", "deep_fried", "unknown",
-      ]);
-      const num01 = (n: unknown) => Math.min(1, Math.max(0, Number(n) || 0));
-      const clampGrams = (n: unknown) => Math.min(2000, Math.max(1, Math.round(Number(n) || 0) || 100));
-      const r = (n: unknown) => Math.max(0, Math.round(Number(n) || 0));
-
-      const rawFoods = Array.isArray(args.foods) ? args.foods : [];
-      const foods = rawFoods
-        .filter((f): f is RawFood => !!f && typeof f.detectedName === "string" && f.detectedName.trim() !== "")
-        .map((f) => {
-          const detectedName = f.detectedName!.trim();
-          const grams = clampGrams(f.grams);
-          const cookingMethod: CookingMethod = ALLOWED_METHODS.has(String(f.cookingMethod))
-            ? (String(f.cookingMethod) as CookingMethod)
-            : "unknown";
-          const skinOn = f.skinOn === true;
-          const breaded = f.breaded === true;
-          const match = matchFood(detectedName);
-          let macros: FoodMacros;
-          let source: "internal" | "estimated";
-          let dbMatch: string | null;
-          let foodId: string | null;
-          if (match) {
-            // Grounded in the DB base + a cooking-method adjustment (absorbed oil,
-            // skin, breading) so the estimate reflects how it was actually cooked.
-            macros = groundedMacros(match, grams, { method: cookingMethod, skinOn, breaded });
-            source = "internal";
-            dbMatch = match.canonicalName;
-            foodId = match.id;
-          } else {
-            // The model's fallback estimate already reflects the visible cooking, so
-            // we do NOT re-apply the adjustment here (would double-count).
-            macros = {
-              calories: r(f.estCalories),
-              protein: r(f.estProtein),
-              carbs: r(f.estCarbs),
-              fat: r(f.estFat),
-            };
-            source = "estimated";
-            dbMatch = null;
-            foodId = null;
-          }
-          const category = ALLOWED_CATEGORIES.has(String(f.category)) ? String(f.category) : "other";
-          return {
-            detectedName,
-            dbMatch,
-            foodId,
-            category,
-            alternatives: Array.isArray(f.alternatives)
-              ? f.alternatives.filter((a): a is string => typeof a === "string").slice(0, 5)
-              : [],
-            confidence: num01(f.confidence),
-            portionConfidence: num01(f.portionConfidence),
-            grams,
-            source,
-            cookingMethod,
-            skinOn,
-            breaded,
-            ...macros,
-          };
-        });
-
+      const foods = groundReportedFoods(Array.isArray(args.foods) ? args.foods : []);
       const totals = sumMacros(foods.map((f) => ({ calories: f.calories, protein: f.protein, carbs: f.carbs, fat: f.fat })));
       const minConfidence = foods.length ? Math.min(...foods.map((f) => f.confidence)) : 0.5;
 
@@ -1163,13 +1202,14 @@ const MEAL_TEXT_SYSTEM_PROMPT = [
   "The user will DESCRIBE a meal they ate in plain language (often dictated by voice, so expect filler words and loose phrasing). Your job is to IDENTIFY each food mentioned and ESTIMATE its portion — NOT to determine final nutrition numbers (the app looks macros up in a database).",
   "",
   "## Rules",
-  "1. Identify each distinct food item mentioned. Interpret casual language ('a bowl of', 'a handful', 'some', 'a plate of').",
-  "2. Estimate portion size in grams for each item. Use the user's stated amounts when given ('two eggs' ≈ 100g, 'a cup of rice' ≈ 160g cooked). When no amount is given, assume a TYPICAL single serving — never assume unusually large or small.",
+  "1. Identify each distinct food item mentioned, and break composite dishes into their components (a burger is patty + bun + cheese + sauce; a burrito is tortilla + each filling; a sandwich is bread + fillings; an omelette is eggs + fillings). One entry per component. Interpret casual language ('a bowl of', 'a handful', 'some', 'a plate of').",
+  "2. Estimate portion size in grams for each item and write the working in portionBasis FIRST, then grams. The user's stated amount is the truth — convert it, never round it away. Conversions: 1 oz = 28 g, 1 lb = 454 g, 1 large egg = 50 g, 1 deli slice of ham/turkey = 28 g, 1 slice of bread = 30 g, 1 slice of cheese = 21 g, 1 cup cooked rice/pasta = 160 g, 1 tbsp oil/butter/mayo = 14 g, 1 standard tortilla = 45 g (burrito-size 70 g), 1 burger bun = 55 g, 1 can of soda = 355 g. When a weight is given for a composite ('an 8 oz burger'), that weight is the MAIN COMPONENT (the patty); add the bun/cheese/sauce as their own items. When no amount is given, assume a TYPICAL single serving — never assume unusually large or small.",
   "3. Give an identification confidence (0-1) AND a separate portion confidence (0-1) for each item. Portion confidence should be lower than for photos unless the user stated exact amounts.",
-  "4. Use the cooking method if stated ('fried eggs', 'grilled chicken'); otherwise 'unknown'. Set skinOn/breaded only if stated or strongly implied.",
+  "4. Use the cooking method if stated ('fried eggs', 'grilled chicken'); otherwise 'unknown'. Set skinOn/breaded only if stated or strongly implied. Words like 'very oily', 'greasy', 'cooked in butter', 'smothered' mean real extra fat: set cookingMethod to fried/sauteed for that item AND add a hidden-calorie risk.",
+  "4b. Keep nutrition-relevant qualifiers in detectedName (wagyu, ribeye, 80/20, deli, skin-on, breaded, full-fat, sugar-free) — they change the numbers.",
   "5. If the description is ambiguous about a food that meaningfully affects macros, add a clarification question with simple options.",
   "6. Detect likely hidden calorie sources implied by the description (cooked in butter/oil, dressings, sauces, sugary drinks) and add a hidden-calorie risk to confirm.",
-  "7. Provide a rough fallback macro estimate per item in case the food isn't in the database. Keep it internally consistent (protein×4 + carbs×4 + fat×9 ≈ calories).",
+  "7. Provide a fallback macro estimate per item for the grams you set, using standard nutrition knowledge for that food AS DESCRIBED (a 227 g wagyu patty is ~650-750 kcal; a 55 g bun ~150 kcal; a deli slice of ham ~40 kcal; 3 eggs ~215 kcal). The app cross-checks its database against this number, so make it a real estimate, not a placeholder. Keep it internally consistent (protein×4 + carbs×4 + fat×9 ≈ calories).",
   "8. Set biggestUncertainty to the ONE thing that most limits this estimate's accuracy (usually portion sizes, since nothing is visible).",
   "9. Be conservative and transparent. Never claim exact precision. Never shame the user's food choices.",
   "10. If the description is NOT about food or eating, set isFood=false and return empty arrays.",
@@ -1222,21 +1262,6 @@ router.post(
         return;
       }
 
-      interface RawFood {
-        detectedName?: string;
-        category?: string;
-        alternatives?: unknown;
-        confidence?: number;
-        grams?: number;
-        portionConfidence?: number;
-        cookingMethod?: string;
-        skinOn?: boolean;
-        breaded?: boolean;
-        estCalories?: number;
-        estProtein?: number;
-        estCarbs?: number;
-        estFat?: number;
-      }
       let args: {
         isFood?: boolean;
         name?: string;
@@ -1261,68 +1286,7 @@ router.post(
         return;
       }
 
-      const ALLOWED_CATEGORIES = new Set([
-        "protein", "carb", "fat", "vegetable", "fruit", "dairy", "sauce", "drink", "dessert", "other",
-      ]);
-      const ALLOWED_METHODS = new Set([
-        "raw", "grilled", "baked", "roasted", "steamed", "boiled", "sauteed", "fried", "deep_fried", "unknown",
-      ]);
-      const num01 = (n: unknown) => Math.min(1, Math.max(0, Number(n) || 0));
-      const clampGrams = (n: unknown) => Math.min(2000, Math.max(1, Math.round(Number(n) || 0) || 100));
-      const r = (n: unknown) => Math.max(0, Math.round(Number(n) || 0));
-
-      const rawFoods = Array.isArray(args.foods) ? args.foods : [];
-      const foods = rawFoods
-        .filter((f): f is RawFood => !!f && typeof f.detectedName === "string" && f.detectedName.trim() !== "")
-        .map((f) => {
-          const detectedName = f.detectedName!.trim();
-          const grams = clampGrams(f.grams);
-          const cookingMethod: CookingMethod = ALLOWED_METHODS.has(String(f.cookingMethod))
-            ? (String(f.cookingMethod) as CookingMethod)
-            : "unknown";
-          const skinOn = f.skinOn === true;
-          const breaded = f.breaded === true;
-          const match = matchFood(detectedName);
-          let macros: FoodMacros;
-          let source: "internal" | "estimated";
-          let dbMatch: string | null;
-          let foodId: string | null;
-          if (match) {
-            macros = groundedMacros(match, grams, { method: cookingMethod, skinOn, breaded });
-            source = "internal";
-            dbMatch = match.canonicalName;
-            foodId = match.id;
-          } else {
-            macros = {
-              calories: r(f.estCalories),
-              protein: r(f.estProtein),
-              carbs: r(f.estCarbs),
-              fat: r(f.estFat),
-            };
-            source = "estimated";
-            dbMatch = null;
-            foodId = null;
-          }
-          const category = ALLOWED_CATEGORIES.has(String(f.category)) ? String(f.category) : "other";
-          return {
-            detectedName,
-            dbMatch,
-            foodId,
-            category,
-            alternatives: Array.isArray(f.alternatives)
-              ? f.alternatives.filter((a): a is string => typeof a === "string").slice(0, 5)
-              : [],
-            confidence: num01(f.confidence),
-            portionConfidence: num01(f.portionConfidence),
-            grams,
-            source,
-            cookingMethod,
-            skinOn,
-            breaded,
-            ...macros,
-          };
-        });
-
+      const foods = groundReportedFoods(Array.isArray(args.foods) ? args.foods : []);
       const totals = sumMacros(foods.map((f) => ({ calories: f.calories, protein: f.protein, carbs: f.carbs, fat: f.fat })));
       const minConfidence = foods.length ? Math.min(...foods.map((f) => f.confidence)) : 0.5;
 
