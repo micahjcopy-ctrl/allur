@@ -36,3 +36,11 @@ export const BODY_TYPE_OPTIONS: { id: BodyTypeId; label: string }[] = [
 // falls back to the illustrated silhouette above, so the step never looks broken.
 export const bodyTypeImagePath = (gender: string, id: BodyTypeId): string =>
   `${import.meta.env.BASE_URL}bodytypes/${gender === "Female" ? "women" : "men"}-start-${id}.jpg`;
+
+/**
+ * Which genders actually have the five photos on disk. Add "women" here the
+ * moment public/bodytypes/women-start-{lean,soft,over,plateau,fit}.jpg exist
+ * (720×1080, same dark studio style as the men's set). Until then the women's
+ * cards render the silhouettes without requesting files that aren't there.
+ */
+export const BODY_TYPE_PHOTO_GENDERS: ReadonlySet<"men" | "women"> = new Set(["men"]);
