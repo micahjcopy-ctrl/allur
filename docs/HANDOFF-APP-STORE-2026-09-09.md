@@ -139,6 +139,52 @@
 > pbxproj copies. Archived and uploading from Xcode ~2:30 PM. Once processed:
 > swap the attached build on version 1.0 to (3), Micah re-tests, then the
 > purchase tests, then Add for Review on his go.
+>
+> Later 2026-09-22: 1.0 (3) processed, attached to version 1.0, saved.
+> **Build 3 works on the phone** — Micah reached the dashboard and logged a
+> meal from the Macros screen.
+>
+> **2026-09-23 — meal estimator was badly under-counting.** He described "a
+> tortilla, 3 eggs, 2 slices of ham, plus an 8 oz wagyu beef burger with
+> cheese, very oily" and got **645 kcal / 37 g protein** (realistic:
+> ~1,500–1,700). His macros matched the burrito alone — the burger was
+> effectively lost. Root causes, all server-side (no iOS rebuild needed):
+>
+> - `lib/nutrition` had 43 foods: no ham, no wagyu, no patty, no bun; "burger"
+>   was one whole-sandwich composite (250 kcal/100 g) that undercounts when
+>   scaled by patty weight. Substring matching sent "ham and cheese omelette"
+>   to Cheese and "chicken wrap" to Chicken breast at whole-wrap grams.
+> - `Number(grams)` on a string like "8 oz"/"227g" was NaN → silent 100 g.
+> - The model was told to identify and size, but not to show its portion
+>   working or to decompose dishes.
+>
+> Fixed on main (56e19e0, 448e177; Vercel green):
+> - DB → ~165 entries via a compact row table in `foods.ts` (deli meats,
+>   wagyu/fatty beef, buns, sausages, wings, sauces, drinks, restaurant
+>   dishes, sweets, nuts, produce). 80/20 ground beef doubles as "beef
+>   patty"; Burrito doubles as "wrap"; Tortilla no longer claims "wrap".
+> - `matchFoodDetailed()` strips quantities/units/filler ("2 slices of ham"
+>   → ham), keys the head noun on the text before "with/plus/on/…" (so
+>   "wagyu burger with cheese" is the burger), and reports strength
+>   exact/strong/partial. `matchFood()` is kept for the client.
+> - `parseGrams()` reads "8 oz" / "227g" / "0.5 lb".
+> - `reconcileWithEstimate()`: DB number vs the model's own per-item estimate;
+>   if they differ by more than 2.5× (exact) / 2.2× (strong) / 1.6× (partial)
+>   the model's number wins and the item is marked `estimated` — the
+>   signature of a wrong entry or wrong basis.
+> - Both analyzer routes now share `groundReportedFoods()` in `coach.ts`.
+>   Tool schema gained `portionBasis` (required, before `grams`) so the model
+>   writes "8 oz stated → 227 g" before the number; prompts got a unit table,
+>   the composite-decomposition rule (patty + bun + cheese), the "very oily
+>   ⇒ fried + hidden-calorie risk" rule, and "make estCalories a real
+>   estimate, the app cross-checks it".
+> - Tests: `lib/nutrition/src/index.test.ts` (bun test, 16 pass) including
+>   the exact meal → ~1,700 kcal / 92 g protein when decomposed.
+>
+> Not yet verified against the live model (Micah was not signed in to
+> getallur.com on the web, and the sandbox has no OpenAI key). He is
+> re-logging the same meal on the phone. If it is still low, next lever is
+> the model itself: `OPENAI_CHAT_MODEL` env on Vercel defaults to `gpt-4o`.
 
 > **Status update 2026-09-11 (chat 2, later).** Supersedes the 09-10 block below
 > where they differ.
