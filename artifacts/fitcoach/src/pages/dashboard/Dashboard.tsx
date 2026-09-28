@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { X, Activity, Camera, Mic, Target, Flame, Zap, UtensilsCrossed, Gift, ChevronRight, Moon, CheckCircle2 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { isEnabled } from "@/lib/features";
+import { BASE_MONTHLY_CREDITS } from "@/lib/subscription";
 import { WelcomeTour, hasSeenTour } from "@/components/WelcomeTour";
 import { GettingStarted } from "@/components/GettingStarted";
 import { NotificationsBell } from "@/components/NotificationsBell";
@@ -424,16 +425,23 @@ export default function Dashboard() {
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>AI Coaching</span>
-                    <span className="font-medium">{credits.coaching} / 4</span>
+                    <span className="font-medium">{credits.coaching} / {BASE_MONTHLY_CREDITS.coaching}</span>
                   </div>
-                  <Progress value={(credits.coaching / 4) * 100} className="h-1.5" />
+                  <Progress value={Math.min(100, (credits.coaching / BASE_MONTHLY_CREDITS.coaching) * 100)} className="h-1.5" />
                 </div>
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span>Photo Uploads</span>
-                    <span className="font-medium">{credits.photo} / 4</span>
+                    <span>Meal Logs</span>
+                    <span className="font-medium">{credits.photo} / {BASE_MONTHLY_CREDITS.photo}</span>
                   </div>
-                  <Progress value={(credits.photo / 4) * 100} className="h-1.5" />
+                  <Progress value={Math.min(100, (credits.photo / BASE_MONTHLY_CREDITS.photo) * 100)} className="h-1.5" />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Body Scans</span>
+                    <span className="font-medium">{credits.bodyScan} / {BASE_MONTHLY_CREDITS.bodyScan}</span>
+                  </div>
+                  <Progress value={Math.min(100, (credits.bodyScan / BASE_MONTHLY_CREDITS.bodyScan) * 100)} className="h-1.5" />
                 </div>
               </>
             )}
