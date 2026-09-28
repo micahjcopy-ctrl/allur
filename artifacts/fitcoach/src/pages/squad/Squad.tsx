@@ -220,7 +220,7 @@ export default function Squad() {
     if (!data) return;
     try {
       await navigator.clipboard.writeText(
-        `Join my squad on ALLUR — use invite code ${data.inviteCode} in the Squad tab. https://allur-mauve.vercel.app`,
+        `Join my squad on ALLUR — use invite code ${data.inviteCode} in the Squad tab. https://www.getallur.com`,
       );
       toast({ title: "Invite copied", description: "Send it to a friend." });
     } catch {
