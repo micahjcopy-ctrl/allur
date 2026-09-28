@@ -30,16 +30,18 @@ export default function Terms() {
       <LegalSection heading="Subscriptions and billing">
         <ul className="list-disc space-y-1 pl-5">
           <li>
-            ALLUR offers a Free tier and paid plans (Base and Premium). Paid plans are billed through
-            Stripe on a recurring basis until cancelled.
+            ALLUR is a paid subscription. ALLUR Base is available monthly or annually. In the iOS
+            app, billing is handled by Apple through your Apple ID; on the web, by Stripe.
           </li>
           <li>
-            Paid plans are billed immediately when you subscribe — there is no free trial. Base is
-            available monthly or annually and renews automatically at the stated price until cancelled.
+            You are billed when you subscribe — there is no free trial — and your plan renews
+            automatically at the stated price until cancelled.
           </li>
           <li>
-            You can cancel anytime from your Account settings; access continues until the end of the
-            current billing period. Except where required by law, payments are non-refundable.
+            Cancel anytime: in the iOS app through your Apple ID subscription settings, or on the web
+            from your Account settings. Access continues until the end of the current billing period.
+            Except where required by law, payments are non-refundable; App Store purchases follow
+            Apple&apos;s refund policy.
           </li>
           <li>Prices and plan features may change, with notice for active subscribers.</li>
         </ul>
