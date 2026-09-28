@@ -263,7 +263,7 @@ export default function AllurScoreDetail() {
           <CardContent className="p-5 space-y-4">
             <SectionTitle icon={Dumbbell}>Training</SectionTitle>
             <div className="grid grid-cols-3 gap-3">
-              <Stat label="Day streak" value={workoutStreak} icon={Flame} />
+              <Stat label="Day streak" value={streak.currentStreak} icon={Flame} />
               <Stat label="This week" value={workoutsThisWeek} />
               <Stat label="Total logged" value={totalWorkouts} />
             </div>
