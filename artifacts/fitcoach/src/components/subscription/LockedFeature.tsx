@@ -2,8 +2,10 @@ import React from "react";
 import { Lock, Loader2, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 import { startCheckout, PLAN_PRICES } from "@/lib/subscription";
 import { useFitCoach } from "@/context/FitCoachContext";
+import { isNative } from "@/lib/native";
 
 interface LockedFeatureProps {
   title: string;
@@ -17,11 +19,18 @@ interface LockedFeatureProps {
 export function LockedFeature({ title, description }: LockedFeatureProps) {
   const { subscription } = useFitCoach();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const [loading, setLoading] = React.useState(false);
 
   const everSubscribed = subscription?.hasEverSubscribed ?? false;
 
   const onSubscribe = async () => {
+    // On device the only permitted way to subscribe is StoreKit, which lives
+    // on /paywall (Apple guideline 3.1.1). Stripe Checkout is web-only.
+    if (isNative()) {
+      navigate("/paywall");
+      return;
+    }
     setLoading(true);
     try {
       await startCheckout("base");
