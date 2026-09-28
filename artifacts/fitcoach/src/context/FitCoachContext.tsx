@@ -32,6 +32,7 @@ import { emitCelebration } from "@/lib/celebrationBus";
 import { isNewScoreHigh, crossedMilestone } from "@/lib/celebration";
 import { nutritionGoalMet, nutritionGoalMessage } from "@/lib/nutritionGoal";
 import { readOnboardingStash, clearOnboardingStash } from "@/lib/onboardingStash";
+import { repairMojibakeDeep } from "@/lib/repairText";
 
 export type { ProgramMeta } from "@/data/trainingKnowledge";
 
@@ -1183,7 +1184,13 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
     if (!isFetched) return; // wait for the read to settle (success or error)
 
     if (isSuccess) {
-      const saved = (remoteState?.state ?? null) as unknown as PersistedFitCoachState | null;
+      // Saved states written between 2026-07-29 and iOS build 7 carry plan
+      // titles with double-encoded dashes ("Full Body â\u0080\u0094 Squat
+      // Focus"). Repair on the way in; the debounced writer then persists the
+      // clean text, so each account is fixed once. No-op for clean states.
+      const saved = repairMojibakeDeep(
+        (remoteState?.state ?? null) as unknown as PersistedFitCoachState | null,
+      );
       if (saved) {
         hydrateFrom(saved);
       } else {
@@ -1197,7 +1204,9 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
       // account routes straight to the paywall with no onboarding-screen flash;
       // the debounced writer below then persists it. Returning, already-onboarded
       // accounts keep their real data and just drop the stale stash.
-      const stash = readOnboardingStash();
+      // Same repair for a plan built by an older bundle and stashed before
+      // the app updated underneath it.
+      const stash = repairMojibakeDeep(readOnboardingStash());
       if (stash && stash.plan.length > 0 && !(saved && saved.onboardingComplete)) {
         const stashedProfile = { ...EMPTY_PROFILE, ...stash.profile };
         stashedProfile.targetPhysique = normalizePhysique(stashedProfile.targetPhysique);
