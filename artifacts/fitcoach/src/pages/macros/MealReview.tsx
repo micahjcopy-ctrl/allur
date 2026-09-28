@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { useFitCoach, type MacroBreakdown } from "@/context/FitCoachContext";
 import { useToast } from "@/hooks/use-toast";
 import { OUT_OF_CREDITS_STATUS, outOfCreditsToast } from "@/lib/credits";
+import { apiFetch } from "@/lib/apiOrigin";
 import { awardReps, completeQuest } from "@/lib/reps";
 import {
   Check,
@@ -434,8 +435,9 @@ export default function MealReview({
     }
     setReanalyzing(true);
     try {
-      const base = import.meta.env.BASE_URL.replace(/\/+$/, "");
-      const res = await fetch(`${base}/api/coach/analyze-meal`, {
+      // apiFetch resolves the API origin and attaches the native bearer token
+      // (a bare fetch 404s inside the iOS app).
+      const res = await apiFetch(`/api/coach/analyze-meal`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
