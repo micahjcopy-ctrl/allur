@@ -20,6 +20,7 @@ import { Check, Star, Zap, User, Users, LogOut, Loader2, Scale, AlertTriangle, T
 
 import { apiFetch, setAuthToken } from "@/lib/apiOrigin";
 import { iapAvailable, openStoreSubscriptionSettings, restorePurchases } from "@/lib/iap";
+import { isNative } from "@/lib/native";
 
 function formatDate(iso: string | null): string | null {
   if (!iso) return null;
@@ -70,7 +71,10 @@ export default function Account() {
   // On device the only legal purchase path is StoreKit (Guideline 3.1.1):
   // Base is bought on the in-app paywall and Premium — a Stripe-only tier —
   // is not offered at all. Stripe Checkout must never open inside the app.
-  const native = iapAvailable();
+  // `isNative()` (runtime) decides the route: a native binary built without
+  // the RevenueCat key must still never fall through to Stripe — the paywall
+  // then fails loudly instead. `iapAvailable()` only decides IAP-only UI.
+  const native = isNative() || iapAvailable();
 
   const handleCheckout = async (target: PlanTag) => {
     if (native) {
