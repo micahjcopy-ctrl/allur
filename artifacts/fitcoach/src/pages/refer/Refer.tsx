@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { Gift, Copy, Share2, Check, ChevronLeft, Sparkles, Users, Loader2 } from "lucide-react";
 
 import { apiFetch } from "@/lib/apiOrigin";
-const APP_URL = "https://allur-mauve.vercel.app";
+const APP_URL = "https://www.getallur.com";
 
 interface ReferralStatus {
   code: string;
@@ -103,7 +103,7 @@ export default function Refer() {
             <span className="text-primary">Get a month.</span>
           </h1>
           <p className="text-muted-foreground max-w-xs mx-auto">
-            Every friend who starts their trial with your link gets a free month of Premium — and so do you.
+            Every friend who subscribes with your link gets a free month of Premium — and so do you.
             No cap. Refer 12 friends, get a free year.
           </p>
         </div>
@@ -198,7 +198,7 @@ export default function Refer() {
               )}
               {data.pending > 0 && !data.premiumUntil && (
                 <p className="text-[11px] text-center text-muted-foreground">
-                  {data.pending} friend{data.pending > 1 ? "s" : ""} signed up — your reward lands the moment they start their trial.
+                  {data.pending} friend{data.pending > 1 ? "s" : ""} signed up — your reward lands the moment they subscribe.
                 </p>
               )}
             </CardContent>
@@ -212,7 +212,7 @@ export default function Refer() {
           </p>
           {[
             "Share your link with a friend.",
-            "They sign up and start their 14-day free trial.",
+            "They sign up and subscribe to ALLUR Base.",
             "You both get a free month of Premium — instantly.",
           ].map((step, i) => (
             <div key={step} className="flex items-start gap-3">
