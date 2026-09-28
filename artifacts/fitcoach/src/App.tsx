@@ -150,6 +150,16 @@ function AuthGate() {
   useEffect(() => {
     if (location === "/admin") return;
     if (location === "/reset-password") return;
+    // Website-only pages. On native they don't exist: the web tiers are not
+    // sold in-app (Apple 3.1.1) and "Get the app" is meaningless inside it.
+    // Send the app to its root instead; RouteGuard takes it from there.
+    const webOnly =
+      location === "/get" || location === "/pricing" || location === "/features" ||
+      location === "/about" || location === "/home";
+    if (native && webOnly) {
+      setLocation("/");
+      return;
+    }
     if (location === "/get") return;
     if (location === "/privacy" || location === "/terms") return;
     if (location === "/about" || location === "/disclaimer") return;
@@ -334,8 +344,9 @@ function AuthGate() {
 
   return (
     <>
+      {/* "Add to Home Screen" is a web/PWA nudge; the native app IS installed. */}
       <InstallAppPrompt
-        open={showInstallPrompt}
+        open={showInstallPrompt && !native}
         onClose={() => setShowInstallPrompt(false)}
       />
       <RouteGuard />
