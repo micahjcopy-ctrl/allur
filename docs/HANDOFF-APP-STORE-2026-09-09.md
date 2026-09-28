@@ -285,6 +285,30 @@
 > purchase test on a fresh account (expect: Apple sheet → "You're in" →
 > dashboard; then kill/reopen → still in; Account → Restore works), then Add
 > for Review only on his explicit go.
+>
+> Same day, later: 1.0 (5) processed (TestFlight email 11:23 AM), attached
+> to version 1.0, saved. Add for Review enabled, untouched.
+>
+> **2026-09-28 — women's body-type photos are in.** Micah generated the five
+> women's figures in ChatGPT from prompts Claude wrote to match the men's set
+> (full body, front-facing, arms at sides, black sports bra + black shorts +
+> black sneakers, charcoal studio, cyan rim glow, 2:3). Resized 1024×1536 →
+> 720×1080 JPG (quality 88) into `public/bodytypes/women-start-{lean,soft,
+> over,plateau,fit}.jpg`; "women" added to `BODY_TYPE_PHOTO_GENDERS`
+> (ae12b53, 51cc32c). Playwright check (`docs/app-store/pipeline/walk_women.mjs`, native
+> shim, signed out): Female → 5/5 photos render at 720×1080, Male → 5/5,
+> toggle back → 5/5. **Build 1.0 (6) uploaded** ~12:46 PM PT
+> (`CURRENT_PROJECT_VERSION = 6`, 91f8702; bundle byte-identical to the
+> sandbox build, 163 files; old bundle in `_stale/public-20260928-*`).
+> Same Xcode recipe as build 5: first Product→Archive batch after clicking
+> the project window does nothing, the second batch (click Product, wait 1s,
+> click Archive) starts the archive; archive ~2 min, upload ~2 min.
+>
+> Micah has NOT yet reported the build-5 purchase re-test. Build 6 is the
+> one to test now: fresh account → onboarding (women's photos visible when
+> Female is picked) → buy monthly in sandbox → lands on dashboard →
+> kill/reopen → still in → Account → Restore works. Then Add for Review on
+> his explicit go.
 
 > **Status update 2026-09-11 (chat 2, later).** Supersedes the 09-10 block below
 > where they differ.
