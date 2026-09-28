@@ -74,13 +74,16 @@ Set these in Project → **Settings → Environment Variables** (see `.env.examp
 | `STRIPE_WEBHOOK_SECRET` | for billing | from the webhook you create in Step 6 |
 | `ADMIN_EMAILS` | no | comma-separated admin emails (unlimited access + `/admin`) |
 | `SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASS`/`EMAIL_FROM` | for email | password-reset delivery |
+| `CRON_SECRET` | for reminders | any long random string; Vercel sends it with cron requests. Without it `/api/cron/*` refuses to run |
+| `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT` | for web push | `npx web-push generate-vapid-keys` |
+| `REVENUECAT_SECRET_API_KEY`/`REVENUECAT_WEBHOOK_SECRET` | for iOS billing | RevenueCat dashboard |
 
 Then **Deploy** (or Redeploy).
 
 ## Step 5 — Stripe products (for billing)
 
 Create two recurring products in Stripe with a `plan` metadata key:
-- "ALLUR Base" → `metadata.plan = base` ($12.99/mo)
+- "ALLUR Base" → `metadata.plan = base` ($10.99/mo, $69/yr)
 - "ALLUR Premium" → `metadata.plan = premium` ($29.99/mo)
 
 The price lookup matches on `metadata.plan` (or the legacy product names above).
