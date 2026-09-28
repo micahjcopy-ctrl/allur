@@ -55,8 +55,33 @@ function UnitToggle({
   );
 }
 
+
+// Unit toggles convert the value they label, so 84 kg becomes 185.2 lb rather
+// than "84 lb". Height converts cm ⇄ ft'in" the same way.
+const LB_PER_KG = 2.2046226218;
+function convertWeight(value: string, from: "kg" | "lb", to: "kg" | "lb"): string {
+  const n = parseFloat(value);
+  if (from === to || !Number.isFinite(n)) return value;
+  const out = to === "lb" ? n * LB_PER_KG : n / LB_PER_KG;
+  return String(Math.round(out * 10) / 10);
+}
+function convertHeight(value: string, from: "cm" | "ft", to: "cm" | "ft"): string {
+  if (from === to) return value;
+  if (to === "ft") {
+    const cm = parseFloat(value);
+    if (!Number.isFinite(cm) || cm <= 0) return value;
+    const totalIn = Math.round(cm / 2.54);
+    return `${Math.floor(totalIn / 12)}' ${totalIn % 12}"`;
+  }
+  const m = value.match(/(\d+)?\s*'\s*(\d+)?/);
+  const ft = parseInt(m?.[1] ?? "", 10);
+  const inch = parseInt(m?.[2] ?? "0", 10) || 0;
+  if (!Number.isFinite(ft) || ft <= 0) return value;
+  return String(Math.round(ft * 30.48 + inch * 2.54));
+}
+
 export default function Settings() {
-  const { profile, setProfile, goal, setGoal, featureToggles, setFeatureToggle } = useFitCoach();
+  const { profile, setProfile, setWeightUnit, goal, setGoal, featureToggles, setFeatureToggle } = useFitCoach();
   const { toast } = useToast();
   const [, navigate] = useLocation();
 
@@ -78,7 +103,16 @@ export default function Settings() {
 
   const handleSave = () => {
     setSaving(true);
-    setProfile(draft);
+    if (draft.weightUnit !== profile.weightUnit) {
+      // Persist the edited fields in the ORIGINAL unit, then let the context
+      // convert the profile weight AND every bodyweight log together, so the
+      // history is not silently reinterpreted in the new unit.
+      const originalUnit = profile.weightUnit;
+      setProfile({ ...draft, weightUnit: originalUnit, weight: convertWeight(draft.weight, draft.weightUnit, originalUnit) });
+      setWeightUnit(draft.weightUnit);
+    } else {
+      setProfile(draft);
+    }
     if (draftGoal !== goal) setGoal(draftGoal);
     toast({
       title: "Profile updated",
@@ -153,7 +187,10 @@ export default function Settings() {
                     { label: "ft/in", val: "ft" },
                   ]}
                   value={draft.heightUnit}
-                  onChange={(v) => set("heightUnit", v as UserProfile["heightUnit"])}
+                  onChange={(v) => {
+                    const unit = v as UserProfile["heightUnit"];
+                    setDraft((prev) => ({ ...prev, heightUnit: unit, height: convertHeight(prev.height, prev.heightUnit, unit) }));
+                  }}
                 />
               </div>
             </div>
@@ -175,7 +212,10 @@ export default function Settings() {
                     { label: "lb", val: "lb" },
                   ]}
                   value={draft.weightUnit}
-                  onChange={(v) => set("weightUnit", v as UserProfile["weightUnit"])}
+                  onChange={(v) => {
+                    const unit = v as UserProfile["weightUnit"];
+                    setDraft((prev) => ({ ...prev, weightUnit: unit, weight: convertWeight(prev.weight, prev.weightUnit, unit) }));
+                  }}
                 />
               </div>
             </div>
