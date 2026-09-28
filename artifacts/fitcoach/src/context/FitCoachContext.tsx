@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useMemo, useRef } from "react";
+import React, { createContext, useContext, useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { buildProgram, type ProgramMeta } from "@/data/trainingKnowledge";
 import { useAccount } from "@/context/AuthContext";
 import {
@@ -858,7 +858,19 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
   const [adminMode, setAdminMode] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
-  const macroTarget = computeMacroTarget(profile, goal);
+  // Targets follow the most recent logged bodyweight (same unit as the
+  // profile — setWeightUnit converts both), falling back to the onboarding
+  // weight. This is what "Adjusts from your logged weight" on the reveal
+  // promises; profile.weight itself stays the "Start" point for the chart.
+  const latestLoggedWeight = weightLogs.length
+    ? weightLogs.reduce((a, b) => (a.date > b.date ? a : b)).weight
+    : null;
+  const macroTarget = computeMacroTarget(
+    latestLoggedWeight != null && Number.isFinite(latestLoggedWeight) && latestLoggedWeight > 0
+      ? { ...profile, weight: String(latestLoggedWeight) }
+      : profile,
+    goal,
+  );
 
   // --- Cardio + feature toggles --------------------------------------------
   const featureToggles = useMemo(
@@ -1329,17 +1341,60 @@ export function FitCoachProvider({ children }: { children: React.ReactNode }) {
     setProgramStartDate(earliest ?? new Date().toISOString());
   }, [hydrated, onboardingComplete, programStartDate, progressPhotos, weightLogs]);
 
+  // The latest state the writer wants on the server, and whether the server
+  // has it. Lets a failed save be retried ("we'll keep retrying" has to be
+  // true) and lets the app flush on backgrounding instead of losing the last
+  // 800 ms of edits.
+  const pendingSaveRef = useRef<PersistedFitCoachState | null>(null);
+  const dirtyRef = useRef(false);
+  const flushSave = useCallback(() => {
+    const snapshot = pendingSaveRef.current;
+    if (!snapshot || !dirtyRef.current) return;
+    saveFitnessState(
+      { data: { state: slimForPersist(snapshot) as unknown as Record<string, unknown> } },
+      {
+        onSuccess: () => {
+          // Only clean if nothing newer arrived while the request was in flight.
+          if (pendingSaveRef.current === snapshot) dirtyRef.current = false;
+        },
+      },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saveFitnessState]);
+
   useEffect(() => {
     if (!userId) return;
     if (adminMode || adminTaintedRef.current) return;
     if (hydratedUserIdRef.current !== userId) return;
-    const handle = setTimeout(() => {
-      saveFitnessState({
-        data: { state: slimForPersist(persistable) as unknown as Record<string, unknown> },
-      });
-    }, 800);
+    pendingSaveRef.current = persistable;
+    dirtyRef.current = true;
+    const handle = setTimeout(flushSave, 800);
     return () => clearTimeout(handle);
-  }, [persistable, userId, adminMode, saveFitnessState]);
+  }, [persistable, userId, adminMode, flushSave]);
+
+  // Retry loop: while a save is still dirty (the mutation's own retries were
+  // exhausted, or the request never got out), try again every 20 s.
+  useEffect(() => {
+    if (!userId) return;
+    const timer = setInterval(() => {
+      if (dirtyRef.current) flushSave();
+    }, 20_000);
+    return () => clearInterval(timer);
+  }, [userId, flushSave]);
+
+  // Flush when the app is backgrounded or the tab is hidden, so a change made
+  // right before the user swipes away is not lost to the debounce.
+  useEffect(() => {
+    const onHide = () => {
+      if (document.visibilityState === "hidden") flushSave();
+    };
+    document.addEventListener("visibilitychange", onHide);
+    window.addEventListener("pagehide", flushSave);
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("pagehide", flushSave);
+    };
+  }, [flushSave]);
 
   // Premium (and the owner, who the server reports as premium) always have a
   // credit. For free users this is a UX pre-check against the cached server
