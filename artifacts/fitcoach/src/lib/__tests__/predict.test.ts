@@ -1,5 +1,5 @@
 // Run with: bun test src/lib/__tests__
-// Predictive next-set logic â must be conservative, unit-correct, explainable.
+// Predictive next-set logic — must be conservative, unit-correct, explainable.
 import { describe, expect, test } from "bun:test";
 import {
   estimateOneRepMax,
@@ -34,7 +34,7 @@ describe("helpers", () => {
   test("topTargetReps parses ranges, singles, en-dashes", () => {
     expect(topTargetReps("8-12")).toBe(12);
     expect(topTargetReps("10")).toBe(10);
-    expect(topTargetReps("8â10 reps")).toBe(10);
+    expect(topTargetReps("8–10 reps")).toBe(10);
     expect(topTargetReps("AMRAP")).toBe(0);
   });
 

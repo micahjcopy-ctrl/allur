@@ -1,5 +1,5 @@
 // Run with: bun test src/lib/__tests__
-// Auto PR detection â only genuine records, correct across kg/lb + reps.
+// Auto PR detection — only genuine records, correct across kg/lb + reps.
 import { describe, expect, test } from "bun:test";
 import { detectPRs, prHitToRecord } from "../prs";
 import type { SessionExercise, WorkoutSession } from "@/context/FitCoachContext";
