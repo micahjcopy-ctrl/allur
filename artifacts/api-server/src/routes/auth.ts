@@ -23,7 +23,7 @@ import {
   ResetPasswordBody,
   ResetPasswordResponse,
 } from "@workspace/api-zod";
-import { db, usersTable, passwordResetTokensTable } from "@workspace/db";
+import { db, usersTable, passwordResetTokensTable, sessionsTable } from "@workspace/db";
 import { and, eq, gt, isNull, or, sql } from "drizzle-orm";
 import { sendEmail } from "../lib/email";
 import { publicBaseUrl } from "../lib/appUrl";
@@ -333,21 +333,33 @@ router.post(
     const userId = req.user.id;
 
     try {
+      // Cancel every live Stripe subscription on the customer. (`users.
+      // stripeSubscriptionId` is never written anywhere, so it cannot be the
+      // source of truth — the customer id set at checkout is.)
       const rows = await db
-        .select({ sub: usersTable.stripeSubscriptionId })
+        .select({ customerId: usersTable.stripeCustomerId })
         .from(usersTable)
         .where(eq(usersTable.id, userId))
         .limit(1);
-      const subId = rows[0]?.sub;
-      if (subId) {
+      const customerId = rows[0]?.customerId;
+      if (customerId) {
         const stripe = await getUncachableStripeClient();
-        await stripe.subscriptions.cancel(subId);
+        const subs = await stripe.subscriptions.list({ customer: customerId, status: "all", limit: 20 });
+        for (const sub of subs.data) {
+          if (sub.status === "active" || sub.status === "trialing" || sub.status === "past_due" || sub.status === "unpaid") {
+            await stripe.subscriptions.cancel(sub.id);
+          }
+        }
       }
     } catch (err) {
       // Never block account deletion on a billing hiccup.
-      console.error("delete-account: stripe cancel failed", err);
+      req.log?.error?.({ err }, "delete-account: stripe cancel failed");
     }
 
+    // Every session of this user dies with the account: `sessions` has no FK
+    // to `users`, so a second device would otherwise stay "signed in" and
+    // 500 on its next write.
+    await db.delete(sessionsTable).where(sql`${sessionsTable.sess}->'user'->>'id' = ${userId}`);
     await db.delete(usersTable).where(eq(usersTable.id, userId));
 
     const sid = getSessionId(req);
@@ -491,6 +503,9 @@ router.post(
       .update(usersTable)
       .set({ passwordHash, updatedAt: new Date() })
       .where(eq(usersTable.id, claimed.userId));
+    // A reset usually means "someone else may have my password": every
+    // existing session is revoked so a hijacked one does not survive it.
+    await db.delete(sessionsTable).where(sql`${sessionsTable.sess}->'user'->>'id' = ${claimed.userId}`);
 
     res.json(ResetPasswordResponse.parse({ success: true }));
   },

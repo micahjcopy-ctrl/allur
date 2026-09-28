@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, iapEntitlementsTable } from "@workspace/db";
+import { db, iapEntitlementsTable, usersTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { getIapEntitlement } from "../lib/iap/entitlement";
 
@@ -30,7 +30,9 @@ const RC_API_BASE = "https://api.revenuecat.com/v1";
 
 /** Map RevenueCat's store names onto our column values. */
 function storeKey(store: string | undefined): string {
-  return store === "PLAY_STORE" ? "play_store" : "app_store";
+  // Webhooks send "PLAY_STORE"; the v1 REST API (used by /iap/refresh)
+  // sends "play_store". Normalise both.
+  return (store ?? "").toUpperCase() === "PLAY_STORE" ? "play_store" : "app_store";
 }
 
 /**
@@ -200,6 +202,20 @@ router.post("/iap/webhook", async (req: Request, res: Response) => {
   const userId = event.app_user_id ?? event.original_app_user_id ?? null;
   if (!userId) {
     res.status(200).json({ received: true });
+    return;
+  }
+  // RevenueCat also emits events for anonymous ids ($RCAnonymousID:…) and for
+  // users who have since deleted their account. Those are not ours to store —
+  // the FK would fail, we would answer 500, and RevenueCat would retry
+  // forever. Acknowledge and move on.
+  const [known] = await db
+    .select({ id: usersTable.id })
+    .from(usersTable)
+    .where(eq(usersTable.id, userId))
+    .limit(1);
+  if (!known) {
+    req.log?.info?.({ type: event.type, userId }, "RevenueCat event for an unknown app_user_id; ignored");
+    res.status(200).json({ received: true, ignored: true });
     return;
   }
 

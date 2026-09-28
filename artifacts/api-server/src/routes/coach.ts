@@ -36,7 +36,7 @@ import {
   type FoodMacros,
   type CookingMethod,
 } from "@workspace/nutrition";
-import { requireCredit } from "../lib/creditGuard";
+import { requireCredit, requireSubscriber } from "../lib/creditGuard";
 import { makeRateLimit } from "../lib/rateLimit";
 import { buildCoachSystemPrompt, buildPersonalizePlanPrompt } from "../lib/coachPrompt";
 import { normalizeCoachPlan } from "../lib/coachPlanNormalize";
@@ -241,10 +241,30 @@ async function runCoach(
   return CoachChatResponse.parse({ reply, planUpdated: false });
 }
 
+// Token-spend guard. The zod schemas cap nothing, so without this a single
+// request could carry megabytes of "conversation". 40k chars of history is
+// far more than the coach ever needs (the system prompt is ~20k); a single
+// 8k-char turn is a paragraph-heavy voice transcript, not a real message.
+const MAX_MESSAGE_CHARS = 8_000;
+const MAX_HISTORY_CHARS = 40_000;
+function messagesTooLong(messages: { content: string }[]): boolean {
+  let total = 0;
+  for (const m of messages) {
+    if (m.content.length > MAX_MESSAGE_CHARS) return true;
+    total += m.content.length;
+    if (total > MAX_HISTORY_CHARS) return true;
+  }
+  return false;
+}
+
 router.post("/coach/chat", rateLimit, async (req: Request, res: Response): Promise<void> => {
   const parsed = CoachChatBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request body." });
+    return;
+  }
+  if (messagesTooLong(parsed.data.messages)) {
+    res.status(413).json({ error: "That conversation is too long. Start a new chat." });
     return;
   }
 
@@ -266,13 +286,15 @@ router.post("/coach/chat", rateLimit, async (req: Request, res: Response): Promi
 // that must NOT burn one of the user's coaching credits at signup. Auth-gated
 // and rate-limited (same per-IP limiter) so it isn't a free-coaching backdoor.
 router.post("/coach/adapt-plan", rateLimit, async (req: Request, res: Response): Promise<void> => {
-  if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Please sign in to use this feature." });
-    return;
-  }
+  // Subscribers only (no credit): otherwise this is /coach/chat for free.
+  if (!(await requireSubscriber(req, res))) return;
   const parsed = CoachChatBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request body." });
+    return;
+  }
+  if (messagesTooLong(parsed.data.messages)) {
+    res.status(413).json({ error: "That conversation is too long. Start a new chat." });
     return;
   }
 
@@ -415,6 +437,8 @@ router.post(
   "/coach/personalize-plan",
   rateLimit,
   async (req: Request, res: Response): Promise<void> => {
+    // Runs after a (credit-charged) physique scan; subscribers only.
+    if (!(await requireSubscriber(req, res))) return;
     const parsed = PersonalizePlanBody.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: "Invalid request body." });
@@ -443,6 +467,10 @@ router.post("/coach/voice", rateLimit, async (req: Request, res: Response): Prom
   const parsed = CoachVoiceBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request body." });
+    return;
+  }
+  if (messagesTooLong(parsed.data.messages)) {
+    res.status(413).json({ error: "That conversation is too long. Start a new chat." });
     return;
   }
   const body = parsed.data;
@@ -514,6 +542,8 @@ router.post("/coach/voice", rateLimit, async (req: Request, res: Response): Prom
 // their injuries / dietary restrictions instead of typing. Unlike /coach/voice
 // this skips the coaching round-trip and TTS — it just returns the transcript.
 router.post("/coach/transcribe", rateLimit, async (req: Request, res: Response): Promise<void> => {
+  // Voice dictation on Plan and Nutrition — subscriber screens; never open.
+  if (!(await requireSubscriber(req, res))) return;
   const parsed = CoachTranscribeBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request body." });
@@ -1406,10 +1436,8 @@ router.post(
   "/coach/analyze-weight",
   visionRateLimit,
   async (req: Request, res: Response): Promise<void> => {
-    if (!req.isAuthenticated()) {
-      res.status(401).json({ error: "Please sign in to use this feature." });
-      return;
-    }
+    // In-session plate reading for subscribers; uncharged but never free-plan.
+    if (!(await requireSubscriber(req, res))) return;
     const parsed = AnalyzeWeightBody.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: "Invalid request body." });

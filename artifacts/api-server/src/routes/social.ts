@@ -15,6 +15,8 @@ import {
 } from "@workspace/db";
 import { and, desc, eq, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { getUserPlan } from "../lib/credits";
+import { hasActiveIapEntitlement } from "../lib/iap/entitlement";
+import { getSubscriptionSummary } from "../lib/stripe/plan";
 import { sendPushToUser, vapidPublicKey, pushConfigured } from "../lib/push";
 
 /* ===========================================================================
@@ -257,6 +259,20 @@ async function grantPremiumDays(userId: string, days: number) {
     .onConflictDoUpdate({ target: premiumGrantsTable.userId, set: { until, updatedAt: new Date() } });
 }
 
+// A real, currently-paid subscription (App Store / Play Store / Stripe).
+// Deliberately ignores premium_grants, COMPED_EMAILS and admin status.
+async function hasPaidSubscription(userId: string): Promise<boolean> {
+  if (await hasActiveIapEntitlement(userId)) return true;
+  const [u] = await db
+    .select({ stripeCustomerId: usersTable.stripeCustomerId })
+    .from(usersTable)
+    .where(eq(usersTable.id, userId))
+    .limit(1);
+  if (!u?.stripeCustomerId) return false;
+  const summary = await getSubscriptionSummary(userId);
+  return summary.plan !== "free" && summary.status !== null;
+}
+
 // Complete any of my referrals (either side) whose referred user has started a
 // trial. Idempotent: rewards both people once, then marks the row rewarded.
 async function settleReferrals(userId: string) {
@@ -270,9 +286,10 @@ async function settleReferrals(userId: string) {
       ),
     );
   for (const r of rows) {
-    // "Started a trial" = the referred user is no longer on the free plan.
-    const referredPlan = await getUserPlan(r.referredId);
-    if (referredPlan === "free") continue;
+    // "Subscribed" = the referred user PAID a store or Stripe — never a
+    // referral grant, comped or admin plan, otherwise one purchase cascades
+    // Premium down a whole referral chain.
+    if (!(await hasPaidSubscription(r.referredId))) continue;
     await db
       .update(referralsTable)
       .set({ status: "rewarded", rewardedAt: new Date() })
@@ -422,17 +439,22 @@ router.post("/squad/quest", async (req: Request, res: Response) => {
     return;
   }
   const type = `quest:${key}`;
-  const [already] = await db
-    .select()
-    .from(pointsEventsTable)
-    .where(and(eq(pointsEventsTable.userId, userId), eq(pointsEventsTable.type, type)))
-    .limit(1);
-  if (already) {
-    res.json({ awarded: 0, alreadyDone: true });
-    return;
-  }
-  await db.insert(pointsEventsTable).values({ userId, type, points: quest.points, day: resolveDay(req.body?.day) });
-  res.json({ awarded: quest.points, alreadyDone: false });
+  // Serialise concurrent claims of the same quest with a transaction-scoped
+  // advisory lock (no schema change, so production data with historical
+  // duplicates does not block a deploy). Inside the lock the select-then-insert
+  // is race-free.
+  const outcome = await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${userId + ":" + type}))`);
+    const [already] = await tx
+      .select({ id: pointsEventsTable.id })
+      .from(pointsEventsTable)
+      .where(and(eq(pointsEventsTable.userId, userId), eq(pointsEventsTable.type, type)))
+      .limit(1);
+    if (already) return { awarded: 0, alreadyDone: true };
+    await tx.insert(pointsEventsTable).values({ userId, type, points: quest.points, day: resolveDay(req.body?.day) });
+    return { awarded: quest.points, alreadyDone: false };
+  });
+  res.json(outcome);
 });
 
 // ---------------------------------------------------------------------------
@@ -487,6 +509,23 @@ router.post("/referral/claim", async (req: Request, res: Response) => {
   const [invite] = await db.select().from(squadInvitesTable).where(eq(squadInvitesTable.code, code));
   if (!invite || invite.userId === userId) {
     res.json({ success: false });
+    return;
+  }
+  // No loops: the code's owner must not have been referred by the claimant.
+  const [loop] = await db
+    .select({ id: referralsTable.referredId })
+    .from(referralsTable)
+    .where(and(eq(referralsTable.referredId, invite.userId), eq(referralsTable.referrerId, userId)))
+    .limit(1);
+  if (loop) {
+    res.json({ success: false, reason: "loop" });
+    return;
+  }
+  // Only a freshly created account can be referred (the client claims the
+  // stored ?ref= right after signup); an old account cannot be "referred".
+  const [me] = await db.select({ createdAt: usersTable.createdAt }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+  if (!me || Date.now() - me.createdAt.getTime() > 48 * 3600 * 1000) {
+    res.json({ success: false, reason: "not_new" });
     return;
   }
   await db.insert(referralsTable).values({ referredId: userId, referrerId: invite.userId, status: "pending" });
@@ -809,6 +848,28 @@ async function claimDailyReminder(userId: string): Promise<boolean> {
   }
 }
 
+// Vercel Cron sends `Authorization: Bearer $CRON_SECRET` automatically once
+// the CRON_SECRET env var exists. A User-Agent check is not authentication
+// (anyone can send "vercel-cron"), so without the secret the jobs refuse to
+// run and say why, instead of being a public push-spam button.
+function cronAuthorized(req: Request, res: Response): boolean {
+  const secret = process.env.CRON_SECRET;
+  if (!secret) {
+    req.log?.error?.("CRON_SECRET is not set; refusing cron job");
+    res.status(503).json({ error: "Cron is not configured (CRON_SECRET missing)." });
+    return false;
+  }
+  const provided = req.headers.authorization ?? "";
+  const expected = `Bearer ${secret}`;
+  const a = Buffer.from(provided);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+    res.status(401).json({ error: "Unauthorized." });
+    return false;
+  }
+  return true;
+}
+
 // ---------------------------------------------------------------------------
 // GET /cron/daily-reminders — at most ONE push per user per day, chosen by
 // priority: Sunday progress check-in → today's workout → rest-day check-off →
@@ -817,13 +878,7 @@ async function claimDailyReminder(userId: string): Promise<boolean> {
 // Triggered by Vercel Cron (16:00 UTC daily). Guarded like weekly-recap.
 // ---------------------------------------------------------------------------
 router.get("/cron/daily-reminders", async (req: Request, res: Response) => {
-  const secret = process.env.CRON_SECRET;
-  const authHeader = req.headers.authorization ?? "";
-  const fromVercelCron = (req.headers["user-agent"] ?? "").includes("vercel-cron");
-  if (secret ? authHeader !== `Bearer ${secret}` : !fromVercelCron) {
-    res.status(401).json({ error: "Unauthorized." });
-    return;
-  }
+  if (!cronAuthorized(req, res)) return;
   if (!pushConfigured()) {
     res.json({ sent: 0, reason: "push not configured" });
     return;
@@ -902,13 +957,7 @@ router.get("/cron/daily-reminders", async (req: Request, res: Response) => {
 // Triggered by Vercel Cron. Guarded by CRON_SECRET when configured.
 // ---------------------------------------------------------------------------
 router.get("/cron/weekly-recap", async (req: Request, res: Response) => {
-  const secret = process.env.CRON_SECRET;
-  const authHeader = req.headers.authorization ?? "";
-  const fromVercelCron = (req.headers["user-agent"] ?? "").includes("vercel-cron");
-  if (secret ? authHeader !== `Bearer ${secret}` : !fromVercelCron) {
-    res.status(401).json({ error: "Unauthorized." });
-    return;
-  }
+  if (!cronAuthorized(req, res)) return;
   if (!pushConfigured()) {
     res.json({ sent: 0, reason: "push not configured" });
     return;
