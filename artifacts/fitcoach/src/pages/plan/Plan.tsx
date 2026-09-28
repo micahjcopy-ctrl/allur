@@ -225,8 +225,12 @@ function WorkoutCard({
                   <span className="text-info font-semibold">{ex.sets > 1 ? `${ex.sets} sets × ${ex.reps}` : ex.reps}</span>
                   {ex.rest && ex.rest !== "—" ? <span className="text-muted-foreground"> • {ex.rest} rest</span> : ""}
                 </p>
-                <p className="text-xs text-primary/90 mt-1 flex items-center gap-1 truncate">
-                  <Gauge className="w-3 h-3 shrink-0" /> {guidance.intensityShort}
+                {/* `truncate` on a flex container never draws the ellipsis (the
+                    text is an anonymous flex item), so it was clipping mid-letter
+                    ("form breakdowr"). Truncate the span instead. */}
+                <p className="text-xs text-primary/90 mt-1 flex items-center gap-1 min-w-0">
+                  <Gauge className="w-3 h-3 shrink-0" />
+                  <span className="truncate">{guidance.intensityShort}</span>
                 </p>
               </div>
               <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
