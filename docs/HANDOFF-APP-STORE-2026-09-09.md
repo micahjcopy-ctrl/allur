@@ -327,6 +327,24 @@
 > 2880d06; **build 1.0 (7)** bump 6b8977a. Archived and uploading ~1:05 PM.
 > Build 6 was never attached in ASC (session expired); attach (7) directly.
 > Then: Add for Review on his explicit go — nothing else is outstanding.
+>
+> 1:20 PM: 1.0 (7) processed, attached to version 1.0, saved.
+>
+> **1:35 PM — still garbled on his phone after updating.** Right: the source
+> fix only changes plans built from now on. His test account's plan was
+> built by build 6 and SAVED to the server with the garbled titles, so
+> build 7 faithfully rendered the saved text. (The corruption entered the
+> repo on 2026-07-29 in 5705c00, so every plan saved since then — web and
+> iOS — carries it.) Fix: `src/lib/repairText.ts` `repairMojibakeDeep()`
+> reverses the double encoding on every string in the saved state when it
+> is hydrated (and on the signup stash); the debounced writer then persists
+> the clean text, so each account is repaired once. It only touches runs of
+> a Latin-1 lead byte + continuation bytes that decode as valid UTF-8, so
+> "café", "£10", "·", "×" are untouched (7 unit tests; full suite 89 pass).
+> Proven with `docs/app-store/pipeline/walk_garbled.mjs`: a mock account
+> whose saved plan titles are garbled → dashboard and Plan show "Full Body
+> — Squat Focus", zero suspect sequences on screen, and the PUT back to the
+> server contains the clean text. **Build 1.0 (8)** carries it.
 
 > **Status update 2026-09-11 (chat 2, later).** Supersedes the 09-10 block below
 > where they differ.
