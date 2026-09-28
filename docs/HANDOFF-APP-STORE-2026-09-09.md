@@ -309,6 +309,24 @@
 > Female is picked) → buy monthly in sandbox → lands on dashboard →
 > kill/reopen → still in → Account → Restore works. Then Add for Review on
 > his explicit go.
+>
+> **2026-09-28, 1 PM — purchase test PASSED on build 6** ("the purchase test
+> went well"): fresh account → onboarding → sandbox purchase → dashboard.
+> His screenshots showed one more real bug: plan names rendered as
+> "Full Body â≡≡ Squat Focus" on the reveal, the dashboard's Up Next card
+> and the Plan screen. Cause: `src/data/trainingKnowledge.ts`, `lib/predict.ts`,
+> `lib/prs.ts` and their two tests had every em dash / en dash / arrow /
+> rule line stored double-encoded (UTF-8 bytes re-read as Latin-1 and saved
+> again — `â\x80\x94` where `—` should be). 105 sequences repaired by
+> reversing the double encoding (latin-1 encode → utf-8 decode); a sweep of
+> every .ts/.tsx/.js/.json/.md in the repo finds no other file affected.
+> Also: the per-exercise intensity line on Plan clipped mid-letter ("form
+> breakdowr") because `truncate` on a flex `<p>` never draws the ellipsis —
+> the span is truncated now. bun test 82 pass; typecheck clean; Playwright
+> reveal shows "Full Body — Squat Focus". Commits f0a2be1, 0a82b6e, 9b76379,
+> 2880d06; **build 1.0 (7)** bump 6b8977a. Archived and uploading ~1:05 PM.
+> Build 6 was never attached in ASC (session expired); attach (7) directly.
+> Then: Add for Review on his explicit go — nothing else is outstanding.
 
 > **Status update 2026-09-11 (chat 2, later).** Supersedes the 09-10 block below
 > where they differ.
