@@ -26,8 +26,6 @@
 	<string>ALLUR uses your camera to take progress photos and to log meals by photo so it can estimate macros for you.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>ALLUR lets you choose existing photos to log a meal or add a progress picture.</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>ALLUR saves your progress photos back to your library when you ask it to.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>ALLUR uses your location while you're running or walking to track your route, distance and pace.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
