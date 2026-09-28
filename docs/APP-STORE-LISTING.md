@@ -48,8 +48,8 @@ Full gym, a pair of dumbbells, or just the floor. Sessions are built for the equ
 STAY ACCOUNTABLE
 Forgiving streaks, personal-record celebrations, and a Squad of friends to trade respect and week-long duels with.
 
-WHAT'S FREE AND WHAT'S NOT
-Building your plan and tracking workouts, weight, PRs and progress photos is free. The AI coach, photo meal logging and body scans are part of ALLUR Base.
+ONE PLAN, EVERYTHING INCLUDED
+Build your plan first, then subscribe to ALLUR Base to train with it: workouts, tracking, the AI coach, photo meal logging and body scans. Monthly or annual, cancel anytime.
 
 ALLUR BASE
 $10.99 per month, or $69.00 per year. Payment is charged to your Apple ID account at confirmation of purchase. The subscription renews automatically unless auto-renew is turned off at least 24 hours before the end of the current period. You can manage or cancel in your Apple ID account settings at any time.
@@ -134,7 +134,7 @@ Quick path to see everything: sign in → Dashboard → tap the ALLUR Score → 
 > All purchases in the iOS app go through Apple In-App Purchase (auto-renewable subscriptions com.getallur.app.base.monthly and .annual via StoreKit and the RevenueCat SDK). There is no external payment link in the binary. Subscriptions bought on the website are honoured in the app, as permitted for multiplatform services, but the app never directs users to the website to buy. Restore Purchases is on the paywall and in Account.
 
 **2.1 — "We were unable to sign in / unable to access features."**
-> The demo credentials in App Review Information are on an active ALLUR Base subscription with pre-seeded data; please retry with those. If the account shows "Free", the subscription state can be refreshed from Account → Restore purchases.
+> The demo credentials in App Review Information are on an active ALLUR Base subscription with pre-seeded data; please retry with those. If the account shows a paywall, the subscription state can be refreshed from Account → Restore purchases.
 
 **5.1.1(v) — account deletion**
 > Account → Delete account performs server-side deletion of the user's profile and durable fitness data. The confirmation explains that deleting the ALLUR account does not cancel an Apple subscription, which the user manages in their Apple ID settings.
