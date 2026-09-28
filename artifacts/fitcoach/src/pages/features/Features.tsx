@@ -37,7 +37,7 @@ const FEATURES = [
     kicker: "AI Coach",
     title: "Ask for a change.",
     highlight: "Watch your plan update.",
-    body: "Most fitness apps hand you advice and leave the work to you. ALLUR's coach edits your actual plan. Tell it your shoulder's acting up, that you've only got 30 minutes, or that you're traveling all week — it rewrites your workouts and macros on the spot, and the new plan is live the moment you agree.",
+    body: "Most fitness apps hand you advice and leave the work to you. ALLUR's coach edits your actual plan. Tell it your shoulder's acting up, that you've only got 30 minutes, or that you're traveling all week — it rewrites your workouts on the spot, and the new plan is live immediately. Your calorie and protein targets follow your logged weight and cardio automatically.",
     points: [
       "Talk to it like a real coach — it knows your history, injuries, and preferences",
       "Changes apply to your plan instantly, no copy-pasting advice between apps",
@@ -51,7 +51,7 @@ const FEATURES = [
     kicker: "Personalized workout plans",
     title: "Built from your body.",
     highlight: "Not a template.",
-    body: "Your plan starts with your goal, experience, equipment, schedule, and injuries — not a generic program with your name pasted on top. Training volume and progression follow published sports-science guidelines, the same evidence base behind our whole program engine. And when you miss a week, the plan recalibrates so a bad stretch doesn't turn into quitting.",
+    body: "Your plan starts with your goal, experience, equipment, schedule, and injuries — not a generic program with your name pasted on top. Training volume and progression follow published sports-science guidelines, the same evidence base behind our whole program engine. And when you miss a week, tell the coach — it recalibrates the plan so a bad stretch doesn't turn into quitting.",
     points: [
       "Split, volume, and progression matched to your goal",
       "Works around injuries, equipment, and the time you actually have",
@@ -97,7 +97,7 @@ function FeatureVisual({ id }: { id: string }) {
         steps={[
           { label: "You ask", sub: "text or voice", icon: MessageSquare },
           { label: "Reads your context", sub: "history, injuries", icon: Brain },
-          { label: "Rewrites the plan", sub: "workouts + macros", icon: RefreshCw },
+          { label: "Rewrites the plan", sub: "on request, instantly", icon: RefreshCw },
           { label: "Live", sub: "the moment you agree", icon: Zap },
         ]}
       />
@@ -251,7 +251,7 @@ export default function Features() {
         <div className="max-w-5xl mx-auto px-6">
           <StatRow
             stats={[
-              { value: 3, label: "Free / Base / Premium tiers" },
+              { value: 2, label: "Plans: Base and Premium" },
               { value: 48, label: "% saved paying yearly" },
               { value: 4, label: "AI tools in one app" },
               { value: 24, suffix: "/7", label: "Coach in your pocket" },
@@ -313,7 +313,7 @@ export default function Features() {
             columns={["", "ALLUR", "Passive tracker", "Generic app"]}
             rows={[
               { label: "Edits your actual plan", cells: [true, false, false] },
-              { label: "Adapts when you miss a week", cells: [true, false, false] },
+              { label: "Recalibrates after a missed week", cells: [true, false, false] },
               { label: "Photo calorie + macro logging", cells: [true, "Manual", false] },
               { label: "AI physique analysis", cells: [true, false, false] },
               { label: "Built around your body & injuries", cells: [true, false, "Template"] },
