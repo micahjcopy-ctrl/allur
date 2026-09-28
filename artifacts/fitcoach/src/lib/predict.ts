@@ -1,8 +1,8 @@
 // ---------------------------------------------------------------------------
-// Predictive next-set logging â "ALLUR knows what you should lift next".
+// Predictive next-set logging — "ALLUR knows what you should lift next".
 //
 // Pure, explainable progressive-overload logic over the existing workout
-// history (WorkoutSession[]). No AI, no dependencies â it reads the last logged
+// history (WorkoutSession[]). No AI, no dependencies — it reads the last logged
 // weight for an exercise and either advances the load (if the lifter hit their
 // target reps) or holds it (build reps first). Deterministic + unit-tested.
 // ---------------------------------------------------------------------------
@@ -30,7 +30,7 @@ export function roundToStep(weight: number, unit: "kg" | "lb"): number {
   return Math.round(weight / step) * step;
 }
 
-/** Top of a target rep range: "8-12" -> 12, "10" -> 10, "8â10 reps" -> 10. */
+/** Top of a target rep range: "8-12" -> 12, "10" -> 10, "8–10 reps" -> 10. */
 export function topTargetReps(targetReps: string): number {
   const nums = (targetReps.match(/\d+/g) ?? []).map(Number);
   return nums.length ? Math.max(...nums) : 0;
@@ -110,8 +110,8 @@ export function suggestWeight(
 
   const progressed = hit && weight > lastShown;
   const rationale = progressed
-    ? `Up from ${lastShown} ${displayUnit} â you hit your reps last time`
-    : `Same as last time â lock in your reps first`;
+    ? `Up from ${lastShown} ${displayUnit} — you hit your reps last time`
+    : `Same as last time — lock in your reps first`;
 
   return { weight, unit: displayUnit, rationale, progressed };
 }

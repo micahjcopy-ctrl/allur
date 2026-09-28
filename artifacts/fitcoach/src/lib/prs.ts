@@ -1,11 +1,11 @@
 // ---------------------------------------------------------------------------
-// Auto PR detection â "records the moment they happen".
+// Auto PR detection — "records the moment they happen".
 //
 // Pure logic over the finished workout history. When a session is completed we
 // compare each logged lift against every prior instance (estimated-1RM basis,
 // canonical kg) and surface the ones that beat the old best. Sessions log a
 // working weight (reps optional), so a weight PR is the common case. The hits
-// drive both the celebration overlay and the auto-populated PR list â which
+// drive both the celebration overlay and the auto-populated PR list — which
 // then feed the share-card growth loop.
 // ---------------------------------------------------------------------------
 
