@@ -60,7 +60,7 @@ const JOURNEY = [
   {
     step: "03",
     title: "Coach through anything",
-    desc: "Shorter session? Tweaky knee? Not sure what to change? Ask the AI coach — it answers, then updates your plan the moment you approve.",
+    desc: "Shorter session? Tweaky knee? Not sure what to change? Ask the AI coach — it answers, then updates your plan on the spot.",
     Screen: CoachScreen,
     callout: { icon: Brain, label: "Plan updated", value: "Live" }
   },
@@ -1019,7 +1019,7 @@ export default function Landing() {
               {
                 icon: Brain,
                 title: "An AI coach that adapts",
-                outcomes: ["Answers questions in your context", "Updates your plan the moment you approve"]
+                outcomes: ["Answers questions in your context", "Updates your plan the moment you ask"]
               },
               {
                 icon: Zap,
@@ -1251,7 +1251,7 @@ export default function Landing() {
               steps={[
                 { label: "Life hits", sub: "injury, 30 min, travel", icon: Zap },
                 { label: "Coach adjusts", sub: "reads your context", icon: Brain },
-                { label: "Plan adapts", sub: "workouts + macros", icon: Activity },
+                { label: "Plan adapts", sub: "workouts + targets", icon: Activity },
                 { label: "Progress holds", sub: "you keep going", icon: LineChart },
               ]}
             />
