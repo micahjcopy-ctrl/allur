@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { spendCredit, refundCredit, type CreditType } from "./credits";
+import { spendCredit, refundCredit, getUserPlan, type CreditType } from "./credits";
 
 export interface CreditCharge {
   /** Give the spent credit back — call when the paid call fails after spending. */
@@ -51,4 +51,30 @@ export async function requireCredit(
       await refundCredit(userId, type);
     },
   };
+}
+
+/**
+ * Auth-gate an endpoint for SUBSCRIBERS without spending a credit. For the
+ * system-initiated or ancillary AI calls (plan rebalance after a scan, voice
+ * transcription, plate-weight reading, onboarding plan adaptation) that ride
+ * along with a feature the user already pays for.
+ *
+ * On failure it has ALREADY written the response (401 unauthenticated / 403
+ * free plan) and returns false — the caller must just `return`.
+ */
+export async function requireSubscriber(req: Request, res: Response): Promise<boolean> {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Please sign in to use this feature." });
+    return false;
+  }
+  const plan = await getUserPlan(req.user.id);
+  if (plan === "free") {
+    res.status(403).json({
+      error:
+        "This feature is part of ALLUR Base. Subscribe to unlock your AI coach, plan updates, and macro tracking.",
+      type: "needs_subscription",
+    });
+    return false;
+  }
+  return true;
 }
