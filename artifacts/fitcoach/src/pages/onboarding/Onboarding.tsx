@@ -60,7 +60,7 @@ const PAST_FAILURES: { label: string; fix: string }[] = [
   { label: "Started strong, life got busy", fix: "adapts to your week" },
   { label: "Generic plans I couldn't stick to", fix: "built only for you" },
   { label: "Never knew if I was doing it right", fix: "AI coach checks you" },
-  { label: "No time / unpredictable schedule", fix: "15-min busy-day versions" },
+  { label: "No time / unpredictable schedule", fix: "ask the coach for a shorter day" },
   { label: "Results too slow — lost motivation", fix: "visible weekly progress" },
   { label: "Injuries got in the way", fix: "trains around your limits" },
 ];
@@ -415,7 +415,9 @@ export default function Onboarding() {
     if (!built) return null;
     const first = built.plan[0];
     const dur = first ? Math.round(first.exercises.length * 9 + 6) : 40;
-    const shoulderSafe = profile.injuries.includes("Shoulder");
+    // Only the signed-in LLM pass reads injuries; the anonymous funnel plan
+    // is template + equipment, so it must not claim to be injury-adjusted.
+    const shoulderSafe = !!authUser && profile.injuries.includes("Shoulder");
     const dayTitle = (i: number) => {
       const w = built.plan.find((d) => d.dayName === DAYS_FULL[i]);
       return w ? w.title.split(" ")[0] : null;
@@ -441,7 +443,13 @@ export default function Onboarding() {
         ? `${built.meta.splitName} — ${built.meta.daysPerWeek}×/week, matched to the days you gave us.`
         : `${built.meta.splitName} — ${built.meta.daysPerWeek}×/week, built for your ${goal ?? "training"} goal.`,
     );
-    if (profile.injuries.length) why.push(`Adjusted around your ${profile.injuries.join(", ").toLowerCase()} so nothing aggravates it.`);
+    if (profile.injuries.length) {
+      why.push(
+        authUser
+          ? `Adjusted around your ${profile.injuries.join(", ").toLowerCase()} so nothing aggravates it.`
+          : `Your ${profile.injuries.join(", ").toLowerCase()} note is saved — your coach trains around it from day one.`,
+      );
+    }
     if (pastFailures.some((f) => /generic/i.test(f))) why.push(`You said generic plans never stuck — this one is built only from your answers.`);
     else if (profile.equipment.length) why.push(`Only movements your setup allows: ${profile.equipment.slice(0, 2).join(", ").toLowerCase()}.`);
     return { first, dur, shoulderSafe, dayTitle, sessions, why: why.slice(0, 3) };
@@ -748,7 +756,6 @@ export default function Onboarding() {
                     </li>
                   ))}
                 </ul>
-                <div className="mt-3 inline-flex text-[11px] font-bold text-primary bg-primary/10 border border-primary/30 rounded-full px-2.5 py-1">◔ Busy-day {busyDay} version ready</div>
               </div>
 
               <div className="rounded-2xl border border-border bg-card p-4 mb-3 space-y-2 text-sm">
