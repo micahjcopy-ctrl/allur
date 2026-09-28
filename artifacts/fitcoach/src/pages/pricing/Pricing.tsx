@@ -6,68 +6,54 @@ import { StatRow } from "@/components/marketing/Graphics";
 
 const TIERS = [
   {
-    name: "Free",
-    price: "$0",
-    cadence: "forever",
-    tagline: "Build your plan and start tracking.",
-    cta: "Get started free",
-    highlight: false,
-    features: [
-      "Personalized training plan",
-      "Guided onboarding",
-      "Daily dashboard",
-      "Weight, PR & progress-photo tracking",
-    ],
-  },
-  {
     name: "Base",
     price: "$10.99",
     cadence: "/mo",
-    tagline: "Your AI coach, unlocked.",
+    tagline: "Your plan, your AI coach, your tracking.",
     cta: "Get ALLUR Base",
-    highlight: false,
+    highlight: true,
     note: "Or $69/year — save ~48%. Cancel anytime.",
     features: [
-      "Everything in Free",
-      "AI Coach (50 conversations / mo)",
-      "Photo meal logging (150 / mo)",
-      "AI body scans (20 / mo)",
-      "AI plan adjustments",
+      "Personalized training plan and daily dashboard",
+      "Workout logging with PR detection",
+      "Weight, progress-photo and cardio tracking",
+      "AI Coach, text and voice (50 conversations / mo)",
+      "Photo and text meal logging (150 / mo)",
+      "AI body scans with plan rebalancing (20 / mo)",
     ],
   },
   {
     name: "Premium",
     price: "$29.99",
     cadence: "/mo",
-    tagline: "Maximum adaptation, no limits.",
+    tagline: "No monthly limits.",
     cta: "Get Premium",
-    highlight: true,
+    highlight: false,
+    note: "Available on the web.",
     features: [
       "Everything in Base",
       "Unlimited AI coach conversations",
-      "Unlimited photo meal logging",
+      "Unlimited meal logging",
       "Unlimited AI body scans",
-      "Voice notes with the AI coach",
-      "Priority plan rebalancing",
+      "Unlimited squad duels",
     ],
   },
 ];
 
-const COMPARISON: { label: string; free: string | boolean; base: string | boolean; premium: string | boolean }[] = [
-  { label: "Personalized training plan", free: true, base: true, premium: true },
-  { label: "Dashboard & progress tracking", free: true, base: true, premium: true },
-  { label: "AI Coach conversations", free: false, base: "50 / mo", premium: "Unlimited" },
-  { label: "Photo meal logging", free: false, base: "150 / mo", premium: "Unlimited" },
-  { label: "AI physique / body scans", free: false, base: "20 / mo", premium: "Unlimited" },
-  { label: "AI plan adjustments", free: false, base: true, premium: true },
-  { label: "Voice coaching", free: false, base: false, premium: true },
-  { label: "Priority rebalancing", free: false, base: false, premium: true },
+const COMPARISON: { label: string; base: string | boolean; premium: string | boolean }[] = [
+  { label: "Personalized training plan", base: true, premium: true },
+  { label: "Dashboard & progress tracking", base: true, premium: true },
+  { label: "AI Coach conversations (text & voice)", base: "50 / mo", premium: "Unlimited" },
+  { label: "Meal logging (photo & text)", base: "150 / mo", premium: "Unlimited" },
+  { label: "AI physique / body scans", base: "20 / mo", premium: "Unlimited" },
+  { label: "AI plan adjustments", base: true, premium: true },
+  { label: "Squad duels", base: "1 at a time", premium: "Unlimited" },
 ];
 
 const FAQ = [
   {
-    q: "Is there really a free plan?",
-    a: "Yes. You can build your personalized plan and track your workouts, weight, PRs, and progress photos for free — no card required. The AI coach, photo meal logging, and body scans are part of the paid plans.",
+    q: "Is there a free plan or a trial?",
+    a: "No. You build your plan first, then subscribe to ALLUR Base to start training with it. Billing starts the day you subscribe, and you can cancel anytime.",
   },
   {
     q: "Can I pay monthly or yearly?",
@@ -75,11 +61,11 @@ const FAQ = [
   },
   {
     q: "What happens if I hit my Base limits?",
-    a: "Base includes a generous monthly allowance (50 coach conversations, 150 meal logs, 20 body scans). If you want no limits at all, you can upgrade to Premium anytime for unlimited everything.",
+    a: "Base includes a monthly allowance (50 coach conversations, 150 meal logs, 20 body scans). If you want no limits, Premium is available on the web for unlimited everything.",
   },
   {
     q: "Can I cancel or switch plans anytime?",
-    a: "Absolutely. Upgrade, downgrade, or cancel from your account in a couple of taps. If you cancel, you keep access through the end of your billing period and your data stays put.",
+    a: "Yes. On the web, manage your plan from your account. In the iOS app, subscriptions are managed through your Apple ID. If you cancel, you keep access through the end of your billing period and your data stays put.",
   },
 ];
 
@@ -92,9 +78,9 @@ export default function Pricing() {
   const signup = () => go("/onboarding");
 
   useSeo({
-    title: "Pricing — ALLUR AI Fitness Coach ($0, $10.99, $29.99)",
+    title: "Pricing — ALLUR AI Fitness Coach ($10.99/mo or $69/yr)",
     description:
-      "Simple ALLUR pricing: a free plan to build and track, Base at $10.99/mo (or $69/yr) for full AI coaching, and Premium at $29.99/mo for unlimited everything.",
+      "Simple ALLUR pricing: Base at $10.99/mo (or $69/yr) for your plan, AI coaching and tracking, and Premium at $29.99/mo on the web for unlimited everything.",
     path: "/pricing",
   });
 
@@ -122,7 +108,6 @@ export default function Pricing() {
         <div className="max-w-4xl mx-auto px-6">
           <StatRow
             stats={[
-              { value: 0, prefix: "$", label: "Free plan, forever" },
               { value: 10.99, prefix: "$", decimals: 2, label: "Base per month" },
               { value: 69, prefix: "$", decimals: 0, label: "Base per year" },
               { value: 29.99, prefix: "$", decimals: 2, label: "Premium per month" },
@@ -134,7 +119,7 @@ export default function Pricing() {
       {/* TIERS */}
       <section className="pb-8 md:pb-12">
         <div className="max-w-6xl mx-auto px-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch max-w-3xl mx-auto">
             {TIERS.map((t) => (
               <div
                 key={t.name}
@@ -222,9 +207,8 @@ export default function Pricing() {
             </h2>
           </div>
           <div className="lp-card overflow-hidden">
-            <div className="grid grid-cols-4 px-5 py-4 text-sm font-semibold text-[var(--lp-text)] border-b border-[var(--lp-border)]">
+            <div className="grid grid-cols-3 px-5 py-4 text-sm font-semibold text-[var(--lp-text)] border-b border-[var(--lp-border)]">
               <div className="col-span-1">Feature</div>
-              <div className="text-center">Free</div>
               <div className="text-center">Base</div>
               <div className="text-center" style={{ color: "var(--lp-cyan)" }}>
                 Premium
@@ -233,7 +217,7 @@ export default function Pricing() {
             {COMPARISON.map((row, i) => (
               <div
                 key={row.label}
-                className="grid grid-cols-4 px-5 py-4 text-sm items-center"
+                className="grid grid-cols-3 px-5 py-4 text-sm items-center"
                 style={{
                   borderBottom:
                     i < COMPARISON.length - 1
@@ -243,7 +227,6 @@ export default function Pricing() {
                 }}
               >
                 <div className="col-span-1 text-[var(--lp-body)]">{row.label}</div>
-                <Cell value={row.free} />
                 <Cell value={row.base} />
                 <Cell value={row.premium} highlight />
               </div>
