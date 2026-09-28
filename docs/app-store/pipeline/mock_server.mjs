@@ -20,7 +20,7 @@ const api = {
   "PUT /api/me/fitness-state": { success: true, updatedAt: now.toISOString() },
   "GET /api/me/subscription": STATE ? { plan: "base", status: "active", trialEnd: null, currentPeriodEnd: periodEnd, cancelAtPeriodEnd: false, hasEverSubscribed: true } : { plan: "premium", status: "active", trialEnd: null, currentPeriodEnd: null, cancelAtPeriodEnd: false, hasEverSubscribed: true },
   "GET /api/me/credits": { plan: STATE ? "base" : "premium", credits: { coaching: 42, photo: 27, bodyScan: 3 }, periodStart: new Date(now.getTime() - 5 * 864e5).toISOString() },
-  "GET /api/squad/overview": { plan: "premium", inviteCode: "ALLUR-DEMO", reps: { week: 340 }, momentum: { weeks: 4, state: "active", currentWeekReps: 340 }, soloChallenge: null, friends: [], duels: [], notifications: [], unreadCount: 0, quests: ["tour_complete","first_meal","first_workout","first_scan","first_friend"] },
+  "GET /api/squad/overview": { plan: "premium", inviteCode: "ALLUR-DEMO", reps: { week: 340 }, momentum: { weeks: 4, state: "active", currentWeekReps: 340 }, soloChallenge: { target: 250, current: 120, bonus: 100, done: false }, friends: [], duels: [], notifications: [], unreadCount: 0, quests: ["tour_complete","first_meal","first_workout","first_scan","first_friend"] },
   "GET /api/healthz": { ok: true },
 };
 
