@@ -1,5 +1,7 @@
 # ALLUR — App Store Handoff
 
+> **STATUS 2026-09-29: version 1.0 (build 9) + both subscriptions + the subscription group are SUBMITTED and Waiting for Review (11:07 AM). Manual Release is set — approval publishes nothing until Micah clicks Release. Details in the 2026-09-29 block below.**
+
 > **2026-09-17 — BUILD 1.0 (1) IS UPLOADED to App Store Connect.** Archive
 > built in Xcode 26.6 from `~/Downloads/allur-ios` (web bundle from `main`
 > eca8b2b), Distribute → App Store Connect, upload complete 4:26 PM ET.
@@ -398,6 +400,20 @@
 > cron routes now answer 401 without auth (were 503). **Nothing is
 > outstanding before Add for Review — only his explicit "submit".** On that
 > go: Add for Review → add both subscriptions to the submission → Submit.
+>
+> **2026-09-29, 11:07 AM — SUBMITTED TO APP REVIEW.** Micah's explicit
+> "Submit" (after a straight risk read: build 9 never ran on a phone; Manual
+> Release + Remove-from-Review make that recoverable). Status: **1.0 Waiting
+> for Review, 4 items** — iOS App 1.0 (9), ALLUR Base Monthly, ALLUR Base
+> Annual, and the **ALLUR Membership subscription group**. Gotcha: adding the
+> two subscriptions alone left the draft with "must be submitted with its
+> subscription group" and Submit disabled; the group has its OWN "Add for
+> Review" button on its page (Subscriptions → ALLUR Membership). After
+> adding it the panel needed a page reload before Submit went active.
+> Apple: up to 48 h, email on completion. If review rejects or a phone
+> test finds a bug: App Review → Remove from Review, fix, build 10,
+> resubmit. On approval nothing goes live until Micah clicks Release
+> (Manual Release is set).
 
 > **Status update 2026-09-11 (chat 2, later).** Supersedes the 09-10 block below
 > where they differ.
