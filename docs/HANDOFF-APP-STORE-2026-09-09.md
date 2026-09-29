@@ -414,6 +414,19 @@
 > test finds a bug: App Review → Remove from Review, fix, build 10,
 > resubmit. On approval nothing goes live until Micah clicks Release
 > (Manual Release is set).
+>
+> **2026-09-29, ~11:45 AM — TestFlight public link.** Micah asked to invite
+> outside testers. External group **ALLUR Beta** (TestFlight → External
+> Testing), build 1.0 (9) added → Beta App Review "Waiting for Review";
+> public link **https://testflight.apple.com/join/jWFg9ykV** (open to anyone,
+> no cap) — dead until Apple approves the build for beta. Test Information
+> page filled: beta description, feedback raiden@getallur.com, marketing +
+> privacy URLs, review contact (Michael Jacobi, +1 805 220 8303,
+> micahjcopy@gmail.com), Sign-in required with the `allurreview` demo
+> account. Gotcha: Micah first typed a personal password there; the TestFlight
+> review password must equal the App Store review one (he copy-pasted it
+> across — Claude never types passwords, it only selects the field). Testers
+> pay nothing (sandbox); their accounts are real production accounts.
 
 > **Status update 2026-09-11 (chat 2, later).** Supersedes the 09-10 block below
 > where they differ.
