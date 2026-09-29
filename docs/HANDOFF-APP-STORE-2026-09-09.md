@@ -388,6 +388,16 @@
 > Archive. Note: the Mac's Cowork VM rebooted mid-session once (a
 > `setsid nohup` vite build died with it) — run the 5-second build in the
 > foreground instead.
+>
+> **2026-09-29, ~11 AM** — build 1.0 (9) processed (TestFlight email 10:44),
+> attached to ASC version 1.0 and saved; the description's "WHAT'S FREE"
+> paragraph replaced with "ONE PLAN, EVERYTHING INCLUDED" (select the old
+> text in the textarea via JS `setSelectionRange`, then the extension's
+> `type` action over the selection — real keystrokes, so it saved). Micah
+> pasted a real `CRON_SECRET` value in Vercel and the redeploy is live: both
+> cron routes now answer 401 without auth (were 503). **Nothing is
+> outstanding before Add for Review — only his explicit "submit".** On that
+> go: Add for Review → add both subscriptions to the submission → Submit.
 
 > **Status update 2026-09-11 (chat 2, later).** Supersedes the 09-10 block below
 > where they differ.
@@ -818,7 +828,7 @@ text, no mascot — *"no teal elephant bs thats not our vibe."*
 - Apply for the Apple Small Business Program (Step 2.3)
 - Store the .p8 file somewhere durable (password manager, not Downloads)
 - ~~Paste the two RevenueCat env vars into Vercel (Step 1.4)~~ done 2026-09-11
-- **Edit `CRON_SECRET` in Vercel** (allur → Settings → Environment Variables → row `…` → Edit) — the variable exists but is empty; paste any long random string, Save, then redeploy. Since 2026-09-28 the two cron routes return 503 until this is done (Vercel sends the value as the Bearer token automatically). Verify: `/api/cron/daily-reminders` with no auth goes 503 → 401.
+- ~~Edit `CRON_SECRET` in Vercel~~ done 2026-09-29 — was:  (allur → Settings → Environment Variables → row `…` → Edit) — the variable exists but is empty; paste any long random string, Save, then redeploy. Since 2026-09-28 the two cron routes return 503 until this is done (Vercel sends the value as the Bearer token automatically). Verify: `/api/cron/daily-reminders` with no auth goes 503 → 401.
 - Revoke the old GitHub PAT
 - Decide: keep web and app prices identical, or not
 
