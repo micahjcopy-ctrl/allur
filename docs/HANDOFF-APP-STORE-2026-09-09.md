@@ -345,6 +345,47 @@
 > whose saved plan titles are garbled → dashboard and Plan show "Full Body
 > — Squat Focus", zero suspect sequences on screen, and the PUT back to the
 > server contains the clean text. **Build 1.0 (8)** carries it.
+>
+> **2026-09-28, evening — full capability audit, then the fixes. Build 1.0 (9).**
+> Micah asked for a front-to-back roll call ("every capability honestly, does
+> it actually work, stress test"). Result: `docs/AUDIT-2026-09-28.md` (also a
+> Google Doc) — 109 API checks and 74 client checks against a local Postgres +
+> the real API with a mock OpenAI; scripts in `docs/app-store/pipeline/`
+> (`api_audit.mjs`, `client_sweep.mjs`, `mock_openai.mjs`, `mock_server.mjs`,
+> `run_api_local.sh`). He chose "remove the free-tier claims" over building a
+> free tier. The fix batch (22 commits, 2348d3a…9453aa9; all typechecks + 89/16/13
+> tests pass; api_audit 106/109, client_sweep 70/74 — the leftovers are
+> unbuilt features and local-only Stripe config):
+>
+> Review blockers: native locked-feature cards open `/paywall` instead of
+> Stripe (3.1.1); Account treats the shell as native before IAP loads; legal
+> pages render bare inside the app (no website nav/pricing links); web-only
+> routes (`/get`, `/pricing`, `/features`, `/about`, `/home`) bounce to `/` in
+> the app and the install prompt is hidden; unused
+> `NSPhotoLibraryAddUsageDescription` dropped from both Info.plists.
+> Money/access: `requireSubscriber` gates adapt-plan, personalize-plan,
+> transcribe and analyze-weight (free accounts got 200s before); 413 on chat
+> histories over 40k chars; referral claims refuse loops and accounts older
+> than 48h, and rewards settle only on a real paid subscription; squad quest
+> creation is serialized with an advisory lock (no duplicate quests);
+> RevenueCat webhook ignores unknown user ids instead of 500ing; delete-account
+> cancels Stripe subscriptions and kills every session; reset-password kills
+> sessions; **cron routes now require `CRON_SECRET`** (503 until it is set in
+> Vercel — Micah pastes it; see Part 7). Copy: Pricing/Features/Landing/Terms/
+> index.html JSON-LD/listing all say two paid plans, no free tier, no trial,
+> no auto-recalibration claim; Refer/Squad links go to getallur.com. Client:
+> credits show used/limit for all three buckets; macros follow the latest
+> logged weight; unit toggles convert values; score detail shows the current
+> streak; meal re-analyze uses `apiFetch` (was a bare `/api` path that 404s in
+> the app); saved-state writes retry every 20 s while dirty and flush on
+> `pagehide`/`visibilitychange`.
+>
+> Build 9: bundle from main 9453aa9 (`index-C7EeX0fu.js`, 163 files, md5
+> lists match), Mac pbxproj 8→9 (backup `~/project.pbxproj.bak-build9-*`),
+> archived from Xcode via File → Open Recent → App.xcodeproj → Product →
+> Archive. Note: the Mac's Cowork VM rebooted mid-session once (a
+> `setsid nohup` vite build died with it) — run the 5-second build in the
+> foreground instead.
 
 > **Status update 2026-09-11 (chat 2, later).** Supersedes the 09-10 block below
 > where they differ.
@@ -774,7 +815,8 @@ text, no mascot — *"no teal elephant bs thats not our vibe."*
 - Confirm the RevenueCat account email (verification was pending)
 - Apply for the Apple Small Business Program (Step 2.3)
 - Store the .p8 file somewhere durable (password manager, not Downloads)
-- Paste the two RevenueCat env vars into Vercel (Step 1.4)
+- ~~Paste the two RevenueCat env vars into Vercel (Step 1.4)~~ done 2026-09-11
+- **Paste `CRON_SECRET` into Vercel (Production)** — any long random string; since 2026-09-28 the two cron routes return 503 without it (Vercel sends it as the Bearer token automatically). Redeploy after.
 - Revoke the old GitHub PAT
 - Decide: keep web and app prices identical, or not
 
