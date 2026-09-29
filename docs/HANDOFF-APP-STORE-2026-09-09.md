@@ -370,8 +370,10 @@
 > creation is serialized with an advisory lock (no duplicate quests);
 > RevenueCat webhook ignores unknown user ids instead of 500ing; delete-account
 > cancels Stripe subscriptions and kills every session; reset-password kills
-> sessions; **cron routes now require `CRON_SECRET`** (503 until it is set in
-> Vercel — Micah pastes it; see Part 7). Copy: Pricing/Features/Landing/Terms/
+> sessions; **cron routes now require `CRON_SECRET`**. Vercel has had a
+> `CRON_SECRET` variable since Jul 6, but production returns 503 = the value
+> is empty at runtime, so Micah must **edit** it with a real value in the
+> Vercel UI and redeploy (see Part 7). Copy: Pricing/Features/Landing/Terms/
 > index.html JSON-LD/listing all say two paid plans, no free tier, no trial,
 > no auto-recalibration claim; Refer/Squad links go to getallur.com. Client:
 > credits show used/limit for all three buckets; macros follow the latest
@@ -816,7 +818,7 @@ text, no mascot — *"no teal elephant bs thats not our vibe."*
 - Apply for the Apple Small Business Program (Step 2.3)
 - Store the .p8 file somewhere durable (password manager, not Downloads)
 - ~~Paste the two RevenueCat env vars into Vercel (Step 1.4)~~ done 2026-09-11
-- **Paste `CRON_SECRET` into Vercel (Production)** — any long random string; since 2026-09-28 the two cron routes return 503 without it (Vercel sends it as the Bearer token automatically). Redeploy after.
+- **Edit `CRON_SECRET` in Vercel** (allur → Settings → Environment Variables → row `…` → Edit) — the variable exists but is empty; paste any long random string, Save, then redeploy. Since 2026-09-28 the two cron routes return 503 until this is done (Vercel sends the value as the Bearer token automatically). Verify: `/api/cron/daily-reminders` with no auth goes 503 → 401.
 - Revoke the old GitHub PAT
 - Decide: keep web and app prices identical, or not
 
