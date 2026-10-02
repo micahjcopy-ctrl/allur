@@ -1,6 +1,6 @@
 # ALLUR — App Store Handoff
 
-> **STATUS 2026-09-29: version 1.0 (build 9) + both subscriptions + the subscription group are SUBMITTED and Waiting for Review (11:07 AM). Manual Release is set — approval publishes nothing until Micah clicks Release. Details in the 2026-09-29 block below.**
+> **STATUS 2026-10-01: version 1.0 (build 9) was REJECTED on 2026-09-30 under Guideline 2.1 "Information Needed" (new-developer check, not a bug). The 7-item reply + screen recording was SENT 2026-10-01 8:56 PM ET; waiting for Apple. No resubmit needed. TestFlight public link is live: https://testflight.apple.com/join/jWFg9ykV. Manual Release is set. Details in the 2026-09-30 / 10-01 blocks below.**
 
 > **2026-09-17 — BUILD 1.0 (1) IS UPLOADED to App Store Connect.** Archive
 > built in Xcode 26.6 from `~/Downloads/allur-ios` (web bundle from `main`
@@ -427,6 +427,34 @@
 > review password must equal the App Store review one (he copy-pasted it
 > across — Claude never types passwords, it only selects the field). Testers
 > pay nothing (sandbox); their accounts are real production accounts.
+>
+> **2026-09-30 — REJECTED: Guideline 2.1 "Information Needed – New App
+> Submission"** (Apple, 12:16 AM ET). Not a bug: a new-developer check asking
+> for (1) a screen recording from a physical device showing launch → signup →
+> paywall (title/length/price + Terms/Privacy links) → purchase → features →
+> account deletion → login, plus (2) purpose/audience, (3) access instructions
+> + credentials, (4) external services, (5) regional differences, (6)
+> regulated-industry/third-party material, (7) IAP overview — replied in ASC
+> AND added to App Review Information → Notes. Done: notes appended (3,023
+> chars, saved); Micah recorded 5:55 on his iPhone, AirDropped to Downloads,
+> compressed in the sandbox (ffmpeg, 720p/15fps/crf30, 308 MB → 5.8 MB —
+> the Chrome upload tool caps at 10 MB; legal line still legible) and
+> attached; reply text in `docs/app-store/REVIEW-REPLY-2026-09-30.md`
+> (ASC reply box caps at 4,000 chars). Reply SENT 2026-10-01 8:56 PM ET on
+> Micah's go. No resubmit needed for an information request (Apple's email
+> says so); status stays "Rejected/Unresolved" until Apple answers.
+> Recording caveats, both accepted: Terms/Privacy links are visible on the
+> paywall but weren't tapped; the sandbox Apple ID already had an active test
+> subscription so StoreKit showed "You're currently subscribed" instead of a
+> purchase sheet (explained in the reply). Possible future nit: paywall cards
+> say "Annual"/"Monthly", not the full "ALLUR Base …" product names.
+> Demo-account password mismatch gotcha: the TestFlight Test Information
+> password must equal the App Review one; Micah copy-pasted it across.
+>
+> **2026-10-01 — TestFlight public link is LIVE.** Beta App Review approved
+> build 1.0 (9) for the ALLUR Beta external group;
+> https://testflight.apple.com/join/jWFg9ykV now accepts testers (0 joined as
+> of 9 PM ET).
 
 > **Status update 2026-09-11 (chat 2, later).** Supersedes the 09-10 block below
 > where they differ.
